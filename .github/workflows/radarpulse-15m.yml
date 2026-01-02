@@ -16,40 +16,146 @@ jobs:
 
     steps:
       - name: Dispatcher + Worker (drain queue)
+        shell: bash
         env:
           SUPABASE_REF: ${{ secrets.SUPABASE_REF }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          MAX_WORKER_CALLS: "80"
+          CURL_MAX_TIME: "25"
+          CURL_RETRIES: "2"
+          SLEEP_BETWEEN_CALLS_MS: "0"
         run: |
           set -euo pipefail
 
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+
+          if [ -z "${SUPABASE_REF:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "Missing secrets: SUPABASE_REF or SUPABASE_ANON_KEY"
+            exit 1
+          fi
+
           BASE="https://${SUPABASE_REF}.supabase.co/functions/v1"
-          H1="apikey: ${SUPABASE_ANON_KEY}"
-          H2="Authorization: Bearer ${SUPABASE_ANON_KEY}"
-          H3="Content-Type: application/json"
+
+          H_APIKEY="apikey: ${SUPABASE_ANON_KEY}"
+          H_AUTH="Authorization: Bearer ${SUPABASE_ANON_KEY}"
+          H_CT="Content-Type: application/json"
+
+          CURL_OPTS=(
+            -sS
+            --max-time "${CURL_MAX_TIME}"
+            --retry "${CURL_RETRIES}"
+            --retry-all-errors
+            --retry-delay 1
+          )
+
+          sleep_ms() {
+            local ms="${1:-0}"
+            if [ -z "${ms}" ] || [ "${ms}" = "0" ]; then return 0; fi
+            python3 - <<'PY'
+          import os, time
+          ms = float(os.environ.get("SLEEP_MS", "0"))
+          time.sleep(ms/1000.0)
+          PY
+          }
+
+          split_http() {
+            local resp="$1"
+            HTTP_CODE="${resp##*$'\n'}"
+            HTTP_BODY="${resp%$'\n'*}"
+          }
+
+          assert_json_file() {
+            local file="$1"
+            if ! jq . < "${file}" >/dev/null 2>&1; then
+              echo "NON_JSON_RESPONSE:"
+              cat "${file}" || true
+              exit 1
+            fi
+          }
+
+          post_json() {
+            local url="$1"
+            local body="$2"
+            local resp
+            resp="$(curl "${CURL_OPTS[@]}" -w $'\n%{http_code}' -X POST "${url}" \
+              -H "${H_APIKEY}" -H "${H_AUTH}" -H "${H_CT}" -d "${body}" || true)"
+            split_http "${resp}"
+            printf '%s' "${HTTP_BODY}" > /tmp/resp.json
+
+            if ! [[ "${HTTP_CODE}" =~ ^[0-9]{3}$ ]]; then
+              echo "HTTP_CODE_PARSE_ERROR: ${HTTP_CODE}"
+              cat /tmp/resp.json || true
+              exit 1
+            fi
+
+            assert_json_file /tmp/resp.json
+
+            if [ "${HTTP_CODE}" -ge 400 ]; then
+              echo "HTTP_ERROR ${HTTP_CODE}:"
+              jq . < /tmp/resp.json
+              exit 1
+            fi
+
+            jq . < /tmp/resp.json
+          }
 
           echo "==> dispatcher"
-          DISP=$(curl -sS -X POST "${BASE}/dispatcher" -H "${H1}" -H "${H2}" -H "${H3}" -d '{}' )
-          echo "${DISP}" | jq .
+          post_json "${BASE}/dispatcher" '{}'
 
-          echo "==> worker loop (drain queue)"
-          for i in $(seq 1 25); do
-            RES=$(curl -sS -X POST "${BASE}/worker" -H "${H1}" -H "${H2}" -H "${H3}" -d '{}' || true)
+          echo "==> worker drain"
+          max_calls="${MAX_WORKER_CALLS}"
 
-            echo "${RES}" | jq . >/dev/null 2>&1 || { echo "Non-JSON response:"; echo "${RES}"; exit 1; }
+          inserted_total=0
+          updated_total=0
+          events_total=0
+          jobs_done=0
 
-            OK=$(echo "${RES}" | jq -r '.ok // false')
-            MSG=$(echo "${RES}" | jq -r '.message // ""')
+          for i in $(seq 1 "${max_calls}"); do
+            echo "-- worker call #${i}"
 
-            echo "worker[$i] => ok=${OK} message=${MSG}"
-            echo "${RES}" | jq .
+            resp="$(curl "${CURL_OPTS[@]}" -w $'\n%{http_code}' -X POST "${BASE}/worker" \
+              -H "${H_APIKEY}" -H "${H_AUTH}" -H "${H_CT}" -d '{}' || true)"
+            split_http "${resp}"
+            printf '%s' "${HTTP_BODY}" > /tmp/worker.json
 
-            if [ "${OK}" = "true" ] && [ "${MSG}" = "no_jobs" ]; then
+            assert_json_file /tmp/worker.json
+
+            if [ "${HTTP_CODE}" -ge 400 ]; then
+              echo "WORKER_HTTP_ERROR ${HTTP_CODE}:"
+              jq . < /tmp/worker.json
+              exit 1
+            fi
+
+            ok="$(jq -r '.ok // false' < /tmp/worker.json)"
+            msg="$(jq -r '.message // ""' < /tmp/worker.json)"
+            ins="$(jq -r '.inserted // 0' < /tmp/worker.json)"
+            upd="$(jq -r '.updated // 0' < /tmp/worker.json)"
+            evs="$(jq -r '.events // 0' < /tmp/worker.json)"
+
+            echo "worker[$i] => ok=${ok} message=${msg} inserted=${ins} updated=${upd} events=${evs}"
+            jq . < /tmp/worker.json
+
+            if [ "${ok}" != "true" ]; then
+              echo "WORKER_RETURNED_ok=false"
+              exit 1
+            fi
+
+            if [ "${msg}" = "no_jobs" ]; then
               echo "Queue empty."
               break
             fi
 
-            if [ "${OK}" != "true" ]; then
-              echo "Worker returned ok=false"
-              exit 1
-            fi
+            inserted_total=$((inserted_total + ins))
+            updated_total=$((updated_total + upd))
+            events_total=$((events_total + evs))
+            jobs_done=$((jobs_done + 1))
+
+            export SLEEP_MS="${SLEEP_BETWEEN_CALLS_MS}"
+            sleep_ms "${SLEEP_BETWEEN_CALLS_MS}"
           done
+
+          echo "==> Summary"
+          echo "jobs_done=${jobs_done} inserted_total=${inserted_total} updated_total=${updated_total} events_total=${events_total}"
