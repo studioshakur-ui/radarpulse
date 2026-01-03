@@ -34,7 +34,22 @@ export type RpSector = (typeof RP_SECTORS)[number];
 export const RP_AI_SCHEMA_V1_LIGHT: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
-  required: ["content_type", "buyer_type", "language", "summary_10s", "fingerprint", "quality"],
+ required: [
+  "content_type",
+  "buyer_type",
+  "buyer_name",
+  "sector",
+  "geo",
+  "language",
+  "deadline",
+  "summary_10s",
+  "fingerprint",
+  "risks",
+  "evidence",
+  "quality",
+],
+
+
   properties: {
     content_type: {
       type: "string",
