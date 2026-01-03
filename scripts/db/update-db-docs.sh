@@ -67,7 +67,7 @@ done
 echo "[1/2] Generating schema snapshot -> $SNAP_OUT"
 docker run --rm \
   -e DATABASE_URL="$DATABASE_URL" \
-  postgres:16-alpine \
+  postgres:17-alpine \
   sh -lc '
     set -e
     pg_dump "$DATABASE_URL" \
@@ -103,7 +103,7 @@ docker run --rm \
   -e DATABASE_URL="$DATABASE_URL" \
   -v "$ROOT_DIR:/work" \
   -w /work \
-  postgres:16-alpine \
+  postgres:17-alpine \
   sh -lc '
     set -e
     psql "$DATABASE_URL" \
