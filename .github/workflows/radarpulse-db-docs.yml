@@ -2,15 +2,18 @@ name: "db: docs (RadarPulse)"
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: ["main"]
   schedule:
-    # Every Sunday at 02:15 UTC
-    - cron: "15 2 * * 0"
+    # Every 6 hours (UTC): 00:15, 06:15, 12:15, 18:15
+    - cron: "15 */6 * * *"
 
 permissions:
   contents: write
 
 jobs:
   generate-db-docs:
+    if: ${{ github.actor != 'radarpulse-bot' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
