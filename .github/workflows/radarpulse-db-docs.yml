@@ -1,0 +1,40 @@
+name: "db: docs (RadarPulse)"
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Every Sunday at 02:15 UTC
+    - cron: "15 2 * * 0"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-db-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure script is executable
+        run: chmod +x scripts/db/update-db-docs.sh
+
+      - name: Generate docs/db artifacts
+        env:
+          DATABASE_URL: ${{ secrets.RADARPULSE_DATABASE_URL }}
+          SCHEMAS: "public"
+        run: ./scripts/db/update-db-docs.sh
+
+      - name: Commit & push if changed
+        run: |
+          if git diff --quiet; then
+            echo "No DB docs changes."
+            exit 0
+          fi
+
+          git config user.name "radarpulse-bot"
+          git config user.email "radarpulse-bot@users.noreply.github.com"
+
+          git add docs/db/schema_snapshot.sql docs/db/SCHEMA_CANONIQUE.md
+          git commit -m "db: update schema snapshot + canonical view"
+          git push
