@@ -15,3 +15,9 @@ apps/web/.vite/
 
 # Supabase temp
 supabase/.temp/
+
+# WIP: ai extract light (temp ignore)
+supabase/functions/_shared/rp_ai_extract_light.ts
+supabase/functions/_shared/rp_ai_schema_v1_light.ts
+supabase/functions/_shared/rp_ai_utils.ts
+supabase/functions/ai-extract-light/
