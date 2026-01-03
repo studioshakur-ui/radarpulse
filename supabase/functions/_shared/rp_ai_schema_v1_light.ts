@@ -119,7 +119,21 @@ export const RP_AI_SCHEMA_V1_LIGHT: Record<string, unknown> = {
           quote: { type: "string", maxLength: 320 },
           confidence: { type: "string", enum: ["high", "med", "low"] },
           source: { type: "string", enum: ["content_raw", "metadata", "attachment"] },
-          locator: { type: "object" }, // flexible: offsets/page/url etc.
+         locator: {
+  type: "object",
+  additionalProperties: false,
+  required: ["url", "page", "section", "selector", "line", "char_start", "char_end", "note"],
+  properties: {
+    url: { type: ["string", "null"], maxLength: 600 },
+    page: { type: ["integer", "null"], minimum: 0 },
+    section: { type: ["string", "null"], maxLength: 160 },
+    selector: { type: ["string", "null"], maxLength: 260 },
+    line: { type: ["integer", "null"], minimum: 0 },
+    char_start: { type: ["integer", "null"], minimum: 0 },
+    char_end: { type: ["integer", "null"], minimum: 0 },
+    note: { type: ["string", "null"], maxLength: 220 },
+  },
+},
         },
       },
     },
