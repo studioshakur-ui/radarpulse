@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SpaceX/CORE dark tokens */
+:root {
+  --rp-bg: 7 10 16;
+  --rp-surface: 12 16 26;
+  --rp-elevated: 18 24 38;
+  --rp-border: 255 255 255;
+  --rp-text: 240 244 255;
+  --rp-muted: 165 176 200;
+
+  --rp-accent: 120 170 255;
+  --rp-accent2: 90 230 200;
+
+  --rp-good: 90 230 140;
+  --rp-warn: 255 200 80;
+  --rp-bad: 255 90 120;
+  --rp-info: 120 170 255;
+}
+
+html,
+body {
+  height: 100%;
+  background: rgb(var(--rp-bg));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+/* Subtle grid (premium, low noise) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at 30% 10%, rgba(0,0,0,0.9), transparent 60%);
+  opacity: 0.25;
+}
