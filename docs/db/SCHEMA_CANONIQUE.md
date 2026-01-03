@@ -36,12 +36,12 @@
  - `public.ingestion_jobs` — size: 64 kB — RLS: on — cols: 11
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 136 kB — RLS: on — cols: 20
- - `public.opportunities_raw` — size: 56 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 144 kB — RLS: on — cols: 20
+ - `public.opportunities_raw` — size: 104 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 48 kB — RLS: off — cols: 31
  - `public.opportunity_ai_evidence` — size: 32 kB — RLS: off — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
- - `public.opportunity_events` — size: 48 kB — RLS: on — cols: 5
+ - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.rp_ai_runs` — size: 32 kB — RLS: off — cols: 11
  - `public.sources` — size: 64 kB — RLS: on — cols: 14
  - `public.subscriptions` — size: 24 kB — RLS: on — cols: 7
@@ -84,12 +84,12 @@
  - **Size**: `64 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
- - **Size**: `136 kB`
- - **Size**: `56 kB`
+ - **Size**: `144 kB`
+ - **Size**: `104 kB`
  - **Size**: `48 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `48 kB`
+ - **Size**: `80 kB`
  - **Size**: `32 kB`
  - **Size**: `64 kB`
  - **Size**: `24 kB`
