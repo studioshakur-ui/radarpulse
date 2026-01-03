@@ -71,13 +71,13 @@ docker run --rm \
   sh -lc '
     set -e
     pg_dump "$DATABASE_URL" \
-      --schema-only \
-      --no-owner \
-      --no-privileges \
-      --no-comments \
-      --no-security-labels \
-      --quote-all-identifiers=false \
-      '"${schema_args[*]}"' \
+  --schema-only \
+  --no-owner \
+  --no-privileges \
+  --no-comments \
+  --no-security-labels \
+  '"${schema_args[*]}"' \
+
   ' \
   | sed -e 's/\r$//' > "$tmp_sql"
 
