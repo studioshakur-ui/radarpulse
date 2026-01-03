@@ -1,8 +1,8 @@
-﻿                                                                                           line                                                                                           
+                                                                                           line                                                                                           
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- # RadarPulse ÔÇö Vue canonique de la base
+ # RadarPulse — Vue canonique de la base
  
- G├®n├®r├®e automatiquement via `scripts/db/update-db-docs.sh` (Docker + psql/pg_dump).
+ Générée automatiquement via `scripts/db/update-db-docs.sh` (Docker + psql/pg_dump).
  
  ## Sommaire
  - Schemas
@@ -31,24 +31,24 @@
  
  ## Tables
  
- ### R├®sum├®
- - `public.buyers` ÔÇö size: 24 kB ÔÇö RLS: on ÔÇö cols: 5
- - `public.ingestion_jobs` ÔÇö size: 64 kB ÔÇö RLS: on ÔÇö cols: 11
- - `public.notification_logs` ÔÇö size: 16 kB ÔÇö RLS: on ÔÇö cols: 8
- - `public.notification_queue` ÔÇö size: 24 kB ÔÇö RLS: on ÔÇö cols: 11
- - `public.opportunities` ÔÇö size: 136 kB ÔÇö RLS: on ÔÇö cols: 20
- - `public.opportunities_raw` ÔÇö size: 56 kB ÔÇö RLS: off ÔÇö cols: 19
- - `public.opportunity_ai` ÔÇö size: 48 kB ÔÇö RLS: off ÔÇö cols: 31
- - `public.opportunity_ai_evidence` ÔÇö size: 32 kB ÔÇö RLS: off ÔÇö cols: 8
- - `public.opportunity_documents` ÔÇö size: 24 kB ÔÇö RLS: on ÔÇö cols: 8
- - `public.opportunity_events` ÔÇö size: 48 kB ÔÇö RLS: on ÔÇö cols: 5
- - `public.rp_ai_runs` ÔÇö size: 32 kB ÔÇö RLS: off ÔÇö cols: 11
- - `public.sources` ÔÇö size: 64 kB ÔÇö RLS: on ÔÇö cols: 14
- - `public.subscriptions` ÔÇö size: 24 kB ÔÇö RLS: on ÔÇö cols: 7
- - `public.telegram_profiles` ÔÇö size: 16 kB ÔÇö RLS: on ÔÇö cols: 4
- - `public.whatsapp_optins` ÔÇö size: 16 kB ÔÇö RLS: on ÔÇö cols: 5
+ ### Résumé
+ - `public.buyers` — size: 24 kB — RLS: on — cols: 5
+ - `public.ingestion_jobs` — size: 64 kB — RLS: on — cols: 11
+ - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
+ - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
+ - `public.opportunities` — size: 136 kB — RLS: on — cols: 20
+ - `public.opportunities_raw` — size: 56 kB — RLS: off — cols: 19
+ - `public.opportunity_ai` — size: 48 kB — RLS: off — cols: 31
+ - `public.opportunity_ai_evidence` — size: 32 kB — RLS: off — cols: 8
+ - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
+ - `public.opportunity_events` — size: 48 kB — RLS: on — cols: 5
+ - `public.rp_ai_runs` — size: 32 kB — RLS: off — cols: 11
+ - `public.sources` — size: 64 kB — RLS: on — cols: 14
+ - `public.subscriptions` — size: 24 kB — RLS: on — cols: 7
+ - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
+ - `public.whatsapp_optins` — size: 16 kB — RLS: on — cols: 5
  
- ### D├®tails par table
+ ### Détails par table
  
  #### Table: `public.buyers`
  #### Table: `public.ingestion_jobs`
@@ -141,172 +141,172 @@
  |---|---|---|---|
  |---|---|---|---|
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `country_code` | `text` | `yes` | ÔÇö |
- | `name` | `text` | `no` | ÔÇö |
- | `normalized_name` | `text` | `no` | ÔÇö |
+ | `country_code` | `text` | `yes` | — |
+ | `name` | `text` | `no` | — |
+ | `normalized_name` | `text` | `no` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('ingestion_jobs_id_seq'::regclass) |
- | `source_id` | `uuid` | `no` | ÔÇö |
+ | `source_id` | `uuid` | `no` | — |
  | `status` | `job_status` | `no` | 'queued'::job_status |
  | `attempts` | `integer` | `no` | 0 |
  | `run_at` | `timestamp with time zone` | `no` | now() |
- | `started_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `finished_at` | `timestamp with time zone` | `yes` | ÔÇö |
+ | `started_at` | `timestamp with time zone` | `yes` | — |
+ | `finished_at` | `timestamp with time zone` | `yes` | — |
  | `payload` | `jsonb` | `no` | '{}'::jsonb |
- | `error` | `text` | `yes` | ÔÇö |
+ | `error` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('notification_logs_id_seq'::regclass) |
- | `queue_id` | `bigint` | `yes` | ÔÇö |
- | `user_id` | `uuid` | `yes` | ÔÇö |
- | `channel` | `notify_channel` | `yes` | ÔÇö |
- | `status` | `text` | `no` | ÔÇö |
- | `provider_id` | `text` | `yes` | ÔÇö |
+ | `queue_id` | `bigint` | `yes` | — |
+ | `user_id` | `uuid` | `yes` | — |
+ | `channel` | `notify_channel` | `yes` | — |
+ | `status` | `text` | `no` | — |
+ | `provider_id` | `text` | `yes` | — |
  | `detail` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('notification_queue_id_seq'::regclass) |
- | `user_id` | `uuid` | `no` | ÔÇö |
- | `channel` | `notify_channel` | `no` | ÔÇö |
+ | `user_id` | `uuid` | `no` | — |
+ | `channel` | `notify_channel` | `no` | — |
  | `status` | `notify_status` | `no` | 'queued'::notify_status |
- | `template` | `text` | `yes` | ÔÇö |
+ | `template` | `text` | `yes` | — |
  | `payload` | `jsonb` | `no` | '{}'::jsonb |
  | `scheduled_at` | `timestamp with time zone` | `no` | now() |
- | `started_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `finished_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `error` | `text` | `yes` | ÔÇö |
+ | `started_at` | `timestamp with time zone` | `yes` | — |
+ | `finished_at` | `timestamp with time zone` | `yes` | — |
+ | `error` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `source_id` | `uuid` | `no` | ÔÇö |
- | `external_id` | `text` | `yes` | ÔÇö |
- | `fingerprint` | `text` | `no` | ÔÇö |
- | `type` | `opportunity_type` | `no` | ÔÇö |
+ | `source_id` | `uuid` | `no` | — |
+ | `external_id` | `text` | `yes` | — |
+ | `fingerprint` | `text` | `no` | — |
+ | `type` | `opportunity_type` | `no` | — |
  | `status` | `opportunity_status` | `no` | 'active'::opportunity_status |
  | `is_public` | `boolean` | `no` | true |
- | `country_code` | `text` | `yes` | ÔÇö |
- | `buyer_id` | `uuid` | `yes` | ÔÇö |
- | `buyer_name` | `text` | `yes` | ÔÇö |
- | `title` | `text` | `no` | ÔÇö |
- | `summary` | `text` | `yes` | ÔÇö |
- | `published_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `deadline_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `deadline_tz` | `text` | `yes` | ÔÇö |
- | `source_url` | `text` | `no` | ÔÇö |
- | `language` | `text` | `yes` | ÔÇö |
+ | `country_code` | `text` | `yes` | — |
+ | `buyer_id` | `uuid` | `yes` | — |
+ | `buyer_name` | `text` | `yes` | — |
+ | `title` | `text` | `no` | — |
+ | `summary` | `text` | `yes` | — |
+ | `published_at` | `timestamp with time zone` | `yes` | — |
+ | `deadline_at` | `timestamp with time zone` | `yes` | — |
+ | `deadline_tz` | `text` | `yes` | — |
+ | `source_url` | `text` | `no` | — |
+ | `language` | `text` | `yes` | — |
  | `raw` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `source_id` | `uuid` | `yes` | ÔÇö |
- | `source_key` | `text` | `no` | ÔÇö |
- | `external_id` | `text` | `yes` | ÔÇö |
- | `url` | `text` | `no` | ÔÇö |
- | `url_canonical` | `text` | `no` | ÔÇö |
- | `title_raw` | `text` | `no` | ÔÇö |
- | `snippet_raw` | `text` | `yes` | ÔÇö |
- | `content_raw` | `text` | `yes` | ÔÇö |
- | `content_hash` | `text` | `no` | ÔÇö |
- | `published_at` | `timestamp with time zone` | `yes` | ÔÇö |
+ | `source_id` | `uuid` | `yes` | — |
+ | `source_key` | `text` | `no` | — |
+ | `external_id` | `text` | `yes` | — |
+ | `url` | `text` | `no` | — |
+ | `url_canonical` | `text` | `no` | — |
+ | `title_raw` | `text` | `no` | — |
+ | `snippet_raw` | `text` | `yes` | — |
+ | `content_raw` | `text` | `yes` | — |
+ | `content_hash` | `text` | `no` | — |
+ | `published_at` | `timestamp with time zone` | `yes` | — |
  | `fetched_at` | `timestamp with time zone` | `no` | now() |
- | `language_hint` | `text` | `yes` | ÔÇö |
- | `raw_kind_hint` | `text` | `yes` | ÔÇö |
+ | `language_hint` | `text` | `yes` | — |
+ | `raw_kind_hint` | `text` | `yes` | — |
  | `attachments` | `jsonb` | `yes` | '[]'::jsonb |
- | `ingest_run_id` | `uuid` | `yes` | ÔÇö |
- | `ingest_errors` | `jsonb` | `yes` | ÔÇö |
+ | `ingest_run_id` | `uuid` | `yes` | — |
+ | `ingest_errors` | `jsonb` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `raw_id` | `uuid` | `no` | ÔÇö |
- | `model` | `text` | `no` | ÔÇö |
- | `extract_version` | `text` | `no` | ÔÇö |
+ | `raw_id` | `uuid` | `no` | — |
+ | `model` | `text` | `no` | — |
+ | `extract_version` | `text` | `no` | — |
  | `extracted_at` | `timestamp with time zone` | `no` | now() |
- | `content_type` | `rp_content_type` | `no` | ÔÇö |
- | `buyer_type` | `rp_buyer_type` | `no` | ÔÇö |
- | `buyer_name` | `text` | `yes` | ÔÇö |
- | `sector` | `text` | `yes` | ÔÇö |
- | `country_code` | `text` | `yes` | ÔÇö |
- | `region` | `text` | `yes` | ÔÇö |
- | `language` | `text` | `yes` | ÔÇö |
- | `deadline_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `deadline_tz` | `text` | `yes` | ÔÇö |
+ | `content_type` | `rp_content_type` | `no` | — |
+ | `buyer_type` | `rp_buyer_type` | `no` | — |
+ | `buyer_name` | `text` | `yes` | — |
+ | `sector` | `text` | `yes` | — |
+ | `country_code` | `text` | `yes` | — |
+ | `region` | `text` | `yes` | — |
+ | `language` | `text` | `yes` | — |
+ | `deadline_at` | `timestamp with time zone` | `yes` | — |
+ | `deadline_tz` | `text` | `yes` | — |
  | `deadline_confidence` | `rp_deadline_confidence` | `no` | 'unknown'::rp_deadline_confidence |
- | `eligibility` | `jsonb` | `yes` | ÔÇö |
- | `required_docs` | `jsonb` | `yes` | ÔÇö |
- | `submission` | `jsonb` | `yes` | ÔÇö |
- | `budget_value` | `numeric` | `yes` | ÔÇö |
- | `budget_currency` | `text` | `yes` | ÔÇö |
- | `budget_confidence` | `rp_evidence_confidence` | `yes` | ÔÇö |
- | `risks` | `jsonb` | `yes` | ÔÇö |
- | `summary_10s` | `text` | `no` | ÔÇö |
- | `fingerprint` | `text` | `no` | ÔÇö |
- | `extraction_quality` | `rp_extraction_quality` | `no` | ÔÇö |
+ | `eligibility` | `jsonb` | `yes` | — |
+ | `required_docs` | `jsonb` | `yes` | — |
+ | `submission` | `jsonb` | `yes` | — |
+ | `budget_value` | `numeric` | `yes` | — |
+ | `budget_currency` | `text` | `yes` | — |
+ | `budget_confidence` | `rp_evidence_confidence` | `yes` | — |
+ | `risks` | `jsonb` | `yes` | — |
+ | `summary_10s` | `text` | `no` | — |
+ | `fingerprint` | `text` | `no` | — |
+ | `extraction_quality` | `rp_extraction_quality` | `no` | — |
  | `needs_review` | `boolean` | `no` | true |
  | `missing_fields` | `jsonb` | `no` | '[]'::jsonb |
  | `signals` | `jsonb` | `no` | '{}'::jsonb |
- | `raw_snapshot` | `jsonb` | `yes` | ÔÇö |
+ | `raw_snapshot` | `jsonb` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `ai_id` | `uuid` | `no` | ÔÇö |
- | `field` | `text` | `no` | ÔÇö |
- | `evidence_text` | `text` | `no` | ÔÇö |
+ | `ai_id` | `uuid` | `no` | — |
+ | `field` | `text` | `no` | — |
+ | `evidence_text` | `text` | `no` | — |
  | `source` | `text` | `no` | 'content_raw'::text |
- | `locator` | `jsonb` | `yes` | ÔÇö |
+ | `locator` | `jsonb` | `yes` | — |
  | `confidence` | `rp_evidence_confidence` | `no` | 'med'::rp_evidence_confidence |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `opportunity_id` | `uuid` | `no` | ÔÇö |
- | `doc_title` | `text` | `yes` | ÔÇö |
- | `doc_url` | `text` | `no` | ÔÇö |
- | `doc_hash` | `text` | `yes` | ÔÇö |
- | `doc_type` | `text` | `yes` | ÔÇö |
- | `storage_path` | `text` | `yes` | ÔÇö |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `doc_title` | `text` | `yes` | — |
+ | `doc_url` | `text` | `no` | — |
+ | `doc_hash` | `text` | `yes` | — |
+ | `doc_type` | `text` | `yes` | — |
+ | `storage_path` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `opportunity_id` | `uuid` | `no` | ÔÇö |
- | `type` | `event_type` | `no` | ÔÇö |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `type` | `event_type` | `no` | — |
  | `occurred_at` | `timestamp with time zone` | `no` | now() |
  | `data` | `jsonb` | `no` | '{}'::jsonb |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `raw_id` | `uuid` | `no` | ÔÇö |
- | `ai_id` | `uuid` | `yes` | ÔÇö |
- | `extract_version` | `text` | `no` | ÔÇö |
- | `model` | `text` | `no` | ÔÇö |
+ | `raw_id` | `uuid` | `no` | — |
+ | `ai_id` | `uuid` | `yes` | — |
+ | `extract_version` | `text` | `no` | — |
+ | `model` | `text` | `no` | — |
  | `started_at` | `timestamp with time zone` | `no` | now() |
- | `finished_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `duration_ms` | `integer` | `yes` | ÔÇö |
+ | `finished_at` | `timestamp with time zone` | `yes` | — |
+ | `duration_ms` | `integer` | `yes` | — |
  | `status` | `rp_ai_run_status` | `no` | 'success'::rp_ai_run_status |
- | `error_message` | `text` | `yes` | ÔÇö |
+ | `error_message` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `key` | `text` | `no` | ÔÇö |
- | `name` | `text` | `no` | ÔÇö |
+ | `key` | `text` | `no` | — |
+ | `name` | `text` | `no` | — |
  | `kind` | `source_kind` | `no` | 'rss'::source_kind |
- | `url` | `text` | `no` | ÔÇö |
- | `country_code` | `text` | `yes` | ÔÇö |
+ | `url` | `text` | `no` | — |
+ | `country_code` | `text` | `yes` | — |
  | `is_active` | `boolean` | `no` | true |
  | `schedule_minutes` | `integer` | `no` | 60 |
- | `last_run_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `last_success_at` | `timestamp with time zone` | `yes` | ÔÇö |
- | `last_error` | `text` | `yes` | ÔÇö |
+ | `last_run_at` | `timestamp with time zone` | `yes` | — |
+ | `last_success_at` | `timestamp with time zone` | `yes` | — |
+ | `last_error` | `text` | `yes` | — |
  | `meta` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
- | `user_id` | `uuid` | `no` | ÔÇö |
+ | `user_id` | `uuid` | `no` | — |
  | `is_active` | `boolean` | `no` | true |
  | `channels` | `jsonb` | `no` | '{}'::jsonb |
  | `filters` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
- | `user_id` | `uuid` | `no` | ÔÇö |
- | `chat_id` | `text` | `no` | ÔÇö |
+ | `user_id` | `uuid` | `no` | — |
+ | `chat_id` | `text` | `no` | — |
  | `is_verified` | `boolean` | `no` | false |
  | `created_at` | `timestamp with time zone` | `no` | now() |
- | `user_id` | `uuid` | `no` | ÔÇö |
- | `phone_e164` | `text` | `no` | ÔÇö |
- | `language` | `text` | `yes` | ÔÇö |
+ | `user_id` | `uuid` | `no` | — |
+ | `phone_e164` | `text` | `no` | — |
+ | `language` | `text` | `yes` | — |
  | `consent_at` | `timestamp with time zone` | `no` | now() |
- | `consent_source` | `text` | `yes` | ÔÇö |
+ | `consent_source` | `text` | `yes` | — |
  
  
  
@@ -460,12 +460,12 @@
  
  
  ## Views
- _Aucune view d├®tect├®e dans les schemas cibl├®s._
+ _Aucune view détectée dans les schemas ciblés._
  
  ## Functions
- - `public.claim_next_ingestion_job(max_attempts integer)` ÔåÆ `ingestion_jobs` (lang: plpgsql)
- - `public.claim_next_notification(p_channel notify_channel)` ÔåÆ `notification_queue` (lang: plpgsql)
- - `public.rp_set_updated_at()` ÔåÆ `trigger` (lang: plpgsql)
- - `public.set_updated_at()` ÔåÆ `trigger` (lang: plpgsql)
+ - `public.claim_next_ingestion_job(max_attempts integer)` → `ingestion_jobs` (lang: plpgsql)
+ - `public.claim_next_notification(p_channel notify_channel)` → `notification_queue` (lang: plpgsql)
+ - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
+ - `public.set_updated_at()` → `trigger` (lang: plpgsql)
 (467 rows)
 
