@@ -1,14 +1,4 @@
-// supabase/functions/ai-extract-light-dev/index.ts
-// DEV ONLY: avoids JWT/gateway pain on local by using a simple shared secret.
-// POST { raw_id: string, key: string }
-// Requires secrets in env-file:
-// - OPENAI_API_KEY
-// - SERVICE_ROLE_KEY
-// - DEV_CALL_KEY (choose any string)
-// Optional:
-// - OPENAI_MODEL, OPENAI_STORE
-
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
 
@@ -57,7 +47,7 @@ serve(async (req) => {
       openaiStore: OPENAI_STORE,
       extractVersion: "v1.light",
       minContentChars: 280,
-      maxContentChars: 24_000,
+      maxContentChars: 24000,
     });
 
     return json(200, { ok: true, ...res });
