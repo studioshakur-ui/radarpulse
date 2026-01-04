@@ -28,7 +28,7 @@ function Pill({
 export function TechPremiumHero({ className }: { className?: string }) {
   return (
     <section className={cn("relative", className)}>
-      <div className="mx-auto grid min-h-[calc(100vh-56px)] max-w-6xl grid-cols-1 items-center gap-10 px-4 pb-14 pt-16 md:grid-cols-12">
+      <div className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl grid-cols-1 items-center gap-10 px-4 pb-14 pt-16 md:grid-cols-12">
         <div className="md:col-span-6">
           <div className="mb-4 flex flex-wrap gap-2">
             <Pill tone="brand">
@@ -47,15 +47,13 @@ export function TechPremiumHero({ className }: { className?: string }) {
           </div>
 
           <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-6xl">
-            Turn tenders and grants into a{" "}
-            <span className="text-brand">decision</span> in{" "}
+            Turn tenders and grants into a <span className="text-brand">decision</span> in{" "}
             <span className="text-brand">seconds</span>.
           </h1>
 
           <p className="mt-5 max-w-xl text-base text-subtext sm:text-lg">
-            RadarPulse compresses noise, collapses duplicates, extracts the fields
-            that matter, and backs every claim with source-linked evidence—so your
-            GO is fast and defensible.
+            RadarPulse compresses noise, collapses duplicates, extracts the fields that matter, and backs every claim with
+            source-linked evidence—so your GO is fast and defensible.
           </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">

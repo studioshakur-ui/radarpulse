@@ -18,12 +18,13 @@ export function ScrollReveal({
   once?: boolean;
 }) {
   const reduce = useReducedMotion();
+
   const from =
     dir === "left"
       ? { x: -28, y: 0 }
       : dir === "right"
       ? { x: 28, y: 0 }
-      : { x: 0, y: 18 };
+      : { x: 0, y: 16 };
 
   if (reduce) return <div className={className}>{children}</div>;
 
@@ -32,10 +33,10 @@ export function ScrollReveal({
       className={cn(className)}
       initial={{ opacity: 0, filter: "blur(6px)", ...from }}
       whileInView={{ opacity: 1, filter: "blur(0px)", x: 0, y: 0 }}
-      viewport={{ once, amount: 0.25 }}
+      viewport={{ once, amount: 0.22 }}
       transition={{
         type: "spring",
-        stiffness: 140,
+        stiffness: 150,
         damping: 22,
         mass: 0.7,
         delay,

@@ -3,7 +3,7 @@ import { NavLink, Route, Routes, Navigate, useLocation } from "react-router-dom"
 import InboxPage from "@/features/inbox/InboxPage";
 import WorkspacesPage from "@/features/workspaces/WorkspacesPage";
 import WorkspacePage from "@/features/workspaces/WorkspacePage";
-import LandingPage from "@/features/landing/LandingPage";
+import { LandingPage } from "@/features/landing/LandingPage";
 import ExplorePage from "@/features/landing/ExplorePage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
 import { ENV } from "@/lib/env";
