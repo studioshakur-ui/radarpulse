@@ -1,7 +1,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
 import type { IngestionJobRow, OpportunityUpsertInput, SourceRow } from "../_shared/types.ts";
 import { normalizeText } from "../_shared/text.ts";
+import { canonicalizeUrl, sha256Hex } from "../_shared/rp_ai_utils.ts";
 import { runConnector } from "./connectors/index.ts";
 
 type DbOpportunityRow = {
@@ -14,6 +16,105 @@ type DbOpportunityRow = {
   country_code: string | null;
   type: string;
 };
+
+type DbRawRow = {
+  id: string;
+  content_hash: string;
+};
+
+function buildRawRichText(input: { title: string; snippet: string | null; content: string | null }): string {
+  return [input.title || "", input.snippet || "", input.content || ""].join("\n\n").trim();
+}
+
+async function upsertOpportunityRaw(args: {
+  sb: ReturnType<typeof sbAdmin>;
+  source: SourceRow;
+  inOpp: OpportunityUpsertInput;
+  fetchedAt: string;
+}): Promise<
+  | { ok: true; raw_id: string; changed: boolean; action: "insert" | "update" | "noop" }
+  | { ok: false; error: unknown }
+> {
+  try {
+    const { sb, source, inOpp, fetchedAt } = args;
+
+    const url = String(inOpp.source_url || "").trim();
+    if (!url) return { ok: false, error: new Error("missing source_url") };
+
+    const urlCanonical = canonicalizeUrl(url);
+    const externalId = inOpp.external_id ? String(inOpp.external_id).trim() : null;
+
+    const titleRaw = String(inOpp.title || "").trim();
+    const snippetRaw = inOpp.summary ? String(inOpp.summary).trim().slice(0, 2400) : null;
+    // RSS MVP: pas de contenu long. On recycle le snippet en content pour réduire les 'skipped'.
+    const contentRaw = inOpp.summary ? String(inOpp.summary).trim().slice(0, 24_000) : null;
+
+    const richness = buildRawRichText({ title: titleRaw, snippet: snippetRaw, content: contentRaw });
+    const contentHash = await sha256Hex(richness);
+
+    // Resolve an existing raw row (external_id preferred, else url_canonical)
+    let existing: DbRawRow | null = null;
+    if (externalId) {
+      const { data, error } = await sb
+        .from("opportunities_raw")
+        .select("id,content_hash")
+        .eq("source_key", source.key)
+        .eq("external_id", externalId)
+        .maybeSingle();
+      if (error) throw error;
+      existing = (data as any) || null;
+    } else {
+      const { data, error } = await sb
+        .from("opportunities_raw")
+        .select("id,content_hash")
+        .eq("source_key", source.key)
+        .eq("url_canonical", urlCanonical)
+        .order("fetched_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      existing = (data as any) || null;
+    }
+
+    const patch = {
+      source_id: source.id,
+      source_key: source.key,
+      external_id: externalId,
+      url,
+      url_canonical: urlCanonical,
+      title_raw: titleRaw,
+      snippet_raw: snippetRaw,
+      content_raw: contentRaw,
+      content_hash: contentHash,
+      published_at: inOpp.published_at ?? null,
+      fetched_at: fetchedAt,
+      language_hint: inOpp.language ?? null,
+      raw_kind_hint: source.kind,
+      attachments: [],
+      ingest_errors: null,
+      ingest_run_id: null,
+    };
+
+    if (!existing?.id) {
+      const { data: created, error: insErr } = await sb
+        .from("opportunities_raw")
+        .insert(patch)
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+      return { ok: true, raw_id: (created as any).id as string, changed: true, action: "insert" };
+    }
+
+    const changed = String(existing.content_hash || "") !== contentHash;
+
+    const { error: upErr } = await sb.from("opportunities_raw").update(patch).eq("id", existing.id);
+    if (upErr) throw upErr;
+
+    return { ok: true, raw_id: existing.id, changed, action: changed ? "update" : "noop" };
+  } catch (e) {
+    return { ok: false, error: e };
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -110,7 +211,62 @@ Deno.serve(async (req) => {
     let updated = 0;
     let events = 0;
 
+    // AI extraction (V1.light) — internal call (no HTTP)
+    let rawInserted = 0;
+    let rawUpdated = 0;
+    let rawNoop = 0;
+    let rawErrors = 0;
+    let aiSuccess = 0;
+    let aiSkipped = 0;
+    let aiErrors = 0;
+
+    const aiEnabled = String(Deno.env.get("AI_EXTRACT_ENABLED") ?? "true").toLowerCase() !== "false";
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
+    const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+    const openaiStore = String(Deno.env.get("OPENAI_STORE") ?? "false").toLowerCase() === "true";
+    const canUseAi = aiEnabled && Boolean(openaiApiKey);
+
+    if (aiEnabled && !openaiApiKey) {
+      console.warn("AI_EXTRACT_DISABLED", "Missing OPENAI_API_KEY");
+    }
+
     for (const inOpp of res.opportunities) {
+      // 3.A) Upsert raw row (best-effort)
+      const rawRes = await upsertOpportunityRaw({ sb, source: s, inOpp, fetchedAt: res.fetched_at });
+      let rawIdForAi: string | null = null;
+      let rawChanged = false;
+
+      if (rawRes.ok) {
+        rawIdForAi = rawRes.raw_id;
+        rawChanged = rawRes.changed;
+        if (rawRes.action === "insert") rawInserted++;
+        else if (rawRes.action === "update") rawUpdated++;
+        else rawNoop++;
+      } else {
+        rawErrors++;
+        console.warn("RAW_UPSERT_ERROR", rawRes.error);
+      }
+
+      // 3.B) Run AI extraction only when raw content changed or is new
+      if (canUseAi && rawIdForAi && rawChanged) {
+        try {
+          const r = await extractLightForRawId(sb as any, rawIdForAi, {
+            openaiApiKey,
+            openaiModel,
+            openaiStore,
+            extractVersion: "v1.light",
+            minContentChars: 280,
+            maxContentChars: 24_000,
+          });
+
+          if (r.status === "success") aiSuccess++;
+          else aiSkipped++;
+        } catch (e) {
+          aiErrors++;
+          console.error("AI_EXTRACT_ERROR", { raw_id: rawIdForAi, error: (e as any)?.message ?? String(e) });
+        }
+      }
+
       const buyerId = await ensureBuyer(sb, inOpp.country_code ?? null, inOpp.buyer_name ?? null);
 
       const { data: prev, error: prevErr } = await sb
@@ -205,6 +361,21 @@ Deno.serve(async (req) => {
         inserted,
         updated,
         events,
+        ai: {
+          enabled: canUseAi,
+          raw: {
+            inserted: rawInserted,
+            updated: rawUpdated,
+            noop: rawNoop,
+            errors: rawErrors,
+          },
+          extraction: {
+            success: aiSuccess,
+            skipped: aiSkipped,
+            errors: aiErrors,
+            model: openaiModel,
+          },
+        },
       },
       200
     );

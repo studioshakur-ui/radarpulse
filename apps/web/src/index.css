@@ -2,49 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SpaceX/CORE dark tokens */
+/* ---------------------------------------------------------
+   RadarPulse Luxe Theme (single universe)
+   Noir + Mauve/Violet + Blanc cassé, zero blue
+--------------------------------------------------------- */
+
 :root {
-  --rp-bg: 7 10 16;
-  --rp-surface: 12 16 26;
-  --rp-elevated: 18 24 38;
-  --rp-border: 255 255 255;
-  --rp-text: 240 244 255;
-  --rp-muted: 165 176 200;
+  /* core */
+  --rp-bg: 7 7 12;          /* near-black with violet bias */
+  --rp-surface: 14 13 24;   /* deep violet charcoal */
+  --rp-elevated: 20 18 34;  /* slightly lifted */
+  --rp-border: 255 255 255;/* used with alpha in tailwind mapping */
+  --rp-text: 245 243 255;   /* off-white */
+  --rp-muted: 176 171 196;  /* violet-gray */
 
-  --rp-accent: 120 170 255;
-  --rp-accent2: 90 230 200;
+  /* accents */
+  --rp-accent: 168 85 247;  /* violet */
+  --rp-accent2: 216 180 254;/* mauve */
 
-  --rp-good: 90 230 140;
-  --rp-warn: 255 200 80;
-  --rp-bad: 255 90 120;
-  --rp-info: 120 170 255;
+  /* status */
+  --rp-good: 34 197 94;
+  --rp-warn: 245 158 11;
+  --rp-bad: 239 68 68;
+  --rp-info: 147 197 253;
+
+  color-scheme: dark;
 }
 
-html,
-body {
+html, body {
   height: 100%;
+}
+
+body {
   background: rgb(var(--rp-bg));
-}
-
-* {
-  box-sizing: border-box;
-}
-
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-}
-
-/* Subtle grid (premium, low noise) */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(circle at 30% 10%, rgba(0,0,0,0.9), transparent 60%);
-  opacity: 0.25;
+  color: rgb(var(--rp-text));
 }

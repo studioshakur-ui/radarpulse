@@ -182,6 +182,20 @@ function mapQualityToDb(q: any): { extraction_quality: "high" | "med" | "low"; n
   return { extraction_quality, needs_review, missing_fields, signals };
 }
 
+function normalizeNullableString(v: unknown): string | null {
+  const s = (v ?? null) === null ? "" : String(v);
+  const t = s.trim();
+  return t ? t : null;
+}
+
+function normalizeCountryCode(v: unknown): string | null {
+  const s = normalizeNullableString(v);
+  if (!s) return null;
+  const cc = s.toUpperCase();
+  if (cc.length !== 2) return cc;
+  return cc;
+}
+
 export async function extractLightForRawId(
   supabase: SupabaseClientLike,
   rawId: string,
@@ -266,11 +280,11 @@ export async function extractLightForRawId(
     // Normalize + deterministic fingerprint enforcement (we trust but verify)
     const content_type = parsed?.content_type;
     const buyer_type = parsed?.buyer_type;
-    const buyer_name = parsed?.buyer_name ?? null;
+    const buyer_name = normalizeNullableString(parsed?.buyer_name);
     const sector = parsed?.sector ?? null;
-    const country_code = parsed?.geo?.country_code ?? null;
-    const region = parsed?.geo?.region ?? null;
-    const language = parsed?.language ?? null;
+    const country_code = normalizeCountryCode(parsed?.geo?.country_code);
+    const region = normalizeNullableString(parsed?.geo?.region);
+    const language = normalizeNullableString(parsed?.language) ?? parsed?.language ?? null;
 
     const deadline_at = parsed?.deadline?.deadline_at ?? null;
     const deadline_tz = parsed?.deadline?.timezone ?? null;
@@ -279,7 +293,7 @@ export async function extractLightForRawId(
     const summary_10s = String(parsed?.summary_10s || "").trim();
     if (!summary_10s) throw new Error("Missing summary_10s in structured output");
 
-    const risks = Array.isArray(parsed?.risks) ? parsed.risks : null;
+    const risks = Array.isArray(parsed?.risks) ? parsed.risks : [];
     const evidence = Array.isArray(parsed?.evidence) ? parsed.evidence : [];
 
     const q = mapQualityToDb(parsed?.quality);
@@ -292,6 +306,40 @@ export async function extractLightForRawId(
       deadline_at,
       url_canonical: urlCanonical,
     });
+
+    // Normalize snapshot to match canonical DB columns (audit-proof)
+    const snapshotNormalized = (() => {
+      const base = (parsed && typeof parsed === "object") ? parsed : {};
+
+      return {
+        ...base,
+        content_type,
+        buyer_type,
+        buyer_name,
+        sector,
+        geo: {
+          country_code,
+          region,
+        },
+        language,
+        deadline: {
+          deadline_at,
+          timezone: deadline_tz,
+          confidence: deadline_confidence,
+        },
+        summary_10s,
+        fingerprint: fingerprintComputed,
+        risks,
+        evidence,
+        quality: {
+          extraction_quality: q.extraction_quality,
+          needs_review: q.needs_review,
+          missing_fields: q.missing_fields,
+          richness_score: q.signals?.richness_score ?? null,
+          is_opportunity: q.signals?.is_opportunity ?? null,
+        },
+      };
+    })();
 
     // Upsert opportunity_ai by fingerprint
     const { data: aiRow, error: aiErr } = await supabase
@@ -335,7 +383,7 @@ export async function extractLightForRawId(
           missing_fields: q.missing_fields,
           signals: q.signals,
 
-          raw_snapshot: parsed,
+          raw_snapshot: snapshotNormalized,
         },
         { onConflict: "fingerprint" },
       )

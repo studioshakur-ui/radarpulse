@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -16,14 +17,14 @@ export default {
         good: "rgb(var(--rp-good) / <alpha-value>)",
         warn: "rgb(var(--rp-warn) / <alpha-value>)",
         bad: "rgb(var(--rp-bad) / <alpha-value>)",
-        info: "rgb(var(--rp-info) / <alpha-value>)"
+        info: "rgb(var(--rp-info) / <alpha-value>)",
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(0,0,0,0.35)",
-        glow: "0 0 0 1px rgba(255,255,255,0.06), 0 20px 50px rgba(0,0,0,0.55)"
+        soft: "var(--rp-shadow-soft)",
+        glow: "var(--rp-shadow-glow)",
       },
-      borderRadius: { xl: "16px", "2xl": "22px" }
-    }
+      borderRadius: { xl: "16px", "2xl": "22px" },
+    },
   },
   plugins: [],
 } satisfies Config;
