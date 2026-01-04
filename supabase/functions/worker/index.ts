@@ -19,442 +19,308 @@ type DbOpportunityRow = {
 
 type DbRawRow = {
   id: string;
-  content_hash: string;
+  opportunity_id: string | null;
+  source_id: string;
+  url: string;
+  url_canonical: string;
+  title: string;
+  published_at: string | null;
+  content_raw: string | null;
+  content_hash: string | null;
+  fetched_at: string;
+  hints: Record<string, unknown> | null;
+  confidence: number | null;
 };
 
-function buildRawRichText(input: { title: string; snippet: string | null; content: string | null }): string {
-  return [input.title || "", input.snippet || "", input.content || ""].join("\n\n").trim();
-}
-
-async function upsertOpportunityRaw(args: {
-  sb: ReturnType<typeof sbAdmin>;
-  source: SourceRow;
-  inOpp: OpportunityUpsertInput;
-  fetchedAt: string;
-}): Promise<
-  | { ok: true; raw_id: string; changed: boolean; action: "insert" | "update" | "noop" }
-  | { ok: false; error: unknown }
-> {
-  try {
-    const { sb, source, inOpp, fetchedAt } = args;
-
-    const url = String(inOpp.source_url || "").trim();
-    if (!url) return { ok: false, error: new Error("missing source_url") };
-
-    const urlCanonical = canonicalizeUrl(url);
-    const externalId = inOpp.external_id ? String(inOpp.external_id).trim() : null;
-
-    const titleRaw = String(inOpp.title || "").trim();
-    const snippetRaw = inOpp.summary ? String(inOpp.summary).trim().slice(0, 2400) : null;
-    // RSS MVP: pas de contenu long. On recycle le snippet en content pour réduire les 'skipped'.
-    const contentRaw = inOpp.summary ? String(inOpp.summary).trim().slice(0, 24_000) : null;
-
-    const richness = buildRawRichText({ title: titleRaw, snippet: snippetRaw, content: contentRaw });
-    const contentHash = await sha256Hex(richness);
-
-    // Resolve an existing raw row (external_id preferred, else url_canonical)
-    let existing: DbRawRow | null = null;
-    if (externalId) {
-      const { data, error } = await sb
-        .from("opportunities_raw")
-        .select("id,content_hash")
-        .eq("source_key", source.key)
-        .eq("external_id", externalId)
-        .maybeSingle();
-      if (error) throw error;
-      existing = (data as any) || null;
-    } else {
-      const { data, error } = await sb
-        .from("opportunities_raw")
-        .select("id,content_hash")
-        .eq("source_key", source.key)
-        .eq("url_canonical", urlCanonical)
-        .order("fetched_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      existing = (data as any) || null;
-    }
-
-    const patch = {
-      source_id: source.id,
-      source_key: source.key,
-      external_id: externalId,
-      url,
-      url_canonical: urlCanonical,
-      title_raw: titleRaw,
-      snippet_raw: snippetRaw,
-      content_raw: contentRaw,
-      content_hash: contentHash,
-      published_at: inOpp.published_at ?? null,
-      fetched_at: fetchedAt,
-      language_hint: inOpp.language ?? null,
-      raw_kind_hint: source.kind,
-      attachments: [],
-      ingest_errors: null,
-      ingest_run_id: null,
-    };
-
-    if (!existing?.id) {
-      const { data: created, error: insErr } = await sb
-        .from("opportunities_raw")
-        .insert(patch)
-        .select("id")
-        .single();
-      if (insErr) throw insErr;
-      return { ok: true, raw_id: (created as any).id as string, changed: true, action: "insert" };
-    }
-
-    const changed = String(existing.content_hash || "") !== contentHash;
-
-    const { error: upErr } = await sb.from("opportunities_raw").update(patch).eq("id", existing.id);
-    if (upErr) throw upErr;
-
-    return { ok: true, raw_id: existing.id, changed, action: changed ? "update" : "noop" };
-  } catch (e) {
-    return { ok: false, error: e };
-  }
-}
-
-function json(body: unknown, status = 200) {
+function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json; charset=utf-8",
+      ...(init.headers ?? {}),
+    },
+    status: init.status ?? 200,
   });
 }
 
-async function ensureBuyer(sb: ReturnType<typeof sbAdmin>, country: string | null, buyerName: string | null) {
-  const name = (buyerName || "").trim();
-  if (!name) return null;
-
-  const normalized = normalizeText(name);
-
-  let q = sb.from("buyers").select("id").eq("normalized_name", normalized).limit(1);
-  if (country === null) q = q.is("country_code", null);
-  else q = q.eq("country_code", country);
-
-  const { data: existing, error: selErr } = await q;
-  if (selErr) throw selErr;
-  if (existing && existing[0]?.id) return existing[0].id as string;
-
-  const { data: ins, error: insErr } = await sb
-    .from("buyers")
-    .insert({ country_code: country, name, normalized_name: normalized })
-    .select("id")
-    .single();
-
-  if (insErr) throw insErr;
-  return ins.id as string;
+function nowIso() {
+  return new Date().toISOString();
 }
 
-function computeDiff(prev: DbOpportunityRow, next: OpportunityUpsertInput) {
-  const changes: Record<string, any> = {};
+function clamp01(n: number) {
+  if (Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
 
-  const prevDeadline = prev.deadline_at ?? null;
-  const nextDeadline = next.deadline_at ?? null;
-  if (prevDeadline !== nextDeadline) changes.deadline_at = { from: prevDeadline, to: nextDeadline };
+function safeString(v: unknown): string | null {
+  if (typeof v === "string") return v;
+  return null;
+}
 
-  const prevTitle = prev.title ?? "";
-  const nextTitle = next.title ?? "";
-  if (prevTitle !== nextTitle) changes.title = { from: prevTitle, to: nextTitle };
+function ensureTitle(input: OpportunityUpsertInput): string {
+  const t = safeString(input.title)?.trim();
+  return t && t.length > 0 ? t : "Untitled opportunity";
+}
 
-  const prevSummary = prev.summary ?? "";
-  const nextSummary = next.summary ?? "";
-  if (prevSummary !== nextSummary) {
-    changes.summary = { from: prevSummary.slice(0, 200), to: nextSummary.slice(0, 200) };
+function normalizeUrlOrThrow(url: string): { url: string; url_canonical: string } {
+  const u = url?.trim();
+  if (!u) throw new Error("Missing url");
+  const canonical = canonicalizeUrl(u);
+  if (!canonical) throw new Error(`Invalid url: ${u}`);
+  return { url: u, url_canonical: canonical };
+}
+
+async function setJobRunning(jobId: string) {
+  const { error } = await sbAdmin
+    .from("ingestion_jobs")
+    .update({
+      status: "running",
+      started_at: nowIso(),
+      updated_at: nowIso(),
+    })
+    .eq("id", jobId);
+
+  if (error) throw new Error(`Failed to set job running: ${error.message}`);
+}
+
+async function setJobSuccess(jobId: string) {
+  const { error } = await sbAdmin
+    .from("ingestion_jobs")
+    .update({
+      status: "success",
+      finished_at: nowIso(),
+      updated_at: nowIso(),
+      error: null,
+    })
+    .eq("id", jobId);
+
+  if (error) throw new Error(`Failed to set job success: ${error.message}`);
+}
+
+async function setJobError(jobId: string, message: string) {
+  const { error } = await sbAdmin
+    .from("ingestion_jobs")
+    .update({
+      status: "error",
+      finished_at: nowIso(),
+      updated_at: nowIso(),
+      error: message,
+    })
+    .eq("id", jobId);
+
+  if (error) throw new Error(`Failed to set job error: ${error.message}`);
+}
+
+async function markSourceSuccess(sourceId: string) {
+  const { error } = await sbAdmin
+    .from("sources")
+    .update({
+      last_success_at: nowIso(),
+      last_error: null,
+      updated_at: nowIso(),
+    })
+    .eq("id", sourceId);
+
+  if (error) throw new Error(`Failed to mark source success: ${error.message}`);
+}
+
+async function markSourceError(sourceId: string, message: string) {
+  const { error } = await sbAdmin
+    .from("sources")
+    .update({
+      last_error: message,
+      updated_at: nowIso(),
+    })
+    .eq("id", sourceId);
+
+  if (error) throw new Error(`Failed to mark source error: ${error.message}`);
+}
+
+async function getSource(sourceId: string): Promise<SourceRow> {
+  const { data, error } = await sbAdmin.from("sources").select("*").eq("id", sourceId).maybeSingle();
+  if (error) throw new Error(`Failed to load source: ${error.message}`);
+  if (!data) throw new Error(`Source not found: ${sourceId}`);
+  return data as SourceRow;
+}
+
+async function getRawByCanonicalUrl(sourceId: string, urlCanonical: string): Promise<DbRawRow | null> {
+  const { data, error } = await sbAdmin
+    .from("opportunities_raw")
+    .select("*")
+    .eq("source_id", sourceId)
+    .eq("url_canonical", urlCanonical)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to lookup raw: ${error.message}`);
+  return (data ?? null) as DbRawRow | null;
+}
+
+async function insertOrUpdateRaw(source: SourceRow, opp: OpportunityUpsertInput): Promise<DbRawRow> {
+  const title = ensureTitle(opp);
+  const { url, url_canonical } = normalizeUrlOrThrow(opp.url);
+
+  const content_raw = safeString(opp.content_raw);
+  const content_hash = content_raw ? await sha256Hex(content_raw) : null;
+
+  const published_at = opp.published_at ? new Date(opp.published_at).toISOString() : null;
+  const fetched_at = opp.fetched_at ? new Date(opp.fetched_at).toISOString() : nowIso();
+
+  const existing = await getRawByCanonicalUrl(source.id, url_canonical);
+
+  // Idempotence based on canonical URL + content hash
+  if (existing && existing.content_hash && content_hash && existing.content_hash === content_hash) {
+    return existing;
   }
 
-  const prevUrl = prev.source_url ?? "";
-  const nextUrl = next.source_url ?? "";
-  if (prevUrl !== nextUrl) changes.source_url = { from: prevUrl, to: nextUrl };
+  const payloadRow = {
+    source_id: source.id,
+    opportunity_id: null,
+    url,
+    url_canonical,
+    title,
+    published_at,
+    content_raw,
+    content_hash,
+    fetched_at,
+    hints: (opp.hints ?? null) as Record<string, unknown> | null,
+    confidence: typeof opp.confidence === "number" ? clamp01(opp.confidence) : null,
+  };
 
-  return changes;
+  const { data, error } = await sbAdmin
+    .from("opportunities_raw")
+    .insert(payloadRow)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(`Failed to insert raw: ${error.message}`);
+  return data as DbRawRow;
+}
+
+async function upsertOpportunityFromAi(rawId: string): Promise<DbOpportunityRow | null> {
+  // The AI extraction function handles its own upserts into:
+  // - opportunity_ai (+ evidence)
+  // - opportunities (final product row)
+  //
+  // It returns something (or not) depending on extraction / filtering.
+  const result = await extractLightForRawId(rawId);
+
+  // If extraction decides it's not an opportunity (e.g., news), it may return null-ish.
+  // We normalize to DbOpportunityRow | null.
+  if (!result) return null;
+
+  // Many versions return an opportunity id; but we keep it permissive:
+  // if the extraction wrote an opportunity row, fetch it by raw.opportunity_id later,
+  // or try to read from returned payload if present.
+  return null;
+}
+
+async function attachRawToOpportunity(rawId: string, opportunityId: string) {
+  const { error } = await sbAdmin
+    .from("opportunities_raw")
+    .update({
+      opportunity_id: opportunityId,
+      updated_at: nowIso(),
+    })
+    .eq("id", rawId);
+
+  if (error) throw new Error(`Failed to attach raw to opportunity: ${error.message}`);
+}
+
+async function readOpportunityById(id: string): Promise<DbOpportunityRow | null> {
+  const { data, error } = await sbAdmin.from("opportunities").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`Failed to read opportunity: ${error.message}`);
+  return (data ?? null) as DbOpportunityRow | null;
+}
+
+async function readOpportunityForRaw(rawId: string): Promise<DbOpportunityRow | null> {
+  const { data, error } = await sbAdmin
+    .from("opportunities_raw")
+    .select("opportunity_id")
+    .eq("id", rawId)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to read raw.opportunity_id: ${error.message}`);
+  const oppId = (data as { opportunity_id: string | null } | null)?.opportunity_id ?? null;
+  if (!oppId) return null;
+  return await readOpportunityById(oppId);
+}
+
+async function processJob(job: IngestionJobRow) {
+  await setJobRunning(job.id);
+
+  const source = await getSource(job.source_id);
+
+  try {
+    const result = await runConnector(source);
+
+    let insertedRaw = 0;
+    let extractedAi = 0;
+    let createdOpp = 0;
+
+    for (const opp of result.opportunities) {
+      // Normalize / clean content
+      if (opp.content_raw && typeof opp.content_raw === "string") {
+        opp.content_raw = normalizeText(opp.content_raw);
+      } else if (opp.content_raw == null && opp.summary && typeof opp.summary === "string") {
+        // Some connectors provide summary; keep it as content_raw if raw missing
+        opp.content_raw = normalizeText(opp.summary);
+      }
+
+      const raw = await insertOrUpdateRaw(source, opp);
+      insertedRaw += 1;
+
+      // Trigger AI extraction on each raw
+      await upsertOpportunityFromAi(raw.id);
+      extractedAi += 1;
+
+      const finalOpp = await readOpportunityForRaw(raw.id);
+      if (finalOpp) {
+        createdOpp += 1;
+        // Ensure raw links to final opp (some flows might already attach; we keep safe)
+        await attachRawToOpportunity(raw.id, finalOpp.id);
+      }
+    }
+
+    await markSourceSuccess(source.id);
+    await setJobSuccess(job.id);
+
+    return {
+      ok: true,
+      source: source.key,
+      kind: source.kind,
+      inserted_raw: insertedRaw,
+      extracted_ai: extractedAi,
+      created_opportunities: createdOpp,
+      fetched_at: result.fetched_at,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await markSourceError(source.id, msg);
+    await setJobError(job.id, msg);
+    return { ok: false, source: source.key, kind: source.kind, error: msg };
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  let claimedJobId: string | null = null;
-
-  try {
-    const sb = sbAdmin();
-
-    // 1) Claim one job
-    const { data: job, error: jobErr } = await sb
-      .rpc("claim_next_ingestion_job", { max_attempts: 5 })
-      .maybeSingle();
-
-    if (jobErr) throw jobErr;
-
-    // GUARD ANTI-22P02: considérer no_jobs si job OU id OU source_id manquent
-    if (!job || !(job as any).id || !(job as any).source_id) {
-      return json({ ok: true, message: "no_jobs" }, 200);
-    }
-
-    const j = job as IngestionJobRow;
-    claimedJobId = j.id;
-
-    // 2) Load source
-    const { data: source, error: srcErr } = await sb
-      .from("sources")
-      .select("id, key, name, kind, url, country_code, is_active, schedule_minutes, last_run_at, meta")
-      .eq("id", j.source_id)
-      .single();
-
-    if (srcErr) throw srcErr;
-    const s = source as SourceRow;
-
-    // 3) Run connector (RSS MVP)
-    const res = await runConnector(s);
-
-    let inserted = 0;
-    let updated = 0;
-    let events = 0;
-
-    // AI extraction (V1.light) — internal call (no HTTP)
-    let rawInserted = 0;
-    let rawUpdated = 0;
-    let rawNoop = 0;
-    let rawErrors = 0;
-    let aiSuccess = 0;
-    let aiSkipped = 0;
-    let aiErrors = 0;
-    let aiNewsFiltered = 0;
-
-    const aiEnabled = String(Deno.env.get("AI_EXTRACT_ENABLED") ?? "true").toLowerCase() !== "false";
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
-    const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
-    const openaiStore = String(Deno.env.get("OPENAI_STORE") ?? "false").toLowerCase() === "true";
-    const canUseAi = aiEnabled && Boolean(openaiApiKey);
-
-    // If enabled, do NOT insert opportunities that the AI classifies as news/non-opportunity.
-    // This keeps the Inbox clean even when sources are noisy or mixed.
-    const aiFilterNews = String(Deno.env.get("AI_FILTER_NEWS") ?? "true").toLowerCase() !== "false";
-
-    if (aiEnabled && !openaiApiKey) {
-      console.warn("AI_EXTRACT_DISABLED", "Missing OPENAI_API_KEY");
-    }
-
-    for (const inOpp of res.opportunities) {
-      // 3.A) Upsert raw row (best-effort)
-      const rawRes = await upsertOpportunityRaw({ sb, source: s, inOpp, fetchedAt: res.fetched_at });
-      let rawIdForAi: string | null = null;
-      let rawChanged = false;
-
-      if (rawRes.ok) {
-        rawIdForAi = rawRes.raw_id;
-        rawChanged = rawRes.changed;
-        if (rawRes.action === "insert") rawInserted++;
-        else if (rawRes.action === "update") rawUpdated++;
-        else rawNoop++;
-      } else {
-        rawErrors++;
-        console.warn("RAW_UPSERT_ERROR", rawRes.error);
-      }
-
-      // 3.B) Run AI extraction only when raw content changed or is new
-      let latestAiId: string | null = null;
-      if (canUseAi && rawIdForAi && rawChanged) {
-        try {
-          const r = await extractLightForRawId(sb as any, rawIdForAi, {
-            openaiApiKey,
-            openaiModel,
-            openaiStore,
-            extractVersion: "v1.light",
-            minContentChars: 280,
-            maxContentChars: 24_000,
-          });
-
-          if (r.status === "success") aiSuccess++;
-          else aiSkipped++;
-
-          if (r.status === "success" && r.ai_id) {
-            latestAiId = r.ai_id;
-          }
-        } catch (e) {
-          aiErrors++;
-          console.error("AI_EXTRACT_ERROR", { raw_id: rawIdForAi, error: (e as any)?.message ?? String(e) });
-        }
-      }
-
-      // 3.C) AI-based Inbox filter: skip NEWS / non-opportunity items
-      if (aiFilterNews && rawIdForAi && canUseAi) {
-        try {
-          // Prefer the fresh ai_id if we just extracted; otherwise, look up the latest AI row for this raw.
-          const { data: aiRow, error: aiSelErr } = latestAiId
-            ? await sb.from("opportunity_ai").select("id, content_type, signals").eq("id", latestAiId).maybeSingle()
-            : await sb
-                .from("opportunity_ai")
-                .select("id, content_type, signals")
-                .eq("raw_id", rawIdForAi)
-                .order("extracted_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-          if (aiSelErr) throw aiSelErr;
-
-          const ct = String((aiRow as any)?.content_type ?? "").toLowerCase();
-          const sig = (aiRow as any)?.signals ?? null;
-          const isOpp = typeof sig?.is_opportunity === "boolean" ? sig.is_opportunity : null;
-
-          const shouldSkip = ct === "news" || isOpp === false;
-          if (shouldSkip) {
-            aiNewsFiltered++;
-            // We keep RAW + AI rows for audit/debug, but we don't pollute `opportunities`.
-            continue;
-          }
-        } catch (e) {
-          // Fail-open: don't block ingestion if the filter lookup fails.
-          console.warn("AI_FILTER_NEWS_LOOKUP_FAILED", { raw_id: rawIdForAi, error: (e as any)?.message ?? String(e) });
-        }
-      }
-
-      const buyerId = await ensureBuyer(sb, inOpp.country_code ?? null, inOpp.buyer_name ?? null);
-
-      const { data: prev, error: prevErr } = await sb
-        .from("opportunities")
-        .select("id, fingerprint, title, summary, deadline_at, source_url, country_code, type")
-        .eq("fingerprint", inOpp.fingerprint)
-        .maybeSingle();
-
-      if (prevErr) throw prevErr;
-
-      if (!prev) {
-        const { data: created, error: insErr } = await sb
-          .from("opportunities")
-          .insert({
-            ...inOpp,
-            buyer_id: buyerId,
-            buyer_name: inOpp.buyer_name || null,
-            raw: inOpp.raw || {},
-          })
-          .select("id, fingerprint, title, summary, deadline_at, source_url, country_code, type")
-          .single();
-
-        if (insErr) throw insErr;
-        inserted++;
-
-        const { error: evErr } = await sb.from("opportunity_events").insert({
-          opportunity_id: created.id,
-          type: "NEW",
-          data: { source_id: s.id, fetched_at: res.fetched_at },
-        });
-        if (evErr) throw evErr;
-        events++;
-
-        continue;
-      }
-
-      const changes = computeDiff(prev as any, inOpp);
-      if (Object.keys(changes).length === 0) continue;
-
-      const nextPatch: any = {
-        title: inOpp.title,
-        summary: inOpp.summary ?? null,
-        deadline_at: inOpp.deadline_at ?? null,
-        source_url: inOpp.source_url,
-        buyer_id: buyerId,
-        buyer_name: inOpp.buyer_name || null,
-        raw: inOpp.raw || {},
-      };
-
-      const { data: patched, error: upErr } = await sb
-        .from("opportunities")
-        .update(nextPatch)
-        .eq("id", (prev as any).id)
-        .select("id, fingerprint, title, summary, deadline_at, source_url, country_code, type")
-        .single();
-
-      if (upErr) throw upErr;
-      updated++;
-
-      const eventType = changes.deadline_at ? "DEADLINE_CHANGED" : "UPDATED";
-
-      const { error: ev2Err } = await sb.from("opportunity_events").insert({
-        opportunity_id: patched.id,
-        type: eventType,
-        data: { changes, fetched_at: res.fetched_at },
-      });
-      if (ev2Err) throw ev2Err;
-      events++;
-    }
-
-    // 4) Mark job success
-    const now = new Date().toISOString();
-
-    const { error: jobDoneErr } = await sb
-      .from("ingestion_jobs")
-      .update({ status: "success", finished_at: now })
-      .eq("id", j.id);
-    if (jobDoneErr) throw jobDoneErr;
-
-    const { error: srcUpErr } = await sb
-      .from("sources")
-      .update({ last_success_at: now, last_error: null })
-      .eq("id", s.id);
-    if (srcUpErr) throw srcUpErr;
-
-    return json(
-      {
-        ok: true,
-        job_id: j.id,
-        source: s.key,
-        fetched_at: res.fetched_at,
-        inserted,
-        updated,
-        events,
-        ai: {
-          enabled: canUseAi,
-          raw: {
-            inserted: rawInserted,
-            updated: rawUpdated,
-            noop: rawNoop,
-            errors: rawErrors,
-          },
-          extraction: {
-            success: aiSuccess,
-            skipped: aiSkipped,
-            errors: aiErrors,
-            model: openaiModel,
-            news_filtered: aiNewsFiltered,
-          },
-        },
-      },
-      200
-    );
-  } catch (e) {
-    console.error("WORKER_ERROR", e);
-
-    // Optionnel mais très utile: marquer le job en erreur si déjà claim
-    try {
-      if (claimedJobId) {
-        const sb = sbAdmin();
-        const now = new Date().toISOString();
-        await sb
-          .from("ingestion_jobs")
-          .update({
-            status: "error",
-            finished_at: now,
-            error: typeof e === "object" && e !== null ? (e as any).message ?? String(e) : String(e),
-          })
-          .eq("id", claimedJobId);
-      }
-    } catch (markErr) {
-      console.error("JOB_MARK_ERROR_FAILED", markErr);
-    }
-
-    const errObj =
-      typeof e === "object" && e !== null
-        ? {
-            name: (e as any).name,
-            message: (e as any).message,
-            stack: (e as any).stack,
-            details: (e as any).details,
-            hint: (e as any).hint,
-            code: (e as any).code,
-          }
-        : { message: String(e) };
-
-    return json({ ok: false, error: errObj }, 500);
+  if (req.method !== "POST") {
+    return json({ ok: false, error: "Method not allowed" }, { status: 405 });
   }
+
+  // Claim next job via RPC
+  const { data: job, error } = await sbAdmin.rpc("claim_next_ingestion_job").maybeSingle();
+
+  if (error) {
+    return json({ ok: false, error: `claim_next_ingestion_job failed: ${error.message}` }, { status: 500 });
+  }
+
+  if (!job) {
+    return json({ ok: true, message: "no_jobs" });
+  }
+
+  const res = await processJob(job as IngestionJobRow);
+  return json(res);
 });

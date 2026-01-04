@@ -1,17 +1,58 @@
 import React, { useEffect, useRef } from "react";
 import { Renderer, Camera, Transform, Geometry, Program, Mesh } from "ogl";
+import { useLandingMotionStore } from "@/features/landing/cinematic/landingMotionStore";
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n));
+}
+
 /**
- * Minimal OGL shader backdrop.
+ * Map the ZipPinnedStage progress to a "focus" point and intensity.
+ * This is the core of the "ZipHQ background choreography":
+ * - the backdrop remains subtle, but it clearly *moves with the narrative*
+ * - no flashy transitions, just controlled shifts of focus + saturation
+ */
+function focusFromProgress(progress: number) {
+  const p = clamp01(progress);
+  const steps = 4;
+  const raw = p * steps;
+  const idx = Math.min(steps - 1, Math.floor(raw));
+  const t = raw - idx;
+
+  // Anchors in "p-space" (centered) used by the shader.
+  // Keep them tight to avoid nausea and to maintain readability.
+  const anchors: Array<[number, number]> = [
+    [0.15, 0.05], // INCOMING
+    [-0.05, 0.12], // DEDUP
+    [0.22, -0.02], // EVIDENCE
+    [0.06, -0.14], // DECISION
+  ];
+
+  const a = anchors[idx];
+  const b = anchors[Math.min(steps - 1, idx + 1)];
+
+  const ease = t * t * (3 - 2 * t); // smoothstep
+  const x = a[0] + (b[0] - a[0]) * ease;
+  const y = a[1] + (b[1] - a[1]) * ease;
+
+  // Slightly increase intensity as the user advances.
+  const intensity = 0.28 + 0.18 * p;
+
+  return { x, y, step: idx, intensity, progress: p };
+}
+
+/**
+ * Minimal OGL shader backdrop, now *scroll-driven*.
  *
  * Goals:
  * - subtle, lux, non-gimmicky
  * - stays readable under content (we add a veil layer)
  * - avoids pure black
+ * - reacts to ZipPinnedStage progress (background choreography)
  */
 export function TwilightWebGLBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -39,11 +80,7 @@ export function TwilightWebGLBackdrop() {
     const geometry = new Geometry(gl, {
       position: {
         size: 3,
-        data: new Float32Array([
-          -1, -1, 0,
-          3, -1, 0,
-          -1, 3, 0,
-        ]),
+        data: new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]),
       },
       uv: {
         size: 2,
@@ -68,6 +105,9 @@ export function TwilightWebGLBackdrop() {
 
         uniform float uTime;
         uniform vec2 uRes;
+        uniform float uProgress;
+        uniform float uIntensity;
+        uniform vec2 uFocus;
 
         // cheap hash
         float hash(vec2 p) {
@@ -107,36 +147,43 @@ export function TwilightWebGLBackdrop() {
 
           float t = uTime * 0.10;
 
-          // flow field
+          // flow field (slow)
           float n1 = fbm(p * 2.0 + vec2(t, -t));
           float n2 = fbm(p * 3.0 + vec2(-t * 0.7, t * 0.9));
           float swirl = smoothstep(0.0, 1.0, n1) * 0.6 + n2 * 0.4;
 
           // palette: lavender / orchid / mist
-          vec3 c1 = vec3(0.96, 0.95, 0.99); // mist
-          vec3 c2 = vec3(0.72, 0.54, 0.94); // violet
-          vec3 c3 = vec3(0.90, 0.80, 0.98); // orchid mist
+          vec3 c1 = vec3(0.965, 0.958, 0.995); // mist
+          vec3 c2 = vec3(0.70, 0.52, 0.93);    // violet
+          vec3 c3 = vec3(0.90, 0.80, 0.98);    // orchid mist
+
+          // Scroll-driven saturation: more "tech premium" as progress increases
+          float sat = mix(0.22, 0.42, smoothstep(0.0, 1.0, uProgress));
 
           vec3 col = mix(c1, c2, swirl);
           col = mix(col, c3, smoothstep(-0.2, 0.8, p.y + 0.15));
+          col = mix(vec3(0.985, 0.985, 0.995), col, sat);
 
-          // bright focus blob (hero focus)
-          float r = length(p - vec2(0.15, 0.05));
+          // Focus blob follows the narrative (uFocus is in p-space)
+          float r = length(p - uFocus);
           float glow = exp(-r * 3.2);
-          col += vec3(0.35, 0.20, 0.55) * glow * 0.35;
+          col += vec3(0.35, 0.20, 0.55) * glow * uIntensity;
 
-          // vignette (soft, not black)
-          float v = smoothstep(1.2, 0.2, length(p));
-          col = mix(vec3(0.98, 0.98, 0.995), col, v);
+          // Soft vignette (keep readable; never dark)
+          float v = smoothstep(1.25, 0.22, length(p));
+          col = mix(vec3(0.992, 0.992, 0.998), col, v);
 
-          // alpha: keep subtle behind content
-          float a = 0.65;
+          // Alpha tuned for readability
+          float a = mix(0.55, 0.70, smoothstep(0.0, 1.0, uProgress));
           gl_FragColor = vec4(col, a);
         }
       `,
       uniforms: {
         uTime: { value: 0 },
         uRes: { value: [1, 1] },
+        uProgress: { value: 0 },
+        uIntensity: { value: 0.28 },
+        uFocus: { value: [0.15, 0.05] },
       },
     });
 
@@ -153,6 +200,14 @@ export function TwilightWebGLBackdrop() {
 
     const tick = (ms: number) => {
       program.uniforms.uTime.value = ms / 1000;
+
+      // Read scroll state without re-rendering React.
+      const { stageProgress } = useLandingMotionStore.getState();
+      const f = focusFromProgress(stageProgress);
+      program.uniforms.uProgress.value = f.progress;
+      program.uniforms.uIntensity.value = f.intensity;
+      program.uniforms.uFocus.value = [f.x, f.y];
+
       renderer.render({ scene, camera });
       raf = requestAnimationFrame(tick);
     };
@@ -164,15 +219,14 @@ export function TwilightWebGLBackdrop() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      // OGL doesn't require explicit dispose for this simple setup
     };
   }, []);
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
       <canvas ref={canvasRef} className="h-full w-full" />
-      {/* readability veil */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/15 to-white/25" />
+      {/* readability veil: keep content crisp, even with a richer backdrop */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/28 via-white/12 to-white/22" />
     </div>
   );
 }

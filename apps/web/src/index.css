@@ -35,6 +35,10 @@
   /* Extra tokens for cinematic visuals */
   --rp-ink: 17 15 27;
   --rp-veil: 255 255 255;
+
+  /* Shadows (needed for depth; Tailwind uses these via shadow-soft / shadow-glow) */
+  --rp-shadow-soft: 0 18px 50px rgba(17, 15, 27, 0.08);
+  --rp-shadow-glow: 0 22px 70px rgba(124, 58, 237, 0.22);
 }
 
 * {
@@ -131,7 +135,9 @@ body {
   * {
     @apply border-border;
   }
+
+  /* Use RadarPulse tokens as the default app background, so marketing and product feel consistent */
   body {
-    @apply bg-background text-foreground;
+    @apply bg-bg text-text;
   }
 }
