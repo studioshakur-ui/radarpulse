@@ -33,7 +33,7 @@
  
  ### Résumé
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
- - `public.ingestion_jobs` — size: 80 kB — RLS: on — cols: 11
+ - `public.ingestion_jobs` — size: 96 kB — RLS: on — cols: 11
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
  - `public.opportunities` — size: 104 kB — RLS: on — cols: 20
@@ -81,7 +81,7 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `24 kB`
- - **Size**: `80 kB`
+ - **Size**: `96 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
  - **Size**: `104 kB`
