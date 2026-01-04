@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Mail } from "lucide-react";
-import { ThemeMenu } from "@/components/ThemeMenu";
 import { cx } from "@/lib/utils";
 
 type FormState = {
@@ -20,10 +19,10 @@ function safeLoad(): FormState | null {
     const v = JSON.parse(raw);
     if (!v || typeof v !== "object") return null;
     return {
-      name: String(v.name ?? ""),
-      email: String(v.email ?? ""),
-      organization: String(v.organization ?? ""),
-      useCase: String(v.useCase ?? ""),
+      name: String((v as any).name ?? ""),
+      email: String((v as any).email ?? ""),
+      organization: String((v as any).organization ?? ""),
+      useCase: String((v as any).useCase ?? ""),
     };
   } catch {
     return null;
@@ -77,7 +76,6 @@ export default function RequestAccessPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeMenu className="hidden sm:inline-flex" />
             <Link
               to="/explore"
               className={cx(

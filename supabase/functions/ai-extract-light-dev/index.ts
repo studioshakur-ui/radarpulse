@@ -19,12 +19,14 @@ serve(async (req) => {
   try {
     if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-    const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") || "";
+    // Supabase Edge runtime ignores env vars prefixed with SUPABASE_.
+    // Use SB_URL + SERVICE_ROLE_KEY for Edge Functions.
+    const SB_URL = Deno.env.get("SB_URL") || Deno.env.get("SUPABASE_URL") || "";
+    const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
     const DEV_CALL_KEY = Deno.env.get("DEV_CALL_KEY") || "";
 
-    if (!SUPABASE_URL) return json(500, { error: "Missing SUPABASE_URL" });
+    if (!SB_URL) return json(500, { error: "Missing SB_URL" });
     if (!SERVICE_ROLE_KEY) return json(500, { error: "Missing SERVICE_ROLE_KEY" });
     if (!OPENAI_API_KEY) return json(500, { error: "Missing OPENAI_API_KEY" });
     if (!DEV_CALL_KEY) return json(500, { error: "Missing DEV_CALL_KEY" });
@@ -39,7 +41,7 @@ serve(async (req) => {
     if (!raw_id) return json(400, { error: "Missing raw_id" });
     if (key !== DEV_CALL_KEY) return json(401, { error: "Bad dev key" });
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const supabase = createClient(SB_URL, SERVICE_ROLE_KEY);
 
     const res = await extractLightForRawId(supabase, raw_id, {
       openaiApiKey: OPENAI_API_KEY,

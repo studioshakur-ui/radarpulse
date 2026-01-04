@@ -1,130 +1,19 @@
-import React, { useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight, Check, Shield, Sparkles, Workflow } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cx } from "@/lib/utils";
-
-/* -----------------------------
-   Luxe motion (controlled)
------------------------------ */
-function useLuxeMotion() {
-  const reduced = useReducedMotion();
-  return {
-    reduced,
-    reveal: {
-      initial: reduced ? { opacity: 1, y: 0 } : { opacity: 0, y: 12, filter: "blur(6px)" },
-      whileInView: reduced ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: "blur(0px)" },
-      viewport: { once: true, amount: 0.35 },
-      transition: { duration: 0.6, ease: [0.21, 0.61, 0.35, 1] },
-    },
-  };
-}
-
-function LuxeBackdrop() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* Vignette */}
-      <div className="absolute inset-0 [background:radial-gradient(1200px_700px_at_30%_10%,rgba(168,85,247,0.18),transparent_60%),radial-gradient(900px_600px_at_85%_30%,rgba(216,180,254,0.10),transparent_60%)]" />
-      <div className="absolute inset-0 [background:radial-gradient(1200px_900px_at_50%_110%,rgba(0,0,0,0.75),transparent_55%)]" />
-      {/* Noise (ultra light) */}
-      <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22400%22><filter id=%22n%22 x=%220%22 y=%220%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/></filter><rect width=%22400%22 height=%22400%22 filter=%22url(%23n)%22 opacity=%220.55%22/></svg>')]" />
-      {/* Subtle grid */}
-      <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(to_right,rgba(255,255,255,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:64px_64px]" />
-    </div>
-  );
-}
+import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
+import { TopNavCinematic } from "@/features/landing/cinematic/TopNavCinematic";
+import { DecisionPipelineChart } from "@/features/landing/cinematic/DecisionPipelineChart";
+import { ChapterHeroArt } from "@/features/landing/cinematic/ChapterHeroArt";
+import { useChapterProgress } from "@/features/landing/cinematic/useChapterProgress";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-border/30 bg-surface/60 px-3 py-1 text-xs text-muted shadow-soft">
+    <span className="inline-flex items-center rounded-full border border-border/30 bg-white/45 px-3 py-1 text-xs font-semibold text-muted shadow-soft">
       {children}
     </span>
-  );
-}
-
-function PrimaryCTA({
-  to,
-  children,
-  className,
-}: {
-  to: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className={cx(
-        "group relative inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold text-bg shadow-glow transition",
-        "bg-[linear-gradient(135deg,rgba(168,85,247,0.95),rgba(139,92,246,0.85),rgba(236,72,153,0.22))]",
-        "hover:opacity-[0.96] active:scale-[0.99]",
-        "focus:outline-none focus:ring-2 focus:ring-accent/40",
-        className
-      )}
-    >
-      <span className="absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100 [background:radial-gradient(600px_200px_at_30%_30%,rgba(255,255,255,0.16),transparent_60%)]" />
-      <span className="relative">{children}</span>
-    </Link>
-  );
-}
-
-function SecondaryCTA({
-  to,
-  children,
-  className,
-}: {
-  to: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-2xl border border-border/30 bg-surface/70 px-5 py-3 text-sm font-semibold text-text shadow-soft transition",
-        "hover:bg-elevated/70 hover:border-border/45 active:scale-[0.99]",
-        className
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function Card({
-  title,
-  desc,
-  icon,
-  bullets,
-}: {
-  title: string;
-  desc: string;
-  icon?: React.ReactNode;
-  bullets?: string[];
-}) {
-  return (
-    <div className="group relative rounded-2xl border border-border/30 bg-surface/70 p-5 shadow-soft transition hover:border-border/45 hover:bg-elevated/40">
-      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100 [background:radial-gradient(700px_240px_at_25%_15%,rgba(216,180,254,0.12),transparent_60%)]" />
-      <div className="relative">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-elevated/70 shadow-glow">
-            {icon}
-          </div>
-          <div className="text-base font-semibold">{title}</div>
-        </div>
-        <div className="text-sm text-muted">{desc}</div>
-        {bullets?.length ? (
-          <ul className="mt-4 space-y-2 text-sm">
-            {bullets.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-text/95">
-                <Check className="mt-0.5 h-4 w-4 text-accent" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
   );
 }
 
@@ -141,191 +30,124 @@ function Section({
   children: React.ReactNode;
   className?: string;
 }) {
-  const m = useLuxeMotion();
   return (
-    <motion.section
-      id={id}
-      className={cx("mx-auto max-w-6xl px-4 py-16 sm:py-20", className)}
-      initial={m.reveal.initial as any}
-      whileInView={m.reveal.whileInView as any}
-      viewport={m.reveal.viewport as any}
-      transition={m.reveal.transition as any}
-    >
+    <section id={id} className={cx("mx-auto max-w-6xl px-4 py-16 sm:py-20", className)}>
       <div className="mb-8">
-        {eyebrow ? (
-          <div className="mb-2 text-xs font-semibold tracking-wide text-muted">{eyebrow}</div>
-        ) : null}
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
+        {eyebrow ? <div className="mb-2 text-xs font-semibold tracking-wide text-muted">{eyebrow}</div> : null}
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
       </div>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
-/* -----------------------------
-   Hero "product truth"
------------------------------ */
-function HeroDemoFrame() {
-  const m = useLuxeMotion();
-
-  // simple choreographed “GO -> workspace created”
-  const steps = useMemo(
-    () => [
-      { t: "UN procurement bulletin — logistics", badge: "Grant", tone: "neutral" as const },
-      { t: "Solar deployment — feasibility & design", badge: "Tender", tone: "neutral" as const },
-      { t: "Emergency response — procurement", badge: "Grant", tone: "warn" as const },
-    ],
-    []
-  );
-
+function FeatureCard({
+  title,
+  desc,
+  icon,
+  bullets,
+}: {
+  title: string;
+  desc: string;
+  icon?: React.ReactNode;
+  bullets?: string[];
+}) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-surface/60 shadow-soft">
-      <div className="absolute inset-0 opacity-100 [background:radial-gradient(800px_320px_at_20%_0%,rgba(168,85,247,0.18),transparent_60%)]" />
-      <div className="relative p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="text-sm font-semibold">Inbox</div>
-          <span className="rounded-full border border-border/30 bg-bg/40 px-2 py-0.5 text-[11px] font-medium text-muted">
-            Demo
-          </span>
+    <div className="rounded-2xl border border-border/30 bg-white/55 p-6 shadow-soft backdrop-blur">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-elevated shadow-soft">
+          {icon}
         </div>
-
-        <div className="space-y-2">
-          {steps.map((s, i) => (
-            <motion.div
-              key={s.t}
-              className="flex items-center gap-3 rounded-2xl border border-border/25 bg-bg/35 px-3 py-2"
-              initial={m.reveal.initial as any}
-              whileInView={m.reveal.whileInView as any}
-              viewport={{ once: true, amount: 0.6 }}
-              transition={{ ...m.reveal.transition, delay: 0.05 * i }}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold">{s.t}</div>
-                <div className="mt-0.5 text-xs text-muted">Evidence-linked · normalized fields</div>
-              </div>
-              <span className="rounded-full border border-border/25 bg-surface/50 px-2 py-0.5 text-[11px] font-medium text-muted">
-                {s.badge}
-              </span>
-              <motion.button
-                type="button"
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-bg shadow-glow"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(168,85,247,0.95), rgba(139,92,246,0.85), rgba(236,72,153,0.22))",
-                }}
-                initial={{ opacity: 0.75 }}
-                whileHover={{ opacity: 0.98 }}
-                whileTap={{ scale: 0.99 }}
-              >
-                GO
-              </motion.button>
-            </motion.div>
+        <div className="text-base font-semibold">{title}</div>
+      </div>
+      <div className="text-sm text-muted">{desc}</div>
+      {bullets?.length ? (
+        <ul className="mt-4 space-y-2 text-sm">
+          {bullets.map((b) => (
+            <li key={b} className="flex items-start gap-2 text-text/95">
+              <Check className="mt-0.5 h-4 w-4 text-accent" />
+              <span>{b}</span>
+            </li>
           ))}
-        </div>
-
-        <motion.div
-          className="mt-3 flex items-center justify-between rounded-2xl border border-border/25 bg-elevated/35 px-3 py-2"
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.8 }}
-          transition={{ duration: 0.6, delay: 0.25, ease: [0.21, 0.61, 0.35, 1] }}
-        >
-          <div className="text-xs text-muted">
-            Workspace created: <span className="font-semibold text-text">Checklist · Milestones · Missing docs</span>
-          </div>
-          <span className="rounded-full border border-good/25 bg-good/10 px-2 py-0.5 text-[11px] font-medium text-good">
-            Ready
-          </span>
-        </motion.div>
-      </div>
+        </ul>
+      ) : null}
     </div>
   );
 }
 
-function TopNav() {
-  const loc = useLocation();
-  const isExplore = loc.pathname === "/explore";
+function CinematicChapter({
+  id,
+  title,
+  subtitle,
+  left,
+  right,
+  heightClass = "min-h-[180vh]",
+}: {
+  id: string;
+  title: React.ReactNode;
+  subtitle: React.ReactNode;
+  left: React.ReactNode;
+  right: React.ReactNode;
+  heightClass?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const reduce = useReducedMotion();
+  const progress = useChapterProgress(ref, {
+    end: "+=220%",
+    scrub: true,
+    pin: true,
+    enabled: !reduce,
+  });
+
+  const lift = useMemo(() => {
+    const t = progress;
+    // 0..1 => subtle rise
+    return Math.round((1 - t) * 16);
+  }, [progress]);
 
   return (
-    <div className="fixed inset-x-0 top-0 z-30 border-b border-border/25 bg-bg/65 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <div className="flex items-center gap-3">
-          <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold">RadarPulse</div>
-            <div className="text-[11px] text-muted">Tenders + Grants</div>
+    <section id={id} ref={ref} className={cx("relative", heightClass)}>
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-12 md:items-start">
+          <div className="md:col-span-5">
+            <div className="rounded-2xl border border-border/30 bg-white/55 p-6 shadow-soft backdrop-blur">
+              <div className="text-xs font-semibold text-muted">{subtitle}</div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</div>
+
+              <div className="mt-5">{left}</div>
+            </div>
+          </div>
+
+          <div className="md:col-span-7">
+            <motion.div
+              className="rounded-2xl border border-border/30 bg-white/50 shadow-soft backdrop-blur"
+              style={{
+                transform: `translateY(${lift}px)`,
+              }}
+            >
+              {right}
+            </motion.div>
           </div>
         </div>
-
-        <div className="hidden items-center gap-6 text-sm text-muted md:flex">
-          <a className="hover:text-text" href="#product">
-            Product
-          </a>
-          <a className="hover:text-text" href="#how">
-            How it works
-          </a>
-          <a className="hover:text-text" href="#pricing">
-            Pricing
-          </a>
-          <a className="hover:text-text" href="#security">
-            Security
-          </a>
-          <a className="hover:text-text" href="#contact">
-            Contact
-          </a>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isExplore ? (
-            <>
-              <Link
-                to="/explore"
-                className={cx(
-                  "inline-flex items-center gap-2 rounded-xl border border-border/30 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
-                  "hover:bg-elevated/70 hover:border-border/45 active:scale-[0.99]"
-                )}
-              >
-                Explore
-              </Link>
-              <PrimaryCTA to="/request-access" className="rounded-xl px-3 py-2 text-sm">
-                Request access <ArrowRight className="h-4 w-4" />
-              </PrimaryCTA>
-            </>
-          ) : (
-            <Link
-              to="/"
-              className={cx(
-                "inline-flex items-center gap-2 rounded-xl border border-border/30 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
-                "hover:bg-elevated/70 hover:border-border/45 active:scale-[0.99]"
-              )}
-            >
-              Back to landing
-            </Link>
-          )}
-        </div>
       </div>
-    </div>
+
+      {/* soft divider */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
+    </section>
   );
 }
 
 export default function LandingPage() {
-  const m = useLuxeMotion();
-
   return (
-    <div className="relative min-h-screen bg-bg text-text">
-      <LuxeBackdrop />
-      <TopNav />
+    <div className="min-h-screen bg-bg text-text">
+      <TwilightWebGLBackdrop />
+      <TopNavCinematic />
 
-      <main className="relative pt-14">
-        {/* HERO */}
-        <section id="product" className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-center">
-            <motion.div
-              className="md:col-span-7"
-              initial={m.reveal.initial as any}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" } as any}
-              transition={{ duration: 0.7, ease: [0.21, 0.61, 0.35, 1] }}
-            >
+      <main className="pt-14">
+        {/* HERO — giant, photo-like */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-12 md:items-center">
+            <div className="md:col-span-6">
               <div className="mb-4 flex flex-wrap gap-2">
                 <Pill>GO / HOLD / NO-GO</Pill>
                 <Pill>Structured extraction</Pill>
@@ -333,78 +155,267 @@ export default function LandingPage() {
                 <Pill>Workspaces</Pill>
               </div>
 
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">
                 Turn tenders and grants into decisions in{" "}
                 <span className="text-accent">15 seconds</span>.
               </h1>
 
-              <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
+              <p className="mt-5 max-w-xl text-base text-muted sm:text-lg">
                 RadarPulse reduces noise, extracts critical fields, and turns a GO decision into a ready-to-execute
                 workspace — with confidence signals and source evidence.
               </p>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <PrimaryCTA to="/request-access">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  to="/request-access"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90"
+                >
                   Request access <ArrowRight className="h-4 w-4" />
-                </PrimaryCTA>
+                </Link>
 
-                <SecondaryCTA to="/explore">
+                <Link
+                  to="/explore"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/35 bg-white/50 px-6 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-white/70"
+                >
                   Explore (no signup) <ArrowRight className="h-4 w-4" />
-                </SecondaryCTA>
+                </Link>
 
                 <div className="text-xs text-muted">
-                  Built for fast triage, strict requirements, and low-noise execution.
+                  Built for strict requirements, fast triage, and low-noise execution.
                 </div>
               </div>
-            </motion.div>
 
-            <motion.div
-              className="md:col-span-5"
-              initial={m.reveal.initial as any}
-              whileInView={m.reveal.whileInView as any}
-              viewport={m.reveal.viewport as any}
-              transition={{ ...m.reveal.transition, delay: 0.1 }}
-            >
-              <HeroDemoFrame />
-            </motion.div>
+              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border/30 bg-white/45 p-4 shadow-soft">
+                  <div className="text-xs font-semibold text-muted">Noise</div>
+                  <div className="mt-1 text-sm font-semibold">↓ 80%</div>
+                </div>
+                <div className="rounded-2xl border border-border/30 bg-white/45 p-4 shadow-soft">
+                  <div className="text-xs font-semibold text-muted">Decision time</div>
+                  <div className="mt-1 text-sm font-semibold">15s</div>
+                </div>
+                <div className="hidden rounded-2xl border border-border/30 bg-white/45 p-4 shadow-soft sm:block">
+                  <div className="text-xs font-semibold text-muted">Evidence</div>
+                  <div className="mt-1 text-sm font-semibold">Source-linked</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="md:col-span-6">
+              <ChapterHeroArt />
+            </div>
           </div>
         </section>
 
-        {/* HOW IT WORKS */}
-        <Section id="how" eyebrow="How it works" title="From noise to execution.">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card
-              title="Ingest"
-              desc="Connect sources. RadarPulse classifies, deduplicates, and normalizes every item."
-              icon={<Workflow className="h-5 w-5 text-accent" />}
-            />
-            <Card
-              title="Decide"
-              desc="Inbox triage: GO / HOLD / NO-GO in seconds, with confidence and “why” evidence."
-              icon={<Sparkles className="h-5 w-5 text-accent" />}
-            />
-            <Card
-              title="Execute"
-              desc="GO creates a workspace with checklist, milestones, and required documents."
-              icon={<ArrowRight className="h-5 w-5 text-accent" />}
-            />
-          </div>
-        </Section>
+        {/* CINEMATIC CHAPTERS */}
+        <CinematicChapter
+          id="how"
+          subtitle={<span className="inline-flex items-center gap-2"><Workflow className="h-4 w-4 text-accent" /> Ingest</span>}
+          title={
+            <>
+              From noise <span className="text-accent">to signal</span>.
+            </>
+          }
+          left={
+            <div className="space-y-3 text-sm text-muted">
+              <div>
+                Connect sources. RadarPulse classifies content, deduplicates it, and normalizes it into a clean inbox.
+              </div>
+              <div>
+                You stop losing time on the wrong items — the system keeps only what’s actionable, with traceable
+                evidence.
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Pill>content_type</Pill>
+                <Pill>buyer_type</Pill>
+                <Pill>sector</Pill>
+                <Pill>country</Pill>
+                <Pill>language</Pill>
+              </div>
+            </div>
+          }
+          right={
+            <div className="p-6 sm:p-8">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FeatureCard
+                  title="Classification"
+                  desc="Prevent chaos: tenders, grants, news — separated and searchable."
+                  icon={<Sparkles className="h-5 w-5 text-accent" />}
+                />
+                <FeatureCard
+                  title="Deduplication"
+                  desc="Collapse repeats across sources into one canonical item."
+                  icon={<Sparkles className="h-5 w-5 text-accent2" />}
+                />
+                <div className="sm:col-span-2">
+                  <div className="rounded-2xl border border-border/30 bg-white/55 p-6 shadow-soft">
+                    <div className="text-sm font-semibold">Extraction preview</div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
+                        <div className="text-xs font-semibold text-muted">Deadline</div>
+                        <div className="mt-1 text-sm font-semibold">2026-02-15</div>
+                      </div>
+                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
+                        <div className="text-xs font-semibold text-muted">Eligibility</div>
+                        <div className="mt-1 text-sm font-semibold">Likely match</div>
+                      </div>
+                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
+                        <div className="text-xs font-semibold text-muted">Confidence</div>
+                        <div className="mt-1 text-sm font-semibold text-accent">High</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-sm text-muted">
+                      Evidence-first: every extracted field can link back to its source excerpt.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        />
 
-        {/* BUILT FOR */}
+        <CinematicChapter
+          id="proof"
+          subtitle={<span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-accent" /> Decide</span>}
+          title={
+            <>
+              A decision engine you can <span className="text-accent">trust</span>.
+            </>
+          }
+          left={
+            <div className="space-y-3 text-sm text-muted">
+              <div>
+                The goal is not “more information”. The goal is a <span className="text-text font-semibold">GO/HOLD/NO-GO</span>{" "}
+                decision in seconds — with clear “why” signals.
+              </div>
+              <div>
+                RadarPulse creates a structured view of requirements, deadlines, and compliance risk — then guides the next
+                action.
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Pill>Deadline window</Pill>
+                <Pill>Requirements matrix</Pill>
+                <Pill>Risk flags</Pill>
+              </div>
+            </div>
+          }
+          right={
+            <div className="p-4 sm:p-6">
+              <div className="rounded-2xl border border-border/30 bg-white/55 p-4 shadow-soft">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold">Pipeline view</div>
+                  <span className="rounded-full border border-border/30 bg-white/50 px-3 py-1 text-xs font-semibold text-muted">
+                    Large, readable data — not a tiny table
+                  </span>
+                </div>
+                <DecisionPipelineChart />
+              </div>
+            </div>
+          }
+        />
+
+        <CinematicChapter
+          id="security"
+          subtitle={<span className="inline-flex items-center gap-2"><Shield className="h-4 w-4 text-accent" /> Execute</span>}
+          title={
+            <>
+              GO creates a workspace in <span className="text-accent">one click</span>.
+            </>
+          }
+          left={
+            <div className="space-y-3 text-sm text-muted">
+              <div>
+                When you press GO, RadarPulse generates a workspace with: checklist, milestones, missing documents and an
+                audit trail.
+              </div>
+              <div>
+                This is the difference between “reading opportunities” and actually winning them — without drowning in
+                noise.
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Pill>Checklist</Pill>
+                <Pill>Milestones</Pill>
+                <Pill>Owners</Pill>
+                <Pill>Evidence</Pill>
+              </div>
+            </div>
+          }
+          right={
+            <div className="p-6 sm:p-8">
+              <div className="rounded-2xl border border-border/30 bg-white/55 p-6 shadow-soft">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Workspace blueprint</div>
+                    <div className="mt-1 text-sm text-muted">Auto-generated from extracted requirements + your decision.</div>
+                  </div>
+                  <div className="rounded-full border border-border/30 bg-white/50 px-3 py-1 text-xs font-semibold text-muted">
+                    Evidence + audit ready
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-border/30 bg-white/45 p-4">
+                    <div className="text-xs font-semibold text-muted">Checklist</div>
+                    <ul className="mt-3 space-y-2 text-sm">
+                      {[
+                        "Eligibility confirmed",
+                        "Budget + pricing model",
+                        "Legal clauses reviewed",
+                        "Submission package compiled",
+                      ].map((x) => (
+                        <li key={x} className="flex items-start gap-2">
+                          <Check className="mt-0.5 h-4 w-4 text-accent" />
+                          <span className="text-text/95">{x}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/30 bg-white/45 p-4">
+                    <div className="text-xs font-semibold text-muted">Milestones</div>
+                    <div className="mt-3 space-y-3">
+                      {[
+                        { t: "T-7", d: "First draft", s: "Owner assigned" },
+                        { t: "T-3", d: "Compliance check", s: "Evidence linked" },
+                        { t: "T-1", d: "Final review", s: "Sign-off recorded" },
+                      ].map((m) => (
+                        <div key={m.t} className="flex items-center justify-between gap-3 rounded-2xl border border-border/30 bg-white/55 p-3">
+                          <div>
+                            <div className="text-sm font-semibold">{m.d}</div>
+                            <div className="text-xs text-muted">{m.s}</div>
+                          </div>
+                          <span className="rounded-full border border-border/30 bg-white/60 px-3 py-1 text-xs font-semibold text-muted">
+                            {m.t}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-border/30 bg-white/40 p-4 text-sm text-muted">
+                  GO → Workspace is the start. Later, AI assists drafting (grant writing, compliance), but only after the
+                  structure is correct.
+                </div>
+              </div>
+            </div>
+          }
+        />
+
+        {/* CLASSIC SECTIONS (still premium) */}
         <Section eyebrow="Built for" title="Teams who can’t waste a week on the wrong opportunity.">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card
+            <FeatureCard
               title="Consultants & agencies"
               desc="Shortlist what’s winnable. Reduce triage time and compliance misses."
               bullets={["Faster GO / NO-GO decisions", "Reusable workspaces per client", "Evidence-first extraction"]}
             />
-            <Card
+            <FeatureCard
               title="NGOs & grant teams"
               desc="Eligibility clarity, faster first drafts, and structured checklists."
               bullets={["Eligibility checks you can trust", "Requirements matrix", "Audit trail for approvals"]}
             />
-            <Card
+            <FeatureCard
               title="SMEs bidding on tenders"
               desc="Stop chasing dead ends. Focus on the few that fit."
               bullets={["Deadline & requirement extraction", "Filter by country/sector", "Execution checklists"]}
@@ -412,91 +423,45 @@ export default function LandingPage() {
           </div>
         </Section>
 
-        {/* SECURITY / TRUST */}
-        <Section id="security" eyebrow="Trust" title="Trust is a feature.">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card
-              title="Source transparency"
-              desc="Every key field links back to its origin and timestamp — no mystery fields."
-              icon={<Shield className="h-5 w-5 text-accent" />}
-            />
-            <Card
-              title="Evidence-first"
-              desc="Confidence + short “why” excerpts reduce hallucinations and missed requirements."
-              icon={<Shield className="h-5 w-5 text-accent" />}
-            />
-            <Card
-              title="Decision log"
-              desc="Track who decided what, when, and why — without extra reporting work."
-              icon={<Shield className="h-5 w-5 text-accent" />}
-            />
-            <Card
-              title="Access + retention"
-              desc="Clear access controls and retention posture, designed for professional workflows."
-              icon={<Shield className="h-5 w-5 text-accent" />}
-            />
-          </div>
-        </Section>
-
-        {/* PRICING */}
-        <Section id="pricing" eyebrow="Pricing" title="Start simple. Scale when it works.">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card title="Solo" desc="For individual consultants." bullets={["Inbox triage + workspaces", "Core extraction fields", "Basic views"]} />
-            <Card title="Team" desc="For small bid/grant teams." bullets={["Shared workspaces", "Assignments + owners", "Saved views"]} />
-            <Card title="Agency" desc="For multi-client workflows." bullets={["Client separation", "Multi-workspace structure", "Priority support"]} />
-          </div>
-
-          <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-border/30 bg-surface/70 p-5 shadow-soft sm:flex-row sm:items-center">
-            <div>
-              <div className="text-sm font-semibold">Need help getting started?</div>
-              <div className="mt-1 text-sm text-muted">Advisory packs available: Screening Express and RadarPulse Setup.</div>
-            </div>
-
-            <div className="flex gap-2">
-              <SecondaryCTA to="/explore" className="rounded-xl px-4 py-2">
-                Explore <ArrowRight className="h-4 w-4" />
-              </SecondaryCTA>
-              <PrimaryCTA to="/request-access" className="rounded-xl px-4 py-2">
-                Request access <ArrowRight className="h-4 w-4" />
-              </PrimaryCTA>
-            </div>
-          </div>
-        </Section>
-
-        {/* CONTACT */}
         <Section id="contact" eyebrow="Contact" title="Ready to see it on your sources?">
-          <div className="rounded-2xl border border-border/30 bg-surface/70 p-6 shadow-soft">
+          <div className="rounded-2xl border border-border/30 bg-white/55 p-7 shadow-soft backdrop-blur">
             <div className="text-sm text-muted">
               RadarPulse is built in Trieste, Italy. Request access to run it on your sources, or explore the live demo
               without signup.
             </div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <PrimaryCTA to="/request-access">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Link
+                to="/request-access"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90"
+              >
                 Request access <ArrowRight className="h-4 w-4" />
-              </PrimaryCTA>
-              <SecondaryCTA to="/explore">
+              </Link>
+              <Link
+                to="/explore"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/35 bg-white/50 px-6 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-white/70"
+              >
                 Explore (no signup) <ArrowRight className="h-4 w-4" />
-              </SecondaryCTA>
+              </Link>
             </div>
           </div>
         </Section>
 
-        <footer className="border-t border-border/25 py-10">
+        <footer className="border-t border-border/30 py-12">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 text-sm text-muted sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-lg bg-elevated shadow-glow" />
+              <div className="h-6 w-6 rounded-lg bg-elevated shadow-soft" />
               <span>RadarPulse</span>
             </div>
             <div className="flex flex-wrap gap-4">
               <a className="hover:text-text" href="#security">
                 Security
               </a>
-              <a className="hover:text-text" href="#pricing">
-                Pricing
-              </a>
               <a className="hover:text-text" href="#contact">
                 Contact
               </a>
+              <Link className="hover:text-text" to="/inbox">
+                App
+              </Link>
             </div>
             <div>Made in Trieste, Italy</div>
           </div>

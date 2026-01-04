@@ -219,12 +219,17 @@ Deno.serve(async (req) => {
     let aiSuccess = 0;
     let aiSkipped = 0;
     let aiErrors = 0;
+    let aiNewsFiltered = 0;
 
     const aiEnabled = String(Deno.env.get("AI_EXTRACT_ENABLED") ?? "true").toLowerCase() !== "false";
     const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
     const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
     const openaiStore = String(Deno.env.get("OPENAI_STORE") ?? "false").toLowerCase() === "true";
     const canUseAi = aiEnabled && Boolean(openaiApiKey);
+
+    // If enabled, do NOT insert opportunities that the AI classifies as news/non-opportunity.
+    // This keeps the Inbox clean even when sources are noisy or mixed.
+    const aiFilterNews = String(Deno.env.get("AI_FILTER_NEWS") ?? "true").toLowerCase() !== "false";
 
     if (aiEnabled && !openaiApiKey) {
       console.warn("AI_EXTRACT_DISABLED", "Missing OPENAI_API_KEY");
@@ -248,6 +253,7 @@ Deno.serve(async (req) => {
       }
 
       // 3.B) Run AI extraction only when raw content changed or is new
+      let latestAiId: string | null = null;
       if (canUseAi && rawIdForAi && rawChanged) {
         try {
           const r = await extractLightForRawId(sb as any, rawIdForAi, {
@@ -261,9 +267,45 @@ Deno.serve(async (req) => {
 
           if (r.status === "success") aiSuccess++;
           else aiSkipped++;
+
+          if (r.status === "success" && r.ai_id) {
+            latestAiId = r.ai_id;
+          }
         } catch (e) {
           aiErrors++;
           console.error("AI_EXTRACT_ERROR", { raw_id: rawIdForAi, error: (e as any)?.message ?? String(e) });
+        }
+      }
+
+      // 3.C) AI-based Inbox filter: skip NEWS / non-opportunity items
+      if (aiFilterNews && rawIdForAi && canUseAi) {
+        try {
+          // Prefer the fresh ai_id if we just extracted; otherwise, look up the latest AI row for this raw.
+          const { data: aiRow, error: aiSelErr } = latestAiId
+            ? await sb.from("opportunity_ai").select("id, content_type, signals").eq("id", latestAiId).maybeSingle()
+            : await sb
+                .from("opportunity_ai")
+                .select("id, content_type, signals")
+                .eq("raw_id", rawIdForAi)
+                .order("extracted_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+          if (aiSelErr) throw aiSelErr;
+
+          const ct = String((aiRow as any)?.content_type ?? "").toLowerCase();
+          const sig = (aiRow as any)?.signals ?? null;
+          const isOpp = typeof sig?.is_opportunity === "boolean" ? sig.is_opportunity : null;
+
+          const shouldSkip = ct === "news" || isOpp === false;
+          if (shouldSkip) {
+            aiNewsFiltered++;
+            // We keep RAW + AI rows for audit/debug, but we don't pollute `opportunities`.
+            continue;
+          }
+        } catch (e) {
+          // Fail-open: don't block ingestion if the filter lookup fails.
+          console.warn("AI_FILTER_NEWS_LOOKUP_FAILED", { raw_id: rawIdForAi, error: (e as any)?.message ?? String(e) });
         }
       }
 
@@ -374,6 +416,7 @@ Deno.serve(async (req) => {
             skipped: aiSkipped,
             errors: aiErrors,
             model: openaiModel,
+            news_filtered: aiNewsFiltered,
           },
         },
       },
