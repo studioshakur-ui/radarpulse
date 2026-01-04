@@ -7,7 +7,7 @@ import LandingPage from "@/features/landing/LandingPage";
 import ExplorePage from "@/features/landing/ExplorePage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
 import { ENV } from "@/lib/env";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ThemeMenu } from "@/components/ThemeMenu";
 
@@ -16,7 +16,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        cx(
+        cn(
           "rounded-xl px-3 py-2 text-sm transition",
           "hover:bg-elevated/70",
           isActive ? "bg-elevated shadow-soft" : "text-muted"
@@ -68,7 +68,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <NavLink
               to="/"
               className={({ isActive }) =>
-                cx(
+                cn(
                   "rounded-xl px-3 py-2 text-sm transition",
                   "hover:bg-elevated/70",
                   isActive ? "bg-elevated shadow-soft" : "text-muted"

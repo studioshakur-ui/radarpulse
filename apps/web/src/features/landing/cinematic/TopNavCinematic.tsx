@@ -1,12 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function TopNavCinematic({ className }: { className?: string }) {
   return (
     <div
-      className={cx(
+      className={cn(
         "fixed inset-x-0 top-0 z-30 border-b border-border/30 bg-bg/80 backdrop-blur-xl",
         className
       )}
@@ -38,7 +38,7 @@ export function TopNavCinematic({ className }: { className?: string }) {
         <div className="flex items-center gap-2">
           <Link
             to="/explore"
-            className={cx(
+            className={cn(
               "inline-flex items-center gap-2 rounded-xl border border-border/35 bg-white/40 px-3 py-2 text-sm text-text shadow-soft transition",
               "hover:bg-white/60"
             )}
@@ -47,7 +47,7 @@ export function TopNavCinematic({ className }: { className?: string }) {
           </Link>
           <Link
             to="/request-access"
-            className={cx(
+            className={cn(
               "inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white shadow-glow transition",
               "hover:opacity-90"
             )}

@@ -2,9 +2,10 @@ import React, { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, Shield, Sparkles, Workflow } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
 import { TopNavCinematic } from "@/features/landing/cinematic/TopNavCinematic";
+import { SignalCompressionChart } from "@/features/landing/cinematic/SignalCompressionChart";
 import { DecisionPipelineChart } from "@/features/landing/cinematic/DecisionPipelineChart";
 import { ChapterHeroArt } from "@/features/landing/cinematic/ChapterHeroArt";
 import { useChapterProgress } from "@/features/landing/cinematic/useChapterProgress";
@@ -31,7 +32,7 @@ function Section({
   className?: string;
 }) {
   return (
-    <section id={id} className={cx("mx-auto max-w-6xl px-4 py-16 sm:py-20", className)}>
+    <section id={id} className={cn("mx-auto max-w-6xl px-4 py-16 sm:py-20", className)}>
       <div className="mb-8">
         {eyebrow ? <div className="mb-2 text-xs font-semibold tracking-wide text-muted">{eyebrow}</div> : null}
         <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
@@ -87,7 +88,7 @@ function CinematicChapter({
   title: React.ReactNode;
   subtitle: React.ReactNode;
   left: React.ReactNode;
-  right: React.ReactNode;
+  right: React.ReactNode | ((progress: number) => React.ReactNode);
   heightClass?: string;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -99,6 +100,10 @@ function CinematicChapter({
     enabled: !reduce,
   });
 
+  const rightNode = useMemo(() => {
+    return typeof right === "function" ? right(progress) : right;
+  }, [progress, right]);
+
   const lift = useMemo(() => {
     const t = progress;
     // 0..1 => subtle rise
@@ -106,7 +111,7 @@ function CinematicChapter({
   }, [progress]);
 
   return (
-    <section id={id} ref={ref} className={cx("relative", heightClass)}>
+    <section id={id} ref={ref} className={cn("relative", heightClass)}>
       <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-12 md:items-start">
           <div className="md:col-span-5">
@@ -125,7 +130,7 @@ function CinematicChapter({
                 transform: `translateY(${lift}px)`,
               }}
             >
-              {right}
+              {rightNode}
             </motion.div>
           </div>
         </div>
@@ -234,7 +239,7 @@ export default function LandingPage() {
               </div>
             </div>
           }
-          right={
+          right={(p) => (
             <div className="p-6 sm:p-8">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FeatureCard
@@ -248,30 +253,22 @@ export default function LandingPage() {
                   icon={<Sparkles className="h-5 w-5 text-accent2" />}
                 />
                 <div className="sm:col-span-2">
-                  <div className="rounded-2xl border border-border/30 bg-white/55 p-6 shadow-soft">
-                    <div className="text-sm font-semibold">Extraction preview</div>
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
-                        <div className="text-xs font-semibold text-muted">Deadline</div>
-                        <div className="mt-1 text-sm font-semibold">2026-02-15</div>
-                      </div>
-                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
-                        <div className="text-xs font-semibold text-muted">Eligibility</div>
-                        <div className="mt-1 text-sm font-semibold">Likely match</div>
-                      </div>
-                      <div className="rounded-2xl border border-border/30 bg-white/40 p-4">
-                        <div className="text-xs font-semibold text-muted">Confidence</div>
-                        <div className="mt-1 text-sm font-semibold text-accent">High</div>
-                      </div>
+                  <div className="rounded-2xl border border-border/30 bg-white/55 p-5 shadow-soft">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="text-sm font-semibold">Noise → signal</div>
+                      <span className="rounded-full border border-border/30 bg-white/50 px-3 py-1 text-xs font-semibold text-muted">
+                        Scroll-driven compression
+                      </span>
                     </div>
-                    <div className="mt-4 text-sm text-muted">
-                      Evidence-first: every extracted field can link back to its source excerpt.
+                    <SignalCompressionChart progress={p} />
+                    <div className="mt-3 text-sm text-muted">
+                      Evidence-first extraction keeps only actionable items — without hiding the provenance.
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          }
+          )}
         />
 
         <CinematicChapter
@@ -299,19 +296,19 @@ export default function LandingPage() {
               </div>
             </div>
           }
-          right={
+          right={(p) => (
             <div className="p-4 sm:p-6">
               <div className="rounded-2xl border border-border/30 bg-white/55 p-4 shadow-soft">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold">Pipeline view</div>
                   <span className="rounded-full border border-border/30 bg-white/50 px-3 py-1 text-xs font-semibold text-muted">
-                    Large, readable data — not a tiny table
+                    Scroll-driven funnel
                   </span>
                 </div>
-                <DecisionPipelineChart />
+                <DecisionPipelineChart progress={p} />
               </div>
             </div>
-          }
+          )}
         />
 
         <CinematicChapter

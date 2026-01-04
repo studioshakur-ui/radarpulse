@@ -1,54 +1,56 @@
-import { formatDistanceToNowStrict, format, parseISO, isValid } from "date-fns";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
-export function safeISO(v: string | null | undefined): string | null {
-  if (!v) return null;
-  try {
-    const d = parseISO(v);
-    if (!isValid(d)) return null;
-    return d.toISOString();
-  } catch {
-    return null;
-  }
+export function fmtDateTime(value: string | number | Date | null | undefined, locale = "fr-FR") {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
-export function fmtDateTime(v: string | null | undefined): string {
-  if (!v) return "—";
-  try {
-    const d = parseISO(v);
-    if (!isValid(d)) return "—";
-    return format(d, "yyyy-MM-dd HH:mm");
-  } catch {
-    return "—";
-  }
+export function daysLeft(deadline: string | number | Date | null | undefined) {
+  if (!deadline) return null;
+  const d = deadline instanceof Date ? deadline : new Date(deadline);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const now = new Date();
+  // Normaliser à minuit pour éviter les effets d’heure
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+  const diff = b - a;
+  return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
-export function fmtRelative(v: string | null | undefined): string {
-  if (!v) return "—";
-  try {
-    const d = parseISO(v);
-    if (!isValid(d)) return "—";
-    return formatDistanceToNowStrict(d, { addSuffix: true });
-  } catch {
-    return "—";
-  }
-}
+export function fmtRelative(value: string | number | Date | null | undefined, locale = "fr-FR") {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
 
-export function daysLeft(deadlineIso: string | null | undefined): number | null {
-  if (!deadlineIso) return null;
-  try {
-    const d = parseISO(deadlineIso);
-    if (!isValid(d)) return null;
-    const ms = d.getTime() - Date.now();
-    return Math.ceil(ms / (1000 * 60 * 60 * 24));
-  } catch {
-    return null;
-  }
-}
+  const now = new Date().getTime();
+  const diffSec = Math.round((d.getTime() - now) / 1000);
 
-export function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+
+  const abs = Math.abs(diffSec);
+  if (abs < 60) return rtf.format(Math.round(diffSec), "second");
+
+  const diffMin = Math.round(diffSec / 60);
+  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, "minute");
+
+  const diffHr = Math.round(diffSec / 3600);
+  if (Math.abs(diffHr) < 24) return rtf.format(diffHr, "hour");
+
+  const diffDay = Math.round(diffSec / 86400);
+  return rtf.format(diffDay, "day");
 }

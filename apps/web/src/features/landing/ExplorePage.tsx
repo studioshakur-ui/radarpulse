@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type DemoItem = {
   id: string;
@@ -45,7 +45,7 @@ function ToneBadge({ tone, children }: { tone: "neutral" | "warn" | "bad"; child
         ? "border-warn/25 bg-warn/10 text-warn"
         : "border-border/30 bg-surface/50 text-muted";
 
-  return <span className={cx("rounded-full border px-2 py-0.5 text-[11px] font-medium", cls)}>{children}</span>;
+  return <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", cls)}>{children}</span>;
 }
 
 function ConfidencePill({ v }: { v: DemoItem["confidence"] }) {
@@ -58,7 +58,7 @@ function ConfidencePill({ v }: { v: DemoItem["confidence"] }) {
         : "bg-warn/10 text-warn border-warn/20";
 
   return (
-    <span className={cx("rounded-full border px-2 py-0.5 text-[11px] font-medium", cls)}>
+    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", cls)}>
       {map[v]} confidence
     </span>
   );
@@ -77,7 +77,7 @@ function LuxeBackdrop() {
 function PrimaryButton({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className={cx(
+      className={cn(
         "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-bg shadow-glow transition",
         "bg-[linear-gradient(135deg,rgba(168,85,247,0.95),rgba(139,92,246,0.85),rgba(236,72,153,0.22))]"
       )}
@@ -201,7 +201,7 @@ export default function ExplorePage() {
             </Link>
             <Link
               to="/"
-              className={cx(
+              className={cn(
                 "inline-flex items-center gap-2 rounded-xl border border-border/30 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
                 "hover:bg-elevated/70 hover:border-border/45 active:scale-[0.99]"
               )}

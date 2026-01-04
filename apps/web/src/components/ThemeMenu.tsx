@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/state/theme";
 
 /**
@@ -17,7 +17,7 @@ export function ThemeMenu({ className }: { className?: string }) {
   // Intentionally minimal (no dropdown).
   return (
     <div
-      className={cx(
+      className={cn(
         "inline-flex items-center gap-2 rounded-xl border border-border/35 bg-white/40 px-3 py-2 text-xs font-semibold text-text shadow-soft",
         className
       )}

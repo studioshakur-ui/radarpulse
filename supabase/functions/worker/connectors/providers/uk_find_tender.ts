@@ -3,24 +3,6 @@ import type { OpportunityUpsertInput, SourceRow } from "../../../_shared/types.t
 import type { ConnectorResult } from "../index.ts";
 import { makeFingerprint, parseDateToIso, safeStr } from "../_utils.ts";
 
-type OcdsReleasePackage = {
-  releases?: Array<{
-    id?: string;
-    date?: string;
-    tag?: string[];
-    initiationType?: string;
-    tender?: {
-      title?: string;
-      description?: string;
-      procurementMethod?: string;
-      procurementMethodDetails?: string;
-      tenderPeriod?: { endDate?: string };
-    };
-    parties?: Array<{ name?: string; roles?: string[] }>;
-    buyer?: { name?: string };
-  }>;
-};
-
 type FindTenderApiResponse = {
   releases?: any[];
   next_page?: string | null;
@@ -45,7 +27,6 @@ export async function apiFindTenderFetch(source: SourceRow): Promise<ConnectorRe
   const fetched_at = new Date().toISOString();
 
   // Find a Tender (FTS) OCDS API
-  // Docs: https://www.find-tender.service.gov.uk/apidocumentation/1.0/GET-ocdsReleasePackages
   const baseUrl = source.url;
 
   const limit = Number(((source.meta ?? {}) as any).limit ?? 50);
@@ -89,7 +70,7 @@ export async function apiFindTenderFetch(source: SourceRow): Promise<ConnectorRe
       const desc = safeStr(rel?.tender?.description).trim();
       const buyer_name = buyerNameFromRelease(rel);
 
-      // A stable source URL is not always provided in this API response; we use FTS site search fallback.
+      // Fallback URL
       const source_url = external_id
         ? `https://www.find-tender.service.gov.uk/Notice/Search?text=${encodeURIComponent(external_id)}`
         : source.url;

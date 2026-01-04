@@ -1,7 +1,9 @@
 {
   "name": "radarpulse",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm -w apps/web run dev",
     "build": "npm -w apps/web run build",
@@ -11,5 +13,9 @@
   },
   "devDependencies": {
     "supabase": "^2.70.5"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "lenis": "^1.3.17"
   }
 }

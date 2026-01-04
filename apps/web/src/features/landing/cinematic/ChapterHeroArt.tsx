@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 /**
  * Hero visual: "photo-like" glass + energy, with optional Rive.
@@ -148,7 +148,7 @@ export function ChapterHeroArt({ className }: { className?: string }) {
   }, [ready, rive]);
 
   return (
-    <div className={cx("relative", className)}>
+    <div className={cn("relative", className)}>
       <GlassFrame>
         <div className="aspect-[16/10] w-full">
           <motion.div

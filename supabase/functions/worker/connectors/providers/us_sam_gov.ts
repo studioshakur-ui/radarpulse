@@ -26,6 +26,7 @@ function defaultPostedFrom(source: SourceRow, nowIso: string): string {
   const back = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   return back.toISOString();
 }
+
 function toSamDate(dIso: string): string {
   const d = new Date(dIso);
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -33,7 +34,6 @@ function toSamDate(dIso: string): string {
   const yyyy = String(d.getUTCFullYear());
   return `${mm}/${dd}/${yyyy}`; // MM/dd/yyyy
 }
-
 
 export async function apiSamGovFetch(source: SourceRow): Promise<ConnectorResult> {
   const fetched_at = new Date().toISOString();

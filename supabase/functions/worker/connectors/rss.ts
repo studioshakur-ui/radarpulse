@@ -1,6 +1,6 @@
 import type { SourceRow, OpportunityUpsertInput } from "../../_shared/types.ts";
 import { normalizeText, safeStr } from "../../_shared/text.ts";
-import { XMLParser } from "npm:fast-xml-parser@4.5.3";
+import { XMLParser } from "https://esm.sh/fast-xml-parser@4.5.3";
 
 /* -----------------------------
    Utils

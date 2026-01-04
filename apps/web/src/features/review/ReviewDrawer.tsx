@@ -4,7 +4,7 @@ import * as ScrollArea from "@radix-ui/react-scroll-area";
 import * as Separator from "@radix-ui/react-separator";
 import { ExternalLink, X, FileText, History, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { cx, fmtDateTime, fmtRelative, daysLeft } from "@/lib/utils";
+import { cn, fmtDateTime, fmtRelative, daysLeft } from "@/lib/utils";
 import type { OpportunityDocumentRow, OpportunityEventRow, Uuid } from "@/lib/types";
 import type { OpportunityWithMeta } from "@/features/inbox/useInboxData";
 
@@ -54,7 +54,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone?: "muted" | 
       : tone === "bad"
       ? "border-bad/30 bg-bad/10 text-text"
       : "border-border/60 bg-elevated/40 text-muted";
-  return <span className={cx("inline-flex items-center rounded-xl border px-2 py-1 text-xs", c)}>{children}</span>;
+  return <span className={cn("inline-flex items-center rounded-xl border px-2 py-1 text-xs", c)}>{children}</span>;
 }
 
 export function ReviewDrawer({

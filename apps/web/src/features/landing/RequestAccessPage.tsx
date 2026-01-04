@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Mail } from "lucide-react";
-import { cx } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type FormState = {
   name: string;
@@ -78,7 +78,7 @@ export default function RequestAccessPage() {
           <div className="flex items-center gap-2">
             <Link
               to="/explore"
-              className={cx(
+              className={cn(
                 "inline-flex items-center gap-2 rounded-xl border border-border/25 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
                 "hover:bg-elevated/70"
               )}
@@ -87,7 +87,7 @@ export default function RequestAccessPage() {
             </Link>
             <Link
               to="/"
-              className={cx(
+              className={cn(
                 "inline-flex items-center gap-2 rounded-xl border border-border/25 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
                 "hover:bg-elevated/70"
               )}

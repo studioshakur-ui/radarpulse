@@ -41,7 +41,6 @@ function firstString(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number") return String(v);
   if (typeof v === "object" && v) {
-    // Common shapes: { text: "..." } / { value: "..." }
     const anyV = v as any;
     if (typeof anyV.text === "string") return anyV.text;
     if (typeof anyV.value === "string") return anyV.value;
@@ -68,8 +67,6 @@ function parseMaybeIsoDate(v: string): string | null {
 }
 
 function tedNoticeUrl(publicationNumber: string): string {
-  // TED supports direct links based on publication number, e.g.
-  // https://ted.europa.eu/en/notice/{publication-number}/html
   const pn = String(publicationNumber || "").trim();
   return `https://ted.europa.eu/en/notice/${encodeURIComponent(pn)}/html`;
 }
@@ -77,8 +74,6 @@ function tedNoticeUrl(publicationNumber: string): string {
 export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorResult> {
   const meta = getMeta(source);
 
-  // Docs: Search API is openly accessible and exposes POST /v3/notices/search.
-  // https://docs.ted.europa.eu/api/latest/search.html
   const body: Record<string, unknown> = {
     query: meta.query ?? "",
     page: meta.page ?? 1,

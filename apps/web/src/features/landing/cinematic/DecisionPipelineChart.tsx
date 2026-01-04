@@ -9,7 +9,18 @@ function readCssRgbVar(name: string, alpha = 1): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export function DecisionPipelineChart() {
+function clamp01(v: number) {
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(0, Math.min(1, v));
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+export function DecisionPipelineChart({ progress = 1 }: { progress?: number }) {
+  const t = clamp01(progress);
+
   const opt = useMemo(() => {
     const accent = readCssRgbVar("--rp-accent", 0.85);
     const accent2 = readCssRgbVar("--rp-accent2", 0.75);
@@ -17,10 +28,24 @@ export function DecisionPipelineChart() {
     const muted = readCssRgbVar("--rp-muted", 0.85);
     const border = readCssRgbVar("--rp-border", 0.28);
 
+    // Cinematic scroll-coupled shrink: thick flow at the start, sharp funnel at the end.
+    // The values are intentionally non-linear for a stronger “wow” moment.
+    const ease = t * t * (3 - 2 * t); // smoothstep
+    const v1 = 100;
+    const v2 = Math.round(lerp(96, 85, ease));
+    const v3 = Math.round(lerp(90, 62, ease));
+    const v4 = Math.round(lerp(78, 40, ease));
+    const v5 = Math.round(lerp(55, 18, ease));
+
     return {
       backgroundColor: "transparent",
       grid: { left: 10, right: 10, top: 10, bottom: 10, containLabel: true },
       tooltip: { trigger: "item" },
+      animation: true,
+      animationDuration: 700,
+      animationEasing: "cubicOut",
+      animationDurationUpdate: 650,
+      animationEasingUpdate: "cubicOut",
       series: [
         {
           type: "sankey",
@@ -34,11 +59,11 @@ export function DecisionPipelineChart() {
             { name: "Workspace", itemStyle: { color: accent2 } },
           ],
           links: [
-            { source: "Ingest", target: "Classify", value: 100 },
-            { source: "Classify", target: "Deduplicate", value: 85 },
-            { source: "Deduplicate", target: "Extract", value: 62 },
-            { source: "Extract", target: "Decide", value: 40 },
-            { source: "Decide", target: "Workspace", value: 18 },
+            { source: "Ingest", target: "Classify", value: v1 },
+            { source: "Classify", target: "Deduplicate", value: v2 },
+            { source: "Deduplicate", target: "Extract", value: v3 },
+            { source: "Extract", target: "Decide", value: v4 },
+            { source: "Decide", target: "Workspace", value: v5 },
           ],
           nodeWidth: 18,
           nodeGap: 18,
@@ -46,7 +71,7 @@ export function DecisionPipelineChart() {
           lineStyle: {
             color: "gradient",
             curveness: 0.5,
-            opacity: 0.55,
+            opacity: lerp(0.72, 0.55, ease),
           },
           label: {
             color: text,
@@ -61,14 +86,14 @@ export function DecisionPipelineChart() {
       ],
       title: [
         {
-          text: "From 100 raw items → 18 execution-ready",
+          text: `From ${v1} raw items → ${v5} execution-ready`,
           left: "center",
           top: 0,
           textStyle: { color: muted, fontSize: 12, fontWeight: 700 },
         },
       ],
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="h-[320px] w-full sm:h-[380px]">
