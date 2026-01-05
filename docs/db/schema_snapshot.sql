@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rmbzncLKCxRsWi3aPbighDffXUWpMaaoGfBivkTnCia2XbLwYtJPEhmCipPpyzY
+\restrict rLMK1gTg3kVQs6D2L1wjfcwQgPwIKrio9inSpkfDjFmgoOYxFehGuX0UodvqBFZ
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.7
@@ -787,6 +787,20 @@ CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree 
 
 
 --
+-- Name: ingestion_jobs_claim_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ingestion_jobs_claim_idx ON public.ingestion_jobs USING btree (run_at, id) WHERE (status = 'queued'::public.job_status);
+
+
+--
+-- Name: ingestion_jobs_one_open_per_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ingestion_jobs_one_open_per_source ON public.ingestion_jobs USING btree (source_id) WHERE (status = ANY (ARRAY['queued'::public.job_status, 'running'::public.job_status]));
+
+
+--
 -- Name: ingestion_jobs_queue_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1231,5 +1245,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rmbzncLKCxRsWi3aPbighDffXUWpMaaoGfBivkTnCia2XbLwYtJPEhmCipPpyzY
+\unrestrict rLMK1gTg3kVQs6D2L1wjfcwQgPwIKrio9inSpkfDjFmgoOYxFehGuX0UodvqBFZ
 
