@@ -1,13 +1,21 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
 import { TopNavCinematic } from "@/features/landing/cinematic/TopNavCinematic";
-import { TechPremiumHero } from "@/features/landing/cinematic/TechPremiumHero";
 import { ZipPinnedStage } from "@/features/landing/cinematic/ZipPinnedStage";
+import { DecisionStageMock } from "@/features/landing/cinematic/DecisionStageMock";
 import { ScrollReveal } from "@/features/landing/cinematic/ScrollReveal";
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-3 py-1 text-xs font-semibold text-muted shadow-soft backdrop-blur">
+      {children}
+    </span>
+  );
+}
 
 function FeatureCard({
   title,
@@ -19,14 +27,14 @@ function FeatureCard({
   bullets: string[];
 }) {
   return (
-    <div className="rounded-[28px] border border-line/25 bg-surface/55 p-6 shadow-soft backdrop-blur">
-      <div className="text-lg font-semibold text-text">{title}</div>
-      <p className="mt-2 text-sm leading-relaxed text-subtext">{desc}</p>
-      <ul className="mt-4 space-y-2 text-sm text-subtext">
+    <div className="rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
+      <div className="text-lg font-semibold">{title}</div>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
+      <ul className="mt-4 space-y-2 text-sm text-muted">
         {bullets.map((b) => (
           <li key={b} className="flex items-center gap-2">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand/10">
-              <Check className="h-4 w-4 text-brand" />
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/10">
+              <Check className="h-4 w-4 text-accent" />
             </span>
             {b}
           </li>
@@ -51,12 +59,14 @@ function Section({
 }) {
   return (
     <section id={id} className="relative py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
         <ScrollReveal dir="up">
-          <div className="max-w-3xl">
-            <div className="text-xs font-semibold text-subtext">{eyebrow}</div>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-text sm:text-4xl">{title}</h2>
-            <p className="mt-3 text-base leading-relaxed text-subtext">{subtitle}</p>
+          <div className="max-w-4xl">
+            <div className="text-xs font-semibold text-muted">{eyebrow}</div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {title}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-muted">{subtitle}</p>
           </div>
         </ScrollReveal>
 
@@ -72,13 +82,99 @@ export function LandingPage() {
       <TwilightWebGLBackdrop />
       <TopNavCinematic />
 
-      {/* HERO (canonical) */}
-      <TechPremiumHero />
+      {/* HERO — STACK (haut/bas), plus de gauche/droite */}
+      <section className="relative">
+        <div className="mx-auto w-full max-w-[1560px] px-4 pb-10 pt-28 sm:px-6 lg:px-10 lg:pb-14 lg:pt-32">
+          <ScrollReveal dir="up">
+            <div className="max-w-5xl">
+              <div className="flex flex-wrap gap-2">
+                <Pill>✨ GO / HOLD / NO-GO</Pill>
+                <Pill>🔗 Evidence-linked extraction</Pill>
+                <Pill>🧬 Deduplication</Pill>
+                <Pill>🛡️ Audit-ready</Pill>
+              </div>
 
-      {/* ZIP pinned cinematic */}
+              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl">
+                Turn tenders and grants into a{" "}
+                <span className="text-accent">decision</span> in{" "}
+                <span className="text-accent">seconds</span>.
+              </h1>
+
+              <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted">
+                RadarPulse compresses noise, collapses duplicates, extracts the fields that matter,
+                and backs every claim with source-linked evidence—so your GO is fast and defensible.
+              </p>
+
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Link
+                  to="/request-access"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
+                >
+                  Request access <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  to="/explore"
+                  className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-5 py-3 text-sm font-semibold text-text shadow-soft backdrop-blur hover:bg-white/65"
+                >
+                  Explore (no signup) <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <div className="hidden text-xs text-muted md:block">
+                  Strict requirements · low-noise triage · reproducible decisions
+                </div>
+              </div>
+
+              <div className="mt-8 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  { label: "Noise", value: "↓ 80%" },
+                  { label: "Decision time", value: "15s" },
+                  { label: "Evidence", value: "Source-linked" },
+                ].map((k) => (
+                  <div
+                    key={k.label}
+                    className="rounded-2xl border border-border/25 bg-white/45 p-4 shadow-soft backdrop-blur"
+                  >
+                    <div className="text-xs font-semibold text-muted">{k.label}</div>
+                    <div className="mt-1 text-sm font-semibold">{k.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Console full width EN DESSOUS */}
+          <div className="mt-10">
+            <ScrollReveal dir="up" delay={0.05}>
+              <div className="rounded-[36px] border border-border/30 bg-white/40 p-4 shadow-glow backdrop-blur sm:p-5">
+                <div className="flex flex-col gap-2 px-2 pb-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-muted">
+                      RadarPulse Decision Console
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      Incoming → Dedup → Evidence → GO/HOLD/NO-GO
+                    </div>
+                  </div>
+
+                  <div className="hidden text-xs text-muted sm:block">
+                    Evidence-linked · auditable · reproducible
+                  </div>
+                </div>
+
+                <DecisionStageMock variant="hero" progress={0.78} className="w-full" />
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/35 to-transparent" />
+      </section>
+
+      {/* ZIP-LIKE SCROLLTELLING */}
       <ZipPinnedStage />
 
-      {/* PROOF — reveal alterné */}
+      {/* PROOF */}
       <Section
         id="proof"
         eyebrow="Proof"
@@ -110,30 +206,9 @@ export function LandingPage() {
             />
           </ScrollReveal>
         </div>
-
-        <ScrollReveal dir="up" delay={0.05}>
-          <div className="mt-8 rounded-[28px] border border-line/25 bg-surface/55 p-6 shadow-soft backdrop-blur">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-text">Trust strip</div>
-                <div className="mt-1 text-sm text-subtext">
-                  Source-linked audit trail, reproducible decisions, and a deduped canonical record.
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {["Source-linked audit trail", "Reproducible decisions", "Deduped canonical record", "Fast by design"].map((t) => (
-                  <span key={t} className="rounded-full border border-line/25 bg-surface/60 px-3 py-1 text-xs font-semibold text-subtext">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </ScrollReveal>
       </Section>
 
-      {/* SECURITY — reveal alterné */}
+      {/* SECURITY */}
       <Section
         id="security"
         eyebrow="Security"
@@ -159,41 +234,42 @@ export function LandingPage() {
         </div>
       </Section>
 
-      {/* CONTACT + FOOTER — reveal */}
+      {/* CONTACT + FOOTER */}
       <section id="contact" className="relative py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
           <ScrollReveal dir="up">
             <div>
-              <div className="text-xs font-semibold text-subtext">Contact</div>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-text">
+              <div className="text-xs font-semibold text-muted">Contact</div>
+              <h2 className="mt-3 text-4xl font-semibold tracking-tight">
                 Ready to see it on your sources?
               </h2>
             </div>
           </ScrollReveal>
 
           <ScrollReveal dir="up" delay={0.05}>
-            <div className="mt-8 rounded-[28px] border border-line/25 bg-surface/55 p-6 shadow-soft backdrop-blur">
+            <div className="mt-8 rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <p className="max-w-2xl text-sm text-subtext">
-                  RadarPulse is built in Trieste, Italy. Request access to run it on your sources, or explore the live demo without signup.
+                <p className="max-w-2xl text-sm text-muted">
+                  RadarPulse is built in Trieste, Italy. Request access to run it on your sources,
+                  or explore the live demo without signup.
                 </p>
 
                 <div className="flex flex-wrap gap-3">
                   <Link
                     to="/request-access"
-                    className="inline-flex items-center gap-2 rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-veil shadow-glow transition hover:opacity-90"
+                    className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
                   >
-                    Request access
+                    Request access <ArrowRight className="h-4 w-4" />
                   </Link>
 
                   <Link
                     to="/explore"
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-2xl border border-line/25 bg-surface/60 px-6 py-3 text-sm font-semibold text-text",
-                      "shadow-soft backdrop-blur transition hover:bg-surface/80"
+                      "inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-5 py-3 text-sm font-semibold text-text",
+                      "shadow-soft backdrop-blur hover:bg-white/65"
                     )}
                   >
-                    Explore (no signup)
+                    Explore (no signup) <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
@@ -201,18 +277,26 @@ export function LandingPage() {
           </ScrollReveal>
 
           <ScrollReveal dir="up" delay={0.08}>
-            <footer className="mt-12 border-t border-line/20 pt-8">
-              <div className="flex flex-col gap-4 text-sm text-subtext md:flex-row md:items-center md:justify-between">
+            <footer className="mt-12 border-t border-border/20 pt-8">
+              <div className="flex flex-col gap-4 text-sm text-muted md:flex-row md:items-center md:justify-between">
                 <div className="font-semibold text-text">RadarPulse</div>
 
                 <div className="flex flex-wrap gap-4">
-                  <a className="hover:text-text" href="#proof">Proof</a>
-                  <a className="hover:text-text" href="#security">Security</a>
-                  <a className="hover:text-text" href="#contact">Contact</a>
-                  <Link className="hover:text-text" to="/app">App</Link>
+                  <a className="hover:text-text" href="#proof">
+                    Proof
+                  </a>
+                  <a className="hover:text-text" href="#security">
+                    Security
+                  </a>
+                  <a className="hover:text-text" href="#contact">
+                    Contact
+                  </a>
+                  <Link className="hover:text-text" to="/app">
+                    App
+                  </Link>
                 </div>
 
-                <div className="text-subtext">Made in Trieste, Italy</div>
+                <div className="text-muted">Made in Trieste, Italy</div>
               </div>
             </footer>
           </ScrollReveal>

@@ -1,176 +1,257 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, FileSearch, Layers, Link2, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useMotionValueEvent, useReducedMotion } from "framer-motion";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { DecisionStageMock } from "@/features/landing/cinematic/DecisionStageMock";
-import { useChapterProgress } from "@/features/landing/cinematic/useChapterProgress";
+import { ScrollReveal } from "@/features/landing/cinematic/ScrollReveal";
 
-type Step = {
+type StepKey = 0 | 1 | 2 | 3;
+
+const STEPS: Array<{
+  key: StepKey;
   eyebrow: string;
   title: string;
   desc: string;
   bullets: string[];
-};
-
-const STEPS: Step[] = [
+  icon: React.ReactNode;
+  badge: string;
+}> = [
   {
+    key: 0,
     eyebrow: "INCOMING",
     title: "Ingest every source. Stop reading noise.",
     desc: "RadarPulse classifies tenders, grants, news and alerts into a single low-noise inbox.",
     bullets: ["Structured fields", "Fast triage", "Noise reduction"],
+    icon: <FileSearch className="h-4 w-4 text-accent" />,
+    badge: "STAGE",
   },
   {
+    key: 1,
     eyebrow: "DEDUP",
     title: "Collapse duplicates into one truth.",
-    desc: "Multiple portals, gazettes and emails announce the same opportunity. Dedup keeps a canonical record.",
+    desc: "Multiple portals, gazettes and emails often announce the same opportunity. Dedup keeps a canonical record.",
     bullets: ["Canonical item", "Source graph preserved", "No double work"],
+    icon: <Layers className="h-4 w-4 text-accent" />,
+    badge: "ACTIVE",
   },
   {
+    key: 2,
     eyebrow: "EVIDENCE",
     title: "Extract, cite, and prove.",
     desc: "Every claim is backed by excerpts that link back to the source. Evidence-first, audit-ready.",
     bullets: ["Cited excerpts", "Traceable provenance", "Confidence signals"],
+    icon: <Link2 className="h-4 w-4 text-accent" />,
+    badge: "STAGE",
   },
   {
+    key: 3,
     eyebrow: "DECISION",
     title: "GO/HOLD/NO-GO in seconds.",
-    desc: "Structured rationale + confidence signals. When it’s GO, create a workspace with owners + checklist.",
-    bullets: ["Decision log", "One-click workspace", "Execution ready"],
+    desc: "Structured rationale, risk flags, and a next-action checklist—so the team moves fast and defensibly.",
+    bullets: ["15s median decision", "Risk flags", "Reproducible decision log"],
+    icon: <ShieldCheck className="h-4 w-4 text-accent" />,
+    badge: "STAGE",
   },
 ];
 
-function clamp01(n: number) {
-  return Math.max(0, Math.min(1, n));
-}
-
-function smoothstep(a: number, b: number, x: number) {
-  const t = clamp01((x - a) / (b - a));
-  return t * t * (3 - 2 * t);
-}
-
-export function ZipPinnedStage({ id = "how", className }: { id?: string; className?: string }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+function StepCard({
+  step,
+  active,
+  onRef,
+}: {
+  step: (typeof STEPS)[number];
+  active: boolean;
+  onRef: (el: HTMLDivElement | null) => void;
+}) {
   const reduce = useReducedMotion();
 
-  const progressMv = useChapterProgress(ref);
+  return (
+    <div ref={onRef} data-step={step.key}>
+      <motion.div
+        initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, margin: "-30% 0px -55% 0px" }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className={cn(
+          "rounded-[28px] border bg-white/45 shadow-soft backdrop-blur",
+          active ? "border-accent/35 ring-1 ring-accent/15" : "border-border/25"
+        )}
+      >
+        <div className="flex items-start justify-between gap-4 p-6 sm:p-7">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted">{step.eyebrow}</span>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold",
+                  active
+                    ? "border-accent/35 bg-accent/10 text-accent"
+                    : "border-border/25 bg-white/55 text-muted"
+                )}
+              >
+                {step.badge}
+              </span>
+            </div>
 
-  const [stepIndex, setStepIndex] = useState(0);
-  const stepRef = useRef(0);
+            <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">{step.title}</h3>
+            <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted sm:text-base">{step.desc}</p>
 
-  // Only update React state when the step changes (no jank).
-  useMotionValueEvent(progressMv, "change", (p) => {
+            <ul className="mt-5 space-y-2 text-sm text-muted">
+              {step.bullets.map((b) => (
+                <li key={b} className="flex items-center gap-2">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent/10">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  </span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="hidden sm:flex">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/25 bg-white/55 shadow-soft">
+              {step.icon}
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export function ZipPinnedStage() {
+  const reduce = useReducedMotion();
+  const [activeStep, setActiveStep] = useState<StepKey>(0);
+
+  const stepEls = useRef<Array<HTMLDivElement | null>>([]);
+  const visibleRatios = useRef<Map<StepKey, number>>(new Map());
+
+  const setStepRef = (idx: number) => (el: HTMLDivElement | null) => {
+    stepEls.current[idx] = el;
+  };
+
+  const observerOptions = useMemo<IntersectionObserverInit>(
+    () => ({
+      root: null,
+      rootMargin: "-25% 0px -55% 0px",
+      threshold: [0, 0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1],
+    }),
+    []
+  );
+
+  useEffect(() => {
     if (reduce) return;
-    const steps = STEPS.length;
-    const raw = clamp01(p) * steps;
-    const idx = Math.min(steps - 1, Math.floor(raw));
-    if (idx !== stepRef.current) {
-      stepRef.current = idx;
-      setStepIndex(idx);
-    }
-  });
 
-  const stageProgress = useMemo(() => {
-    // We intentionally do NOT drive this at 60fps to avoid “scroll bug”.
-    // Step-driven progress is enough for premium perception + lamination transitions.
-    return (stepIndex + 0.35) / STEPS.length;
-  }, [stepIndex]);
+    const els = stepEls.current.filter(Boolean) as HTMLDivElement[];
+    if (!els.length) return;
+
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const raw = e.target.getAttribute("data-step");
+        if (raw == null) continue;
+        const k = Number(raw) as StepKey;
+        const ratio = e.isIntersecting ? e.intersectionRatio : 0;
+        visibleRatios.current.set(k, ratio);
+      }
+
+      let best: StepKey = activeStep;
+      let bestRatio = -1;
+
+      for (const [k, r] of visibleRatios.current.entries()) {
+        if (r > bestRatio) {
+          bestRatio = r;
+          best = k;
+        }
+      }
+
+      if (best !== activeStep && bestRatio >= 0.1) setActiveStep(best);
+    }, observerOptions);
+
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [observerOptions, reduce]);
 
   return (
-    <section id={id} ref={ref} className={cn("relative", className)}>
-      {/* Big scroll area */}
-      <div className="relative min-h-[340vh]">
-        {/* Sticky stage */}
-        <div className="sticky top-0">
-          <div className="mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-4 py-16 sm:py-20">
-            <div className="mb-10 max-w-4xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-line/25 bg-surface/55 px-3 py-1 text-xs font-semibold text-subtext shadow-soft backdrop-blur">
-                <CheckCircle2 className="h-4 w-4 text-brand" />
-                Zip-style scrollytelling · Evidence-first decisioning
-              </div>
-
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-text sm:text-5xl">
-                One stage. Four steps. <span className="text-brand">Zero ambiguity</span>.
-              </h2>
-
-              <p className="mt-4 max-w-2xl text-base text-subtext sm:text-lg">
-                As you scroll, the story advances: panels shift, focus changes, and the stage stays pinned — clean, readable,
-                premium.
-              </p>
+    <section className="relative py-20">
+      {/* IMPORTANT: container plus large */}
+      <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
+        <ScrollReveal dir="up">
+          <div className="max-w-5xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-white/55 px-4 py-2 text-xs font-semibold text-muted shadow-soft backdrop-blur">
+              Zip-style scrollytelling · Evidence-first decisioning
             </div>
+            <h2 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+              One stage. Four steps. <span className="text-accent">Zero ambiguity.</span>
+            </h2>
+            <p className="mt-4 max-w-4xl text-base leading-relaxed text-muted">
+              Keep a single product “stage” pinned while the story advances. The result is clarity, pace, and premium perception.
+            </p>
+          </div>
+        </ScrollReveal>
 
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-start">
-              {/* Steps list */}
-              <div className="md:col-span-4">
-                <div className="space-y-3">
-                  {STEPS.map((s, idx) => {
-                    const active = idx === stepIndex;
-                    return (
-                      <div
-                        key={s.eyebrow}
-                        className={cn(
-                          "rounded-2xl border p-5 shadow-soft backdrop-blur transition",
-                          active
-                            ? "border-brand/30 bg-surface/70 ring-1 ring-brand/10"
-                            : "border-line/25 bg-surface/55"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-semibold text-subtext">{s.eyebrow}</div>
-                            <div className="mt-2 text-base font-semibold text-text">{s.title}</div>
-                            <div className="mt-2 text-sm text-subtext">{s.desc}</div>
-                          </div>
+        <div className="mt-10 space-y-10">
+          {/* STAGE pinned */}
+          <div className={cn("relative", !reduce && "lg:sticky lg:top-24")}>
+            <ScrollReveal dir="up">
+              <div className="rounded-[36px] border border-border/25 bg-white/40 p-4 sm:p-5 shadow-glow backdrop-blur">
+                <div className="flex flex-col gap-2 px-2 pb-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-muted">RadarPulse Decision Console</div>
+                    <div className="mt-1 text-sm font-semibold">Incoming → Dedup → Evidence → GO/HOLD/NO-GO</div>
+                  </div>
 
-                          {active ? (
-                            <span className="shrink-0 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-                              ACTIVE
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <ul className="mt-4 space-y-2 text-sm text-subtext">
-                          {s.bullets.map((b) => (
-                            <li key={b} className="flex items-center gap-2">
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand/10">
-                                <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-                              </span>
-                              {b}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-border/25 bg-white/55 px-3 py-1 font-semibold text-muted">
+                      Step: {activeStep + 1}/4
+                    </span>
+                    <span className="rounded-full border border-border/25 bg-white/55 px-3 py-1 font-semibold text-muted">
+                      Evidence-linked
+                    </span>
+                  </div>
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Link
-                    to="/request-access"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-veil shadow-glow transition hover:opacity-90"
-                  >
-                    Request access <ArrowRight className="h-4 w-4" />
-                  </Link>
+                {/* Full-width stage */}
+                <DecisionStageMock variant="chapter" activeStep={activeStep} className="w-full" />
 
-                  <Link
-                    to="/explore"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line/25 bg-surface/60 px-6 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-surface/80"
-                  >
-                    Explore (no signup) <ArrowRight className="h-4 w-4" />
-                  </Link>
+                <div className="mt-4 flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-muted">Decisions are auditable: every highlight links back to its source.</div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      to="/explore"
+                      className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-4 py-2 text-xs font-semibold text-text shadow-soft backdrop-blur hover:bg-white/65"
+                    >
+                      Explore demo <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      to="/request-access"
+                      className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white shadow-glow hover:opacity-95"
+                    >
+                      Request access <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
               </div>
+            </ScrollReveal>
+          </div>
 
-              {/* Stage (big) */}
-              <div className="md:col-span-8">
-                <DecisionStageMock variant="chapter" progress={stageProgress} activeStep={stepIndex} />
-              </div>
-            </div>
+          {/* STORY below */}
+          <div className="space-y-6">
+            {STEPS.map((s, idx) => (
+              <StepCard key={s.key} step={s} active={activeStep === s.key} onRef={setStepRef(idx)} />
+            ))}
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-line/35 to-transparent" />
+        <div className="pointer-events-none mt-14 h-px w-full bg-gradient-to-r from-transparent via-border/35 to-transparent" />
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 opacity-[0.12]">
+        <div className="absolute -left-24 top-24 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(124,58,237,0.25),transparent_60%)] blur-2xl" />
+        <div className="absolute -right-24 bottom-24 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_60%_60%,rgba(124,58,237,0.18),transparent_60%)] blur-2xl" />
       </div>
     </section>
   );

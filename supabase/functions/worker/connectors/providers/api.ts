@@ -23,20 +23,11 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
   const fetched_at = new Date().toISOString();
 
   const provider = providerFromSource(source);
+
   if (!provider) {
     return {
-      ok: false,
       opportunities: [],
       fetched_at,
-      error: {
-        code: "missing_or_invalid_provider",
-        message: "API source requires meta.provider (uk_find_tender | us_sam_gov | us_grants_gov | eu_ted_search).",
-        details: {
-          source_id: source.id,
-          source_key: source.key,
-          provider: ((source.meta ?? {}) as any).provider ?? null,
-        },
-      },
     };
   }
 
@@ -51,10 +42,15 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
       return await apiEuTedSearchFetch(source);
     default:
       return {
-        ok: false,
         opportunities: [],
         fetched_at,
-        error: { code: "unsupported_provider", message: `Unsupported provider: ${provider}` },
       };
   }
 }
+
+/**
+ * IMPORTANT:
+ * connectors/index.ts imports { apiFetch } from "./providers/api.ts"
+ * We provide it as an alias to apiProviderFetch to keep a stable public API.
+ */
+export { apiProviderFetch as apiFetch };

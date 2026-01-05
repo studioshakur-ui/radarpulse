@@ -13,12 +13,66 @@ export function parseDateToIso(v: unknown): string | null {
 }
 
 /**
+ * Safe JSON fetch:
+ * - fetch + read body text
+ * - parse JSON if possible
+ * - throws on non-2xx with a helpful message (so the job becomes error with reason)
+ */
+export async function safeJsonFetch<T>(
+  url: string,
+  init: (RequestInit & { timeout_ms?: number }) = {},
+): Promise<{ data: T; status: number; headers: Headers }> {
+  const timeoutMs = typeof init.timeout_ms === "number" ? init.timeout_ms : 30_000;
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const { timeout_ms: _timeout_ms, ...reqInit } = init;
+
+    const res = await fetch(url, {
+      ...reqInit,
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    let json: unknown = null;
+
+    if (text && text.trim().length > 0) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        // not JSON
+        json = null;
+      }
+    }
+
+    if (!res.ok) {
+      const snippet = text ? text.slice(0, 500) : "";
+      throw new Error(`HTTP ${res.status} from ${url}. Body: ${snippet}`);
+    }
+
+    // If response is empty but ok, return empty object to avoid crash
+    const data = (json ?? ({} as unknown)) as T;
+
+    return { data, status: res.status, headers: res.headers };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
  * Stable, cheap fingerprint used as opportunity identity key.
  *
  * - Prefer external IDs when available.
  * - Fallback to (normalized title + normalized url) when no external ID.
  */
-export function makeFingerprint(sourceKey: string, externalId: string | null | undefined, title: string, link: string) {
+export function makeFingerprint(
+  sourceKey: string,
+  externalId: string | null | undefined,
+  title: string,
+  link: string,
+) {
   const ext = safeStr(externalId).trim();
   const base = ext
     ? `${sourceKey}::${ext}`
