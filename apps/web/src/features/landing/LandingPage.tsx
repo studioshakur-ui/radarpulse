@@ -1,3 +1,4 @@
+// apps/web/src/features/landing/LandingPage.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
@@ -5,9 +6,10 @@ import { cn } from "@/lib/utils";
 
 import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
 import { TopNavCinematic } from "@/features/landing/cinematic/TopNavCinematic";
-import { ZipPinnedStage } from "@/features/landing/cinematic/ZipPinnedStage";
-import { DecisionStageMock } from "@/features/landing/cinematic/DecisionStageMock";
 import { ScrollReveal } from "@/features/landing/cinematic/ScrollReveal";
+
+import { DecisionConsoleMock } from "@/features/landing/cinematic/DecisionConsoleMock";
+import { WorldMapPulse } from "@/features/landing/cinematic/WorldMapPulse";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -76,21 +78,70 @@ function Section({
   );
 }
 
+function StepCard({
+  step,
+  state,
+  title,
+  desc,
+  bullets,
+}: {
+  step: string;
+  state: "STAGE" | "ACTIVE";
+  title: string;
+  desc: string;
+  bullets: string[];
+}) {
+  return (
+    <div className="rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-xs font-semibold text-muted">{step}</div>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                state === "ACTIVE"
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                  : "border-border/30 bg-white/55 text-muted"
+              )}
+            >
+              {state}
+            </span>
+          </div>
+
+          <div className="mt-2 text-xl font-semibold">{title}</div>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
+        </div>
+      </div>
+
+      <ul className="mt-5 grid gap-2 text-sm text-muted sm:grid-cols-2">
+        {bullets.map((b) => (
+          <li key={b} className="flex items-center gap-2">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/10">
+              <Check className="h-4 w-4 text-accent" />
+            </span>
+            {b}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function LandingPage() {
   return (
     <div className="relative overflow-hidden bg-bg text-text">
       <TwilightWebGLBackdrop />
       <TopNavCinematic />
 
-      {/* HERO — STACK (haut/bas), plus de gauche/droite */}
+      {/* HERO — FOTO 1 EN HAUT (texte), puis FOTO 2 (console) */}
       <section className="relative">
         <div className="mx-auto w-full max-w-[1560px] px-4 pb-10 pt-28 sm:px-6 lg:px-10 lg:pb-14 lg:pt-32">
+          {/* FOTO 1 — Hero copy (top) */}
           <ScrollReveal dir="up">
             <div className="max-w-5xl">
               <div className="flex flex-wrap gap-2">
-                <Pill>✨ GO / HOLD / NO-GO</Pill>
-                <Pill>🔗 Evidence-linked extraction</Pill>
-                <Pill>🧬 Deduplication</Pill>
+                <Pill>✨ Evidence-linked</Pill>
                 <Pill>🛡️ Audit-ready</Pill>
               </div>
 
@@ -101,8 +152,8 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted">
-                RadarPulse compresses noise, collapses duplicates, extracts the fields that matter,
-                and backs every claim with source-linked evidence—so your GO is fast and defensible.
+                RadarPulse standardizes what matters, collapses duplicates into one canonical record,
+                and backs every claim with source-linked evidence—so decisions are fast and audit-defensible.
               </p>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -117,19 +168,19 @@ export function LandingPage() {
                   to="/explore"
                   className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-5 py-3 text-sm font-semibold text-text shadow-soft backdrop-blur hover:bg-white/65"
                 >
-                  Explore (no signup) <ArrowRight className="h-4 w-4" />
+                  Explore demo <ArrowRight className="h-4 w-4" />
                 </Link>
 
                 <div className="hidden text-xs text-muted md:block">
-                  Strict requirements · low-noise triage · reproducible decisions
+                  Low-noise triage · reproducible decision log · citations per claim
                 </div>
               </div>
 
-              <div className="mt-8 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="mt-8 grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Noise", value: "↓ 80%" },
-                  { label: "Decision time", value: "15s" },
-                  { label: "Evidence", value: "Source-linked" },
+                  { label: "Evidence", value: "Citations per claim" },
+                  { label: "Dedup", value: "Canonical record" },
+                  { label: "Audit", value: "Exportable decision log" },
                 ].map((k) => (
                   <div
                     key={k.label}
@@ -143,8 +194,8 @@ export function LandingPage() {
             </div>
           </ScrollReveal>
 
-          {/* Console full width EN DESSOUS */}
-          <div className="mt-10">
+          {/* FOTO 2 — Console wide (plus de largeur) */}
+          <div className="mt-12">
             <ScrollReveal dir="up" delay={0.05}>
               <div className="rounded-[36px] border border-border/30 bg-white/40 p-4 shadow-glow backdrop-blur sm:p-5">
                 <div className="flex flex-col gap-2 px-2 pb-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
@@ -162,7 +213,7 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <DecisionStageMock variant="hero" progress={0.78} className="w-full" />
+                <DecisionConsoleMock />
               </div>
             </ScrollReveal>
           </div>
@@ -171,8 +222,84 @@ export function LandingPage() {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/35 to-transparent" />
       </section>
 
-      {/* ZIP-LIKE SCROLLTELLING */}
-      <ZipPinnedStage />
+      {/* FOTO 3 — Carte originale, large, entre Hero et How */}
+      <section className="relative py-16">
+        <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
+          <ScrollReveal dir="up">
+            <WorldMapPulse />
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* HOW — stack vertical, aucun pinned scroll */}
+      <Section
+        id="how"
+        eyebrow="How it works"
+        title="One stage. Four steps. Zero ambiguity."
+        subtitle="Keep a single decision workflow: ingest, dedup, evidence, and a reproducible GO/HOLD/NO-GO."
+      >
+        <div className="space-y-6">
+          <ScrollReveal dir="up">
+            <StepCard
+              step="INCOMING"
+              state="STAGE"
+              title="Ingest every source. Stop reading noise."
+              desc="RadarPulse consolidates portals, feeds, and alerts into a single evidence-ready inbox with stable fields."
+              bullets={[
+                "Structured fields (buyer, budget, deadline)",
+                "Fast triage list",
+                "Noise reduction by normalization",
+                "Source preserved for audit",
+              ]}
+            />
+          </ScrollReveal>
+
+          <ScrollReveal dir="up" delay={0.03}>
+            <StepCard
+              step="DEDUP"
+              state="ACTIVE"
+              title="Collapse duplicates into one truth."
+              desc="Multiple sources announce the same opportunity. Dedup collapses repeats into one canonical record without losing provenance."
+              bullets={[
+                "Canonical item, stable fingerprint",
+                "Merged sources preserved",
+                "No double work",
+                "Searchable, comparable fields",
+              ]}
+            />
+          </ScrollReveal>
+
+          <ScrollReveal dir="up" delay={0.06}>
+            <StepCard
+              step="EVIDENCE"
+              state="STAGE"
+              title="Extract, cite, and prove."
+              desc="Every claim is backed by excerpts that link back to the source location."
+              bullets={[
+                "Cited excerpts (page/section)",
+                "Traceable provenance",
+                "Confidence signals",
+                "Readable rationale",
+              ]}
+            />
+          </ScrollReveal>
+
+          <ScrollReveal dir="up" delay={0.09}>
+            <StepCard
+              step="DECISION"
+              state="STAGE"
+              title="GO/HOLD/NO-GO with an audit trail."
+              desc="Make fast decisions and keep a defensible record: rationale, checklist, owner, and exportable log."
+              bullets={[
+                "Decision + why",
+                "Next-action checklist",
+                "Assign owner",
+                "Exportable decision log",
+              ]}
+            />
+          </ScrollReveal>
+        </div>
+      </Section>
 
       {/* PROOF */}
       <Section
@@ -202,7 +329,7 @@ export function LandingPage() {
             <FeatureCard
               title="GO/HOLD/NO-GO engine"
               desc="Structured rationale + confidence signals so your team can move in seconds."
-              bullets={["15s median decision", "Risk flags", "Next-action checklist"]}
+              bullets={["Seconds-level triage", "Risk flags", "Next-action checklist"]}
             />
           </ScrollReveal>
         </div>
@@ -250,8 +377,8 @@ export function LandingPage() {
             <div className="mt-8 rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <p className="max-w-2xl text-sm text-muted">
-                  RadarPulse is built in Trieste, Italy. Request access to run it on your sources,
-                  or explore the live demo without signup.
+                  Request access to run RadarPulse on your portals, feeds, and email alerts—then keep decisions
+                  defensible with evidence-linked excerpts and an exportable log.
                 </p>
 
                 <div className="flex flex-wrap gap-3">
@@ -269,7 +396,7 @@ export function LandingPage() {
                       "shadow-soft backdrop-blur hover:bg-white/65"
                     )}
                   >
-                    Explore (no signup) <ArrowRight className="h-4 w-4" />
+                    Explore demo <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
@@ -282,6 +409,9 @@ export function LandingPage() {
                 <div className="font-semibold text-text">RadarPulse</div>
 
                 <div className="flex flex-wrap gap-4">
+                  <a className="hover:text-text" href="#how">
+                    How
+                  </a>
                   <a className="hover:text-text" href="#proof">
                     Proof
                   </a>

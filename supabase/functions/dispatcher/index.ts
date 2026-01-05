@@ -8,6 +8,21 @@ Deno.serve(async (req) => {
     const sb = sbAdmin();
     const now = new Date();
 
+    // Safety valve: if a worker crashed mid-flight, jobs can remain "running" forever.
+    // Mark them as error so the scheduler can enqueue a new job.
+    // (The unique open-job constraint we add in SQL relies on this to avoid deadlocks.)
+    await sb
+      .from("ingestion_jobs")
+      .update({
+        status: "error",
+        finished_at: now.toISOString(),
+        error: "Stale running job (auto cleanup)",
+      })
+      .eq("status", "running")
+      // started_at older than 25 minutes
+      .lt("started_at", new Date(now.getTime() - 25 * 60_000).toISOString())
+      .is("finished_at", null);
+
     const { data: sources, error } = await sb
       .from("sources")
       .select("id, is_active, schedule_minutes, last_run_at")
@@ -30,7 +45,17 @@ Deno.serve(async (req) => {
         run_at: now.toISOString(),
         payload: {},
       });
-      if (insErr) throw insErr;
+
+      // If we enforce "one open job per source" (queued|running), this insert can fail
+      // with a duplicate-key error. That is expected; just skip without breaking the loop.
+      if (insErr) {
+        const code = (insErr as any).code as string | undefined;
+        const msg = String((insErr as any).message || insErr);
+        if (code === "23505" || msg.toLowerCase().includes("duplicate")) {
+          continue;
+        }
+        throw insErr;
+      }
 
       const { error: upErr } = await sb
         .from("sources")
