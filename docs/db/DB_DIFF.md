@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-01-05 17:53:32Z`
+- Generated (UTC): `2026-01-05 18:49:16Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,7 +15,7 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- INDEX ingestion_jobs_claim_idx
+- (none)
 
 ## Notes
 
