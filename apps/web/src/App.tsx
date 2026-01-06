@@ -6,6 +6,12 @@ import WorkspacePage from "@/features/workspaces/WorkspacePage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import ExplorePage from "@/features/landing/ExplorePage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
+import ItalyIndexPage from "@/features/italy/ItalyIndexPage";
+import ItalyRegionPage from "@/features/italy/ItalyRegionPage";
+import ItalyCategoryPage from "@/features/italy/ItalyCategoryPage";
+import ItalyBuyerPage from "@/features/italy/ItalyBuyerPage";
+import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
+import GuidePage from "@/features/italy/GuidePage";
 import { ENV } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -91,7 +97,13 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return p === "/" || p.startsWith("/explore") || p.startsWith("/request-access");
+    return (
+      p === "/" ||
+      p.startsWith("/explore") ||
+      p.startsWith("/request-access") ||
+      p.startsWith("/italie") ||
+      p.startsWith("/guides")
+    );
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
@@ -107,6 +119,15 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/request-access" element={<RequestAccessPage />} />
+
+        {/* Dedicated pages */}
+        <Route path="/italie" element={<ItalyIndexPage />} />
+        <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />
+        <Route path="/italie/categorie/:categorySlug" element={<ItalyCategoryPage />} />
+        <Route path="/italie/enti/:buyerSlug" element={<ItalyBuyerPage />} />
+
+        <Route path="/guides" element={<GuidesIndexPage />} />
+        <Route path="/guides/:slug" element={<GuidePage />} />
 
         {/* App */}
         <Route path="/inbox" element={<InboxPage />} />

@@ -24,6 +24,12 @@ export function TopNavCinematic({ className }: { className?: string }) {
         </Link>
 
         <div className="hidden items-center gap-6 text-sm text-subtext md:flex">
+          <Link className="hover:text-text" to="/italie">
+            Italie
+          </Link>
+          <Link className="hover:text-text" to="/guides">
+            Guides
+          </Link>
           <a className="hover:text-text" href="#how">
             How it works
           </a>

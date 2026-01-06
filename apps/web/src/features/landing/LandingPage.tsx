@@ -4,20 +4,15 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { CoreCard } from "@/components/ds/CoreCard";
+import { CorePill } from "@/components/ds/CorePill";
+
 import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
 import { TopNavCinematic } from "@/features/landing/cinematic/TopNavCinematic";
 import { ScrollReveal } from "@/features/landing/cinematic/ScrollReveal";
 
 import { DecisionConsoleMock } from "@/features/landing/cinematic/DecisionConsoleMock";
 import { WorldMapPulse } from "@/features/landing/cinematic/WorldMapPulse";
-
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-3 py-1 text-xs font-semibold text-muted shadow-soft backdrop-blur">
-      {children}
-    </span>
-  );
-}
 
 function FeatureCard({
   title,
@@ -29,20 +24,20 @@ function FeatureCard({
   bullets: string[];
 }) {
   return (
-    <div className="rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
+    <CoreCard variant="glass" className="p-6">
       <div className="text-lg font-semibold">{title}</div>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
-      <ul className="mt-4 space-y-2 text-sm text-muted">
+      <p className="mt-2 text-sm leading-relaxed text-subtext">{desc}</p>
+      <ul className="mt-4 space-y-2 text-sm text-subtext">
         {bullets.map((b) => (
           <li key={b} className="flex items-center gap-2">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/10">
-              <Check className="h-4 w-4 text-accent" />
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand/10">
+              <Check className="h-4 w-4 text-brand" />
             </span>
             {b}
           </li>
         ))}
       </ul>
-    </div>
+    </CoreCard>
   );
 }
 
@@ -64,11 +59,11 @@ function Section({
       <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
         <ScrollReveal dir="up">
           <div className="max-w-4xl">
-            <div className="text-xs font-semibold text-muted">{eyebrow}</div>
+            <div className="text-xs font-semibold text-subtext">{eyebrow}</div>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
               {title}
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-muted">{subtitle}</p>
+            <p className="mt-3 text-base leading-relaxed text-subtext">{subtitle}</p>
           </div>
         </ScrollReveal>
 
@@ -92,17 +87,17 @@ function StepCard({
   bullets: string[];
 }) {
   return (
-    <div className="rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
+    <CoreCard variant="glass" className="p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-xs font-semibold text-muted">{step}</div>
+            <div className="text-xs font-semibold text-subtext">{step}</div>
             <span
               className={cn(
                 "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
                 state === "ACTIVE"
-                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                  : "border-border/30 bg-white/55 text-muted"
+                  ? "border-good/30 bg-good/10 text-good"
+                  : "border-line/25 bg-surface/55 text-subtext"
               )}
             >
               {state}
@@ -110,21 +105,21 @@ function StepCard({
           </div>
 
           <div className="mt-2 text-xl font-semibold">{title}</div>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
+          <p className="mt-2 text-sm leading-relaxed text-subtext">{desc}</p>
         </div>
       </div>
 
-      <ul className="mt-5 grid gap-2 text-sm text-muted sm:grid-cols-2">
+      <ul className="mt-5 grid gap-2 text-sm text-subtext sm:grid-cols-2">
         {bullets.map((b) => (
           <li key={b} className="flex items-center gap-2">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/10">
-              <Check className="h-4 w-4 text-accent" />
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand/10">
+              <Check className="h-4 w-4 text-brand" />
             </span>
             {b}
           </li>
         ))}
       </ul>
-    </div>
+    </CoreCard>
   );
 }
 
@@ -141,17 +136,17 @@ export function LandingPage() {
           <ScrollReveal dir="up">
             <div className="max-w-5xl">
               <div className="flex flex-wrap gap-2">
-                <Pill>✨ Evidence-linked</Pill>
-                <Pill>🛡️ Audit-ready</Pill>
+                <CorePill variant="soft">Evidence-linked</CorePill>
+                <CorePill variant="soft">Audit-ready</CorePill>
               </div>
 
               <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl">
                 Turn tenders and grants into a{" "}
-                <span className="text-accent">decision</span> in{" "}
-                <span className="text-accent">seconds</span>.
+                <span className="text-brand">decision</span> in{" "}
+                <span className="text-brand">seconds</span>.
               </h1>
 
-              <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted">
+              <p className="mt-5 max-w-3xl text-base leading-relaxed text-subtext">
                 RadarPulse standardizes what matters, collapses duplicates into one canonical record,
                 and backs every claim with source-linked evidence—so decisions are fast and audit-defensible.
               </p>
@@ -159,19 +154,19 @@ export function LandingPage() {
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link
                   to="/request-access"
-                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
+                  className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
                 >
                   Request access <ArrowRight className="h-4 w-4" />
                 </Link>
 
                 <Link
                   to="/explore"
-                  className="inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-5 py-3 text-sm font-semibold text-text shadow-soft backdrop-blur hover:bg-white/65"
+                  className="inline-flex items-center gap-2 rounded-full border border-line/25 bg-surface/60 px-5 py-3 text-sm font-semibold text-text shadow-soft backdrop-blur hover:bg-surface/70"
                 >
                   Explore demo <ArrowRight className="h-4 w-4" />
                 </Link>
 
-                <div className="hidden text-xs text-muted md:block">
+                <div className="hidden text-xs text-subtext md:block">
                   Low-noise triage · reproducible decision log · citations per claim
                 </div>
               </div>
@@ -184,9 +179,9 @@ export function LandingPage() {
                 ].map((k) => (
                   <div
                     key={k.label}
-                    className="rounded-2xl border border-border/25 bg-white/45 p-4 shadow-soft backdrop-blur"
+                    className="rounded-2xl border border-line/20 bg-surface/55 p-4 shadow-soft backdrop-blur"
                   >
-                    <div className="text-xs font-semibold text-muted">{k.label}</div>
+                    <div className="text-xs font-semibold text-subtext">{k.label}</div>
                     <div className="mt-1 text-sm font-semibold">{k.value}</div>
                   </div>
                 ))}
@@ -197,10 +192,10 @@ export function LandingPage() {
           {/* FOTO 2 — Console wide (plus de largeur) */}
           <div className="mt-12">
             <ScrollReveal dir="up" delay={0.05}>
-              <div className="rounded-[36px] border border-border/30 bg-white/40 p-4 shadow-glow backdrop-blur sm:p-5">
+              <div className="rounded-[36px] border border-line/25 bg-surface/45 p-4 shadow-glow backdrop-blur sm:p-5">
                 <div className="flex flex-col gap-2 px-2 pb-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-muted">
+                    <div className="text-xs font-semibold text-subtext">
                       RadarPulse Decision Console
                     </div>
                     <div className="mt-1 text-sm font-semibold">
@@ -208,7 +203,7 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="hidden text-xs text-muted sm:block">
+                  <div className="hidden text-xs text-subtext sm:block">
                     Evidence-linked · auditable · reproducible
                   </div>
                 </div>
@@ -366,7 +361,7 @@ export function LandingPage() {
         <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-10">
           <ScrollReveal dir="up">
             <div>
-              <div className="text-xs font-semibold text-muted">Contact</div>
+              <div className="text-xs font-semibold text-subtext">Contact</div>
               <h2 className="mt-3 text-4xl font-semibold tracking-tight">
                 Ready to see it on your sources?
               </h2>
@@ -374,9 +369,9 @@ export function LandingPage() {
           </ScrollReveal>
 
           <ScrollReveal dir="up" delay={0.05}>
-            <div className="mt-8 rounded-[28px] border border-border/25 bg-white/45 p-6 shadow-soft backdrop-blur">
+            <CoreCard variant="glass" className="mt-8 p-6">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <p className="max-w-2xl text-sm text-muted">
+                <p className="max-w-2xl text-sm text-subtext">
                   Request access to run RadarPulse on your portals, feeds, and email alerts—then keep decisions
                   defensible with evidence-linked excerpts and an exportable log.
                 </p>
@@ -384,7 +379,7 @@ export function LandingPage() {
                 <div className="flex flex-wrap gap-3">
                   <Link
                     to="/request-access"
-                    className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
+                    className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
                   >
                     Request access <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -392,20 +387,20 @@ export function LandingPage() {
                   <Link
                     to="/explore"
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-full border border-border/30 bg-white/55 px-5 py-3 text-sm font-semibold text-text",
-                      "shadow-soft backdrop-blur hover:bg-white/65"
+                      "inline-flex items-center gap-2 rounded-full border border-line/25 bg-surface/60 px-5 py-3 text-sm font-semibold text-text",
+                      "shadow-soft backdrop-blur hover:bg-surface/70"
                     )}
                   >
                     Explore demo <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
-            </div>
+            </CoreCard>
           </ScrollReveal>
 
           <ScrollReveal dir="up" delay={0.08}>
             <footer className="mt-12 border-t border-border/20 pt-8">
-              <div className="flex flex-col gap-4 text-sm text-muted md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 text-sm text-subtext md:flex-row md:items-center md:justify-between">
                 <div className="font-semibold text-text">RadarPulse</div>
 
                 <div className="flex flex-wrap gap-4">
@@ -426,7 +421,7 @@ export function LandingPage() {
                   </Link>
                 </div>
 
-                <div className="text-muted">Made in Trieste, Italy</div>
+                <div className="text-subtext">Made in Trieste, Italy</div>
               </div>
             </footer>
           </ScrollReveal>
