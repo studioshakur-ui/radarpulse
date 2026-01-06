@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-01-05 18:49:16Z`
+- Generated (UTC): `2026-01-06 02:27:28Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
