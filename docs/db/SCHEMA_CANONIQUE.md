@@ -33,16 +33,16 @@
  
  ### Résumé
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
- - `public.ingestion_jobs` — size: 104 kB — RLS: on — cols: 11
+ - `public.ingestion_jobs` — size: 136 kB — RLS: on — cols: 11
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
  - `public.opportunities` — size: 136 kB — RLS: on — cols: 20
- - `public.opportunities_raw` — size: 184 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 224 kB — RLS: off — cols: 31
- - `public.opportunity_ai_evidence` — size: 104 kB — RLS: off — cols: 8
+ - `public.opportunities_raw` — size: 200 kB — RLS: off — cols: 19
+ - `public.opportunity_ai` — size: 248 kB — RLS: off — cols: 31
+ - `public.opportunity_ai_evidence` — size: 112 kB — RLS: off — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.rp_ai_runs` — size: 80 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 96 kB — RLS: off — cols: 11
  - `public.sources` — size: 64 kB — RLS: on — cols: 14
  - `public.subscriptions` — size: 24 kB — RLS: on — cols: 7
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -81,16 +81,16 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `24 kB`
- - **Size**: `104 kB`
+ - **Size**: `136 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
  - **Size**: `136 kB`
- - **Size**: `184 kB`
- - **Size**: `224 kB`
- - **Size**: `104 kB`
+ - **Size**: `200 kB`
+ - **Size**: `248 kB`
+ - **Size**: `112 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `80 kB`
+ - **Size**: `96 kB`
  - **Size**: `64 kB`
  - **Size**: `24 kB`
  - **Size**: `16 kB`
@@ -339,6 +339,8 @@
  ##### Indexes
  - `CREATE UNIQUE INDEX buyers_pkey ON public.buyers USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree (COALESCE(country_code, ''::text), normalized_name)`
+ - `CREATE INDEX ingestion_jobs_claim_idx ON public.ingestion_jobs USING btree (run_at, id) WHERE (status = 'queued'::job_status)`
+ - `CREATE UNIQUE INDEX ingestion_jobs_one_open_per_source ON public.ingestion_jobs USING btree (source_id) WHERE (status = ANY (ARRAY['queued'::job_status, 'running'::job_status]))`
  - `CREATE UNIQUE INDEX ingestion_jobs_pkey ON public.ingestion_jobs USING btree (id)`
  - `CREATE INDEX ingestion_jobs_queue_idx ON public.ingestion_jobs USING btree (status, run_at, id)`
  - `CREATE INDEX ingestion_jobs_source_idx ON public.ingestion_jobs USING btree (source_id)`
@@ -467,5 +469,5 @@
  - `public.claim_next_notification(p_channel notify_channel)` → `notification_queue` (lang: plpgsql)
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(467 rows)
+(469 rows)
 
