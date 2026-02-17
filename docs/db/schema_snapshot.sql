@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xZTtVBLZtNQ9VyZa7hW9WSnxGKutULpwC1yXsMUlVVIR6xJ0n7qqdItAhd0VitF
+\restrict 0sD1CqStiLA9Sx2gcghsFVdl5aNyUXOd1zcBlzMkbS3kTqvbMfVvnsucRRHMFUe
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.8
@@ -1245,5 +1245,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xZTtVBLZtNQ9VyZa7hW9WSnxGKutULpwC1yXsMUlVVIR6xJ0n7qqdItAhd0VitF
+\unrestrict 0sD1CqStiLA9Sx2gcghsFVdl5aNyUXOd1zcBlzMkbS3kTqvbMfVvnsucRRHMFUe
 
