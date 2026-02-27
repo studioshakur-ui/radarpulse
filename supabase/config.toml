@@ -252,3 +252,15 @@ verify_jwt = false
 
 [functions.admin-purge-test-data]
 verify_jwt = false
+
+[functions.stripe-create-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/stripe-create-checkout/deno.json"
+entrypoint = "./functions/stripe-create-checkout/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-webhook/deno.json"
+entrypoint = "./functions/stripe-webhook/index.ts"

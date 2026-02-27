@@ -77,13 +77,13 @@ export default function RequestAccessPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              to="/explore"
+              to="/guides"
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl border border-border/25 bg-surface/70 px-3 py-2 text-sm text-text shadow-soft transition",
                 "hover:bg-elevated/70"
               )}
             >
-              Explore
+              Guides
             </Link>
             <Link
               to="/"
@@ -101,9 +101,7 @@ export default function RequestAccessPage() {
       <main className="mx-auto max-w-xl px-4 pt-20">
         <div className="rounded-2xl border border-border/25 bg-surface/70 p-6 shadow-soft">
           <h1 className="text-2xl font-semibold tracking-tight">Request access</h1>
-          <p className="mt-2 text-sm text-muted">
-            Tell us your use case. You can also explore the demo without signup.
-          </p>
+          <p className="mt-2 text-sm text-muted">Tell us your use case and your operating context.</p>
 
           {!done ? (
             <form
@@ -115,33 +113,37 @@ export default function RequestAccessPage() {
               }}
             >
               <div>
-                <label className="text-xs font-medium text-muted">Name</label>
+                <label htmlFor="request-name" className="text-xs font-medium text-muted">Name</label>
                 <input
+                  id="request-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
-                  placeholder="Your name"
                 />
+                <p className="mt-1 text-xs text-muted">Enter your full name for the access request.</p>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted">Email</label>
+                <label htmlFor="request-email" className="text-xs font-medium text-muted">Email</label>
                 <input
+                  id="request-email"
+                  type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
-                  placeholder="you@company.com"
                 />
+                <p className="mt-1 text-xs text-muted">Use your professional email address.</p>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted">Organization</label>
+                <label htmlFor="request-organization" className="text-xs font-medium text-muted">Organization</label>
                 <input
+                  id="request-organization"
                   value={form.organization}
                   onChange={(e) => setForm({ ...form, organization: e.target.value })}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
-                  placeholder="Company / NGO / Agency"
                 />
+                <p className="mt-1 text-xs text-muted">Company, NGO, agency, or public body name.</p>
               </div>
 
               <div>
@@ -181,9 +183,7 @@ export default function RequestAccessPage() {
           ) : (
             <div className="mt-6 rounded-2xl border border-good/20 bg-good/10 p-4">
               <div className="text-sm font-semibold text-good">Saved.</div>
-              <div className="mt-1 text-sm text-muted">
-                You can now send the email request, or explore the demo.
-              </div>
+              <div className="mt-1 text-sm text-muted">You can now send the email request.</div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <a
                   href={mailto}
@@ -192,10 +192,10 @@ export default function RequestAccessPage() {
                   Email request <Mail className="h-4 w-4" />
                 </a>
                 <Link
-                  to="/explore"
+                  to="/guides"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/25 bg-surface/70 px-5 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated/70"
                 >
-                  Explore demo <ArrowRight className="h-4 w-4" />
+                  Open guides <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>

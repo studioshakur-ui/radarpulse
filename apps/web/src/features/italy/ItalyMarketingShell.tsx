@@ -2,7 +2,6 @@ import React from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TwilightWebGLBackdrop } from "@/features/landing/cinematic/TwilightWebGLBackdrop";
 
 function NavItem({
   to,
@@ -41,7 +40,10 @@ export function ItalyMarketingShell({
 }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-bg text-text">
-      <TwilightWebGLBackdrop />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(74,211,149,0.08),transparent_36%)]"
+      />
 
       <div className="fixed inset-x-0 top-0 z-30 border-b border-line/20 bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -52,14 +54,13 @@ export function ItalyMarketingShell({
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold text-text">RadarPulse</div>
-              <div className="text-[11px] text-subtext">Tenders + Grants</div>
+              <div className="text-[11px] text-subtext">Italy tenders</div>
             </div>
           </Link>
 
           <div className="hidden items-center gap-2 md:flex">
             <NavItem to="/italie" label="Italie" exact />
             <NavItem to="/guides" label="Guides" />
-            <NavItem to="/explore" label="Explore" />
           </div>
 
           <div className="flex items-center gap-2">
@@ -95,10 +96,10 @@ export function ItalyMarketingShell({
                 Hub Italie <ChevronRight className="h-4 w-4" />
               </Link>
               <Link
-                to="/explore"
+                to="/request-access"
                 className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/55 px-3 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-surface/80"
               >
-                Explore
+                Request access
               </Link>
             </div>
           </div>

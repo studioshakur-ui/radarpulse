@@ -288,6 +288,12 @@ async function processJob(job: IngestionJobRow) {
   await setJobRunning(jobId);
 
   const source = await getSource((job as any).source_id);
+  const sourceCountry = String(source.country_code ?? "").toUpperCase();
+
+  if (sourceCountry !== "IT") {
+    await setJobSuccess(jobId);
+    return { ok: true, skipped: true, reason: "source_country_not_it", source: source.key };
+  }
 
   try {
     const result = await runConnector(source);
@@ -295,7 +301,15 @@ async function processJob(job: IngestionJobRow) {
     let upsertedRaw = 0;
 
     for (const opp of result.opportunities as OpportunityUpsertInput[]) {
-      const raw = await upsertRaw(source, opp);
+      const oppCountry = String((opp.country_code ?? source.country_code ?? "")).toUpperCase();
+      if (oppCountry !== "IT") continue;
+
+      const normalizedOpp: OpportunityUpsertInput = {
+        ...opp,
+        country_code: "IT",
+      };
+
+      const raw = await upsertRaw(source, normalizedOpp);
       upsertedRaw += 1;
 
       // AI best-effort

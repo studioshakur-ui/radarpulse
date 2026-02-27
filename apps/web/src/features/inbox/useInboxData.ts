@@ -42,6 +42,7 @@ async function fetchInbox(filters: InboxFilters) {
     .select(
       "id,source_id,external_id,fingerprint,type,status,is_public,country_code,buyer_id,buyer_name,title,summary,published_at,deadline_at,deadline_tz,source_url,language,created_at,updated_at"
     )
+    .eq("country_code", "IT")
     .order("updated_at", { ascending: false })
     .limit(500);
 

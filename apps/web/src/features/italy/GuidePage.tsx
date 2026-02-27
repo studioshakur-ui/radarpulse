@@ -49,12 +49,6 @@ export default function GuidePage() {
         <MarketingSection title="Prochaine étape" subtitle="Passez du guide à l’exécution.">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/explore"
-              className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/55 px-4 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-surface/80"
-            >
-              Explore <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
               to="/request-access"
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-veil shadow-glow hover:opacity-90"
             >

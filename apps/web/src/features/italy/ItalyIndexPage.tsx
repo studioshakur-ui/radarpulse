@@ -85,16 +85,10 @@ export default function ItalyIndexPage() {
 
         <Card
           title="Démarrer avec RadarPulse"
-          desc="Explorez la démo ou demandez l’accès (beta)."
+          desc="Demandez l’accès et structurez votre processus de qualification."
           icon={<ArrowRight className="h-5 w-5" />}
         >
           <div className="flex flex-col gap-2">
-            <Link
-              to="/explore"
-              className="inline-flex items-center justify-between rounded-xl border border-border/25 bg-white/55 px-4 py-3 text-sm font-semibold text-text shadow-soft backdrop-blur hover:bg-white/65"
-            >
-              Explore demo <ArrowRight className="h-4 w-4" />
-            </Link>
             <Link
               to="/request-access"
               className="inline-flex items-center justify-between rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-veil shadow-glow hover:opacity-90"

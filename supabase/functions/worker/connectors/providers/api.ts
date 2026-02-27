@@ -8,6 +8,19 @@ import { apiGrantsGovFetch } from "./us_grants_gov.ts";
 
 type Provider = "uk_find_tender" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search";
 
+type ProviderConfig = {
+  key: Provider;
+  is_active: boolean;
+  country_code: "IT" | "GB" | "US" | "EU";
+};
+
+const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
+  eu_ted_search: { key: "eu_ted_search", is_active: true, country_code: "IT" },
+  uk_find_tender: { key: "uk_find_tender", is_active: false, country_code: "GB" },
+  us_sam_gov: { key: "us_sam_gov", is_active: false, country_code: "US" },
+  us_grants_gov: { key: "us_grants_gov", is_active: false, country_code: "US" },
+};
+
 function providerFromSource(source: SourceRow): Provider | null {
   const p = String(((source.meta ?? {}) as any).provider ?? "").trim();
 
@@ -25,6 +38,14 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
   const provider = providerFromSource(source);
 
   if (!provider) {
+    return {
+      opportunities: [],
+      fetched_at,
+    };
+  }
+
+  const cfg = PROVIDER_CONFIG[provider];
+  if (!cfg?.is_active || cfg.country_code !== "IT") {
     return {
       opportunities: [],
       fetched_at,
