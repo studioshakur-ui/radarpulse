@@ -1,12 +1,13 @@
 import type { SourceRow } from "../../../_shared/types.ts";
 
 import type { ConnectorResult } from "../index.ts";
+import { apiAnacOcdsFetch } from "./it_anac_ocds.ts";
 import { apiEuTedSearchFetch } from "./eu_ted_search.ts";
 import { apiFindTenderFetch } from "./uk_find_tender.ts";
 import { apiSamGovFetch } from "./us_sam_gov.ts";
 import { apiGrantsGovFetch } from "./us_grants_gov.ts";
 
-type Provider = "uk_find_tender" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search";
+type Provider = "uk_find_tender" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds";
 
 type ProviderConfig = {
   key: Provider;
@@ -19,6 +20,7 @@ const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
   uk_find_tender: { key: "uk_find_tender", is_active: false, country_code: "GB" },
   us_sam_gov: { key: "us_sam_gov", is_active: false, country_code: "US" },
   us_grants_gov: { key: "us_grants_gov", is_active: false, country_code: "US" },
+  it_anac_ocds: { key: "it_anac_ocds", is_active: true, country_code: "IT" },
 };
 
 function providerFromSource(source: SourceRow): Provider | null {
@@ -28,6 +30,7 @@ function providerFromSource(source: SourceRow): Provider | null {
   if (p === "us_sam_gov") return "us_sam_gov";
   if (p === "us_grants_gov") return "us_grants_gov";
   if (p === "eu_ted_search") return "eu_ted_search";
+  if (p === "it_anac_ocds") return "it_anac_ocds";
 
   return null;
 }
@@ -45,7 +48,7 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
   }
 
   const cfg = PROVIDER_CONFIG[provider];
-  if (!cfg?.is_active || cfg.country_code !== "IT") {
+  if (!cfg?.is_active) {
     return {
       opportunities: [],
       fetched_at,
@@ -61,6 +64,8 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
       return await apiGrantsGovFetch(source);
     case "eu_ted_search":
       return await apiEuTedSearchFetch(source);
+    case "it_anac_ocds":
+      return await apiAnacOcdsFetch(source);
     default:
       return {
         opportunities: [],

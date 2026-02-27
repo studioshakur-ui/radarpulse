@@ -63,13 +63,20 @@ Deno.serve(async (req) => {
 
     const { data: sources, error } = await sb
       .from("sources")
-      .select("id, is_active, schedule_minutes, last_run_at, country_code")
+      .select("id, key, kind, is_active, schedule_minutes, last_run_at, country_code")
       .eq("is_active", true)
       .eq("country_code", "IT");
 
     if (error) throw error;
 
     let created = 0;
+    let skippedAlreadyPending = 0;
+    const selectedByKind: Record<string, number> = {};
+
+    for (const s of sources ?? []) {
+      const k = String((s as { kind?: unknown }).kind ?? "unknown");
+      selectedByKind[k] = (selectedByKind[k] ?? 0) + 1;
+    }
 
     for (const s of sources ?? []) {
       const last = s.last_run_at ? new Date(s.last_run_at) : null;
@@ -91,6 +98,7 @@ Deno.serve(async (req) => {
         const code = (insErr as any).code as string | undefined;
         const msg = String((insErr as any).message || insErr);
         if (code === "23505" || msg.toLowerCase().includes("duplicate")) {
+          skippedAlreadyPending++;
           continue;
         }
         throw insErr;
@@ -104,6 +112,16 @@ Deno.serve(async (req) => {
 
       created++;
     }
+
+    console.info(
+      JSON.stringify({
+        event: "dispatcher_dispatch_summary",
+        selected_sources_total: (sources ?? []).length,
+        selected_sources_by_kind: selectedByKind,
+        scheduled_jobs_count: created,
+        skipped_already_pending_count: skippedAlreadyPending,
+      }),
+    );
 
     return new Response(JSON.stringify({ ok: true, created }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

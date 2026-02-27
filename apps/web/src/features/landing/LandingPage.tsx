@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { CoreCard } from "@/components/ds/CoreCard";
 import { CorePill } from "@/components/ds/CorePill";
-import { useT, type Lang } from "@/i18n";
+import { useT } from "@/i18n";
+import { cn } from "@/lib/utils";
 
 function BenefitCard({
   title,
@@ -32,12 +33,6 @@ function BenefitCard({
   );
 }
 
-const langOptions: Array<{ value: Lang; label: string }> = [
-  { value: "it", label: "IT" },
-  { value: "en", label: "EN" },
-  { value: "fr", label: "FR" },
-];
-
 export function LandingPage() {
   const { t, lang, setLang } = useT();
 
@@ -49,18 +44,21 @@ export function LandingPage() {
             RadarPulse
           </Link>
           <div className="flex items-center gap-2">
-            <select
-              aria-label="Language"
-              value={lang}
-              onChange={(event) => setLang(event.target.value as Lang)}
-              className="h-9 rounded-xl border border-line/25 bg-surface/60 px-2 text-xs font-semibold text-text outline-none ring-brand/40 transition focus:ring-2"
-            >
-              {langOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+            <div className="flex items-center gap-1 rounded-xl border border-line/25 bg-surface/60 p-1">
+              {(["fr", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                    lang === l ? "bg-brand text-white shadow-sm" : "text-subtext hover:text-text",
+                  )}
+                >
+                  {l.toUpperCase()}
+                </button>
               ))}
-            </select>
+            </div>
             <Link
               to="/guides"
               className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-4 py-2 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
