@@ -216,13 +216,13 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.dispatcher]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/dispatcher/deno.json"
 entrypoint = "./functions/dispatcher/index.ts"
 
 [functions.worker]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/worker/deno.json"
 entrypoint = "./functions/worker/index.ts"
 

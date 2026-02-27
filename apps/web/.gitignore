@@ -12,6 +12,8 @@ apps/web/.vite/
 # Local env
 .env
 .env.*
+.env.local
+.env.local.*
 
 # Supabase temp
 supabase/.temp/

@@ -255,6 +255,37 @@ async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput) {
   return { id: data.id as string };
 }
 
+async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput) {
+  const fingerprint = safeStr((opp as any)?.fingerprint).trim();
+  if (!fingerprint) throw new Error("Missing opportunity fingerprint");
+
+  const sourceUrl = safeStr((opp as any)?.source_url).trim() || safeStr((source as any)?.url).trim();
+  if (!sourceUrl) throw new Error("Missing opportunity source_url");
+
+  const payload = {
+    source_id: source.id,
+    external_id: safeStr((opp as any)?.external_id).trim() || null,
+    fingerprint,
+    type: (opp.type ?? "tender") as any,
+    status: ((opp as any)?.status ?? "active") as any,
+    is_public: true,
+    country_code: "IT",
+    buyer_name: safeStr((opp as any)?.buyer_name).trim() || null,
+    title: ensureTitle(opp),
+    summary: pickSnippet(opp),
+    published_at: (opp as any)?.published_at ?? null,
+    deadline_at: (opp as any)?.deadline_at ?? null,
+    deadline_tz: (opp as any)?.deadline_tz ?? null,
+    source_url: sourceUrl,
+    language: (opp as any)?.language ?? null,
+    raw: ((opp as any)?.raw && typeof (opp as any).raw === "object") ? (opp as any).raw : {},
+    updated_at: nowIso(),
+  };
+
+  const { error } = await sb().from("opportunities").upsert(payload, { onConflict: "fingerprint" });
+  if (error) throw new Error(`Failed to upsert opportunities row: ${error.message}`);
+}
+
 /* -----------------------------
    AI extract (fixed signature)
 ----------------------------- */
@@ -299,6 +330,7 @@ async function processJob(job: IngestionJobRow) {
     const result = await runConnector(source);
 
     let upsertedRaw = 0;
+    let upsertedOpportunities = 0;
 
     for (const opp of result.opportunities as OpportunityUpsertInput[]) {
       const oppCountry = String((opp.country_code ?? source.country_code ?? "")).toUpperCase();
@@ -311,6 +343,9 @@ async function processJob(job: IngestionJobRow) {
 
       const raw = await upsertRaw(source, normalizedOpp);
       upsertedRaw += 1;
+
+      await upsertOpportunity(source, normalizedOpp);
+      upsertedOpportunities += 1;
 
       // AI best-effort
       try {
@@ -328,6 +363,7 @@ async function processJob(job: IngestionJobRow) {
       source: source.key,
       kind: source.kind,
       upserted_raw: upsertedRaw,
+      upserted_opportunities: upsertedOpportunities,
       fetched_at: (result as any)?.fetched_at ?? null,
     };
   } catch (err) {
@@ -347,6 +383,18 @@ Deno.serve(async (req) => {
 
   let body: any = {};
   try {
+    const auth = req.headers.get("Authorization") ?? "";
+    if (auth) {
+      if (!auth.toLowerCase().startsWith("bearer ")) {
+        return json({ ok: false, error: "Invalid Authorization header format" }, { status: 401 });
+      }
+      const token = auth.slice(7).trim();
+      const { data, error } = await sb().auth.getUser(token);
+      if (error || !data?.user?.id) {
+        return json({ ok: false, error: "Invalid JWT token" }, { status: 401 });
+      }
+    }
+
     body = await req.json();
   } catch {
     body = {};

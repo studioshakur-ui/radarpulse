@@ -1,11 +1,49 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
 
+function serializeError(err: unknown): { message: string; details?: Record<string, unknown> } {
+  if (err instanceof Error) {
+    return { message: err.message };
+  }
+
+  if (err && typeof err === "object") {
+    const anyErr = err as Record<string, unknown>;
+    const message = String(anyErr.message ?? anyErr.error_description ?? anyErr.error ?? "Unknown error");
+    const details: Record<string, unknown> = {};
+
+    for (const k of ["code", "details", "hint", "status", "name"]) {
+      if (anyErr[k] !== undefined) details[k] = anyErr[k];
+    }
+
+    return Object.keys(details).length ? { message, details } : { message };
+  }
+
+  return { message: String(err) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const sb = sbAdmin();
+    const auth = req.headers.get("Authorization") ?? "";
+    if (auth) {
+      if (!auth.toLowerCase().startsWith("bearer ")) {
+        return new Response(JSON.stringify({ ok: false, error: "Invalid Authorization header format" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
+      }
+      const token = auth.slice(7).trim();
+      const { data, error } = await sb.auth.getUser(token);
+      if (error || !data?.user?.id) {
+        return new Response(JSON.stringify({ ok: false, error: "Invalid JWT token" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
+      }
+    }
+
     const now = new Date();
 
     // Safety valve: if a worker crashed mid-flight, jobs can remain "running" forever.
@@ -72,7 +110,8 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
+    const ser = serializeError(e);
+    return new Response(JSON.stringify({ ok: false, error: ser.message, details: ser.details }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -16,10 +16,21 @@ type TedSearchParams = {
   fields?: string[];
 };
 
+const DEFAULT_TED_FIELDS = [
+  "publication-number",
+  "title",
+  "publication-date",
+  "deadline",
+  "buyer_name",
+];
+const TARGET_COUNTRY_CODE = "IT";
+
 function getMeta(source: SourceRow): TedSearchParams {
   const meta = (source.meta ?? {}) as Record<string, unknown>;
   const fieldsRaw = meta.fields;
-  const fields = Array.isArray(fieldsRaw) ? fieldsRaw.map((x) => String(x)).filter(Boolean) : undefined;
+  const fields = Array.isArray(fieldsRaw)
+    ? fieldsRaw.map((x) => String(x).trim()).filter(Boolean)
+    : [];
 
   const scope = String(meta.scope ?? "ACTIVE").toUpperCase();
   const paginationMode = String(meta.paginationMode ?? "PAGE_NUMBER").toUpperCase();
@@ -33,7 +44,7 @@ function getMeta(source: SourceRow): TedSearchParams {
     onlyLatestVersions: Boolean(meta.onlyLatestVersions ?? false),
     checkQuerySyntax: Boolean(meta.checkQuerySyntax ?? false),
     paginationMode: (paginationMode === "ITERATION" ? "ITERATION" : "PAGE_NUMBER") as TedSearchParams["paginationMode"],
-    fields,
+    fields: fields.length ? fields : DEFAULT_TED_FIELDS,
   };
 }
 
@@ -66,6 +77,24 @@ function parseMaybeIsoDate(v: string): string | null {
   return d.toISOString();
 }
 
+function inferNoticeCountryCode(n: any): string | null {
+  const raw = pick(n, [
+    "country",
+    "country_code",
+    "buyer_country",
+    "buyerCountry",
+    "place-of-performance-country",
+    "placeOfPerformanceCountry",
+    "nuts_country",
+    "nutsCountry",
+  ]);
+  const cc = String(raw || "").trim().toUpperCase();
+  if (!cc) return null;
+  if (cc.length === 2) return cc;
+  if (cc === "ITA" || cc === "ITALY") return "IT";
+  return cc;
+}
+
 function tedNoticeUrl(publicationNumber: string): string {
   const pn = String(publicationNumber || "").trim();
   return `https://ted.europa.eu/en/notice/${encodeURIComponent(pn)}/html`;
@@ -83,16 +112,31 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
     paginationMode: meta.paginationMode ?? "PAGE_NUMBER",
     onlyLatestVersions: meta.onlyLatestVersions ?? false,
   };
-  if (meta.fields && meta.fields.length) body.fields = meta.fields;
+  // TED v3 rejects empty "fields". Always send a non-empty list.
+  body.fields = (meta.fields && meta.fields.length) ? meta.fields : DEFAULT_TED_FIELDS;
 
-  const { data } = await safeJsonFetch<any>(String(meta.base_url), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let data: any;
+  try {
+    const res = await safeJsonFetch<any>(String(meta.base_url), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    data = res.data;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const safeMeta = {
+      base_url: String(meta.base_url ?? ""),
+      scope: meta.scope ?? "ACTIVE",
+      page: meta.page ?? 1,
+      limit: meta.limit ?? 25,
+      fields_count: Array.isArray(body.fields) ? body.fields.length : 0,
+    };
+    throw new Error(`TED_SEARCH_FAILED ${msg} | payload_meta=${JSON.stringify(safeMeta)}`);
+  }
 
   const notices: any[] = Array.isArray(data?.notices)
     ? data.notices
@@ -103,8 +147,15 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
         : [];
 
   const out: OpportunityUpsertInput[] = [];
+  let filteredOutByCountry = 0;
 
   for (const n of notices) {
+    const noticeCountry = inferNoticeCountryCode(n);
+    if (noticeCountry && noticeCountry !== TARGET_COUNTRY_CODE) {
+      filteredOutByCountry++;
+      continue;
+    }
+
     const publicationNumber =
       pick(n, [
         "publication-number",
@@ -146,7 +197,7 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       type: "tender",
       status: "active",
       is_public: true,
-      country_code: null,
+      country_code: TARGET_COUNTRY_CODE,
       buyer_name: buyerName || null,
       title,
       summary: buyerName ? `Buyer: ${buyerName}` : null,
@@ -161,6 +212,17 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       },
     });
   }
+
+  console.info(
+    JSON.stringify({
+      event: "ted_it_filter_applied",
+      source_key: source.key,
+      requested_country: TARGET_COUNTRY_CODE,
+      notices_received: notices.length,
+      notices_filtered_out: filteredOutByCountry,
+      opportunities_emitted: out.length,
+    })
+  );
 
   return {
     ok: true,

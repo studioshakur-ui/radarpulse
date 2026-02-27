@@ -199,14 +199,19 @@ function normalizeCountryCode(v: unknown): string | null {
 export async function extractLightForRawId(
   supabase: SupabaseClientLike,
   rawId: string,
-  opts: ExtractLightOptions,
+  opts?: ExtractLightOptions,
 ): Promise<ExtractLightResult> {
+  const cfg = opts ?? { openaiApiKey: "" };
   const started = Date.now();
-  const model = opts.openaiModel || "gpt-4o-mini";
-  const store = Boolean(opts.openaiStore ?? false);
-  const extractVersion = opts.extractVersion || "v1.light";
-  const minChars = opts.minContentChars ?? 280;
-  const maxChars = opts.maxContentChars ?? 24_000;
+  const model = cfg.openaiModel || "gpt-4o-mini";
+  const store = Boolean(cfg.openaiStore ?? false);
+  const extractVersion = cfg.extractVersion || "v1.light";
+  const minChars = cfg.minContentChars ?? 280;
+  const maxChars = cfg.maxContentChars ?? 24_000;
+
+  if (!cfg.openaiApiKey) {
+    return { status: "skipped", reason: "ai_skipped_no_api_key" };
+  }
 
   // Start run log early
   const runInsert = await supabase
@@ -267,7 +272,7 @@ export async function extractLightForRawId(
     });
 
     const respJson = await callOpenAIExtractLight({
-      openaiApiKey: opts.openaiApiKey,
+      openaiApiKey: cfg.openaiApiKey,
       model,
       store,
       instructions,
