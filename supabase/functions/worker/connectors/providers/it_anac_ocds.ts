@@ -1,11 +1,13 @@
 import type { OpportunityUpsertInput, SourceRow } from "../../../_shared/types.ts";
+import { sha256Hex } from "../../../_shared/rp_ai_utils.ts";
 import type { ConnectorResult } from "../index.ts";
-import { makeFingerprint, safeJsonFetch } from "../_utils.ts";
+import { safeJsonFetch } from "../_utils.ts";
 
 type AnacOcdsParams = {
   base_url: string;
   page: number;
   limit: number;
+  cursor: string | null;
 };
 
 type JsonObj = Record<string, unknown>;
@@ -14,8 +16,9 @@ function getParams(source: SourceRow): AnacOcdsParams {
   const m = (source.meta ?? {}) as JsonObj;
   return {
     base_url: String(m.base_url ?? "https://dati.anticorruzione.it/opendata/ocds/api"),
-    page: Number(m.page ?? 1) || 1,
+    page: Number(m.page ?? m.cursor ?? 1) || 1,
     limit: Math.min(Number(m.limit ?? 25) || 25, 100),
+    cursor: typeof m.cursor === "string" && m.cursor.trim() ? m.cursor.trim() : null,
   };
 }
 
@@ -35,9 +38,33 @@ function parseIso(v: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function parseNextPointer(data: JsonObj, fallbackPage: number): { page?: number; cursor?: string | null } | null {
+  const directNext = typeof data.next === "string" ? data.next : null;
+  const links = (data.links ?? null) as JsonObj | null;
+  const linksNext = links && typeof links.next === "string" ? links.next : null;
+  const nextUrl = directNext || linksNext;
+
+  if (nextUrl) {
+    try {
+      const u = new URL(nextUrl);
+      const pageRaw = u.searchParams.get("page");
+      const cursorRaw = u.searchParams.get("cursor");
+      const page = pageRaw ? Number(pageRaw) : NaN;
+      return {
+        page: Number.isFinite(page) && page > 0 ? page : undefined,
+        cursor: cursorRaw && cursorRaw.trim() ? cursorRaw.trim() : null,
+      };
+    } catch {
+      return { page: fallbackPage + 1, cursor: null };
+    }
+  }
+
+  return { page: fallbackPage + 1, cursor: null };
+}
+
 export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResult> {
   const fetched_at = new Date().toISOString();
-  const { base_url, page, limit } = getParams(source);
+  const { base_url, page, limit, cursor } = getParams(source);
   const url = `${base_url}/releases?page=${page}&limit=${limit}`;
 
   let data: unknown;
@@ -76,6 +103,7 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
     if (status && status !== "active") continue;
 
     const ocid = safeStr(release.ocid);
+    const externalId = ocid || null;
     const title = safeStr(tender.title) || safeStr(tender.description);
     if (!title) continue;
 
@@ -102,11 +130,14 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
     const region = safeStr(address?.region) || safeStr(address?.locality) || null;
 
     const value = (tender.value ?? tender.estimatedValue ?? null) as JsonObj | null;
-    const fingerprint = makeFingerprint(source.key, ocid || null, title, sourceUrl);
+    const fingerprintBasis = externalId
+      ? `${source.key}::${externalId}`
+      : `${source.key}::${title}::${buyerName ?? ""}::${deadlineAt ?? ""}`;
+    const fingerprint = await sha256Hex(fingerprintBasis);
 
     out.push({
       source_id: source.id,
-      external_id: ocid || cig || null,
+      external_id: externalId || cig || null,
       fingerprint,
       type: "tender",
       status: "active",
@@ -126,9 +157,13 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
         cig,
         region,
         tender_value: value,
+        source_cursor: cursor,
+        release,
       },
     });
   }
+
+  const next = parseNextPointer(root, page);
 
   console.info(
     JSON.stringify({
@@ -138,8 +173,9 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
       opportunities_emitted: out.length,
       page,
       limit,
+      next,
     }),
   );
 
-  return { opportunities: out, fetched_at };
+  return { opportunities: out, fetched_at, next };
 }

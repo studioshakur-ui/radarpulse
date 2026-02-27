@@ -5,6 +5,7 @@ import { apiFetch } from "./providers/api.ts";
 export type ConnectorResult = {
   opportunities: OpportunityUpsertInput[];
   fetched_at: string;
+  next?: { page?: number; cursor?: string | null } | null;
 };
 
 export async function runConnector(source: SourceRow): Promise<ConnectorResult> {

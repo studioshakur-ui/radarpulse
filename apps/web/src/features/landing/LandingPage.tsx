@@ -35,6 +35,7 @@ function BenefitCard({
 
 export function LandingPage() {
   const { t, lang, setLang } = useT();
+  const showDev = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV_APP === "true";
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -65,6 +66,14 @@ export function LandingPage() {
             >
               {t("landing.nav.explore")}
             </Link>
+            {showDev ? (
+              <Link
+                to="/inbox"
+                className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-4 py-2 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
+              >
+                Dev App
+              </Link>
+            ) : null}
             <Link
               to="/request-access"
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-glow hover:opacity-95"

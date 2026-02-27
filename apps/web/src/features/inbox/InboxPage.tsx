@@ -37,6 +37,18 @@ function extractBudget(row: OpportunityWithMeta): string {
   return "Budget not provided";
 }
 
+function qualityBadges(row: OpportunityWithMeta): string[] {
+  const raw = (row.raw ?? {}) as Record<string, unknown>;
+  const out: string[] = [];
+  const originType = asText(raw.origin_type, "");
+  const completeness = typeof raw.completeness_score === "number" ? raw.completeness_score : null;
+
+  if (originType === "EU") out.push("EU Source");
+  if (typeof completeness === "number" && completeness < 0.5) out.push("Low data quality");
+
+  return out;
+}
+
 function EmptyState() {
   return (
     <div className="rounded-3xl border border-border/35 bg-surface/70 p-8 shadow-soft">
@@ -53,10 +65,25 @@ function TenderRow({ row }: { row: OpportunityWithMeta }) {
   const region = extractRegion(row);
   const deadline = formatDeadline(row.deadline_at);
   const budget = extractBudget(row);
+  const badges = qualityBadges(row);
 
   return (
     <article className="rounded-2xl border border-border/35 bg-surface/65 p-4 shadow-soft">
-      <h2 className="text-sm font-semibold text-text">{asText(row.title, "Untitled tender")}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold text-text">{asText(row.title, "Untitled tender")}</h2>
+        {badges.length ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {badges.map((badge) => (
+              <span
+                key={badge}
+                className="inline-flex items-center rounded-full border border-line/40 bg-surface/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-subtext"
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
         <div className="inline-flex items-center gap-2">
@@ -103,6 +130,11 @@ export default function InboxPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
+      {import.meta.env.DEV ? (
+        <div className="mb-4 rounded-2xl border border-line/35 bg-surface/70 p-3 text-xs font-semibold uppercase tracking-wide text-subtext">
+          DEV MODE — Origin types visible
+        </div>
+      ) : null}
       <section className="rounded-3xl border border-border/35 bg-surface/70 p-6 shadow-soft">
         <label htmlFor="inbox-query" className="text-xs font-semibold text-muted">
           Filter Italian tenders

@@ -124,3 +124,50 @@ Expected: no `fields must not be empty`, no `openaiModel` undefined errors, no `
 - TED 400 (`fields must not be empty`): connector now always sends non-empty `fields`.
 - AI optional crash: AI extraction safely skips when `OPENAI_API_KEY` is missing; best-effort failures do not fail jobs.
 - DB mismatch writes: worker writes only columns that exist in `opportunities_raw` / `opportunities`.
+
+## ANAC OCDS (IT_NATIVE) checks
+Use these checks after deploy to confirm Italy-native ingestion path:
+
+```sql
+select key, country_code, origin_type, is_active
+from public.sources
+where key like 'it_anac%';
+```
+
+```sql
+select source_key, status, fetched_count, raw_upserted_count, opp_upserted_count, started_at
+from public.ingestion_runs
+order by started_at desc
+limit 10;
+```
+
+```sql
+select source_id, count(*)
+from public.opportunities_raw
+group by 1
+order by 2 desc;
+```
+
+```sql
+select source_id, count(*)
+from public.opportunities
+group by 1
+order by 2 desc;
+```
+
+```sql
+select count(*)
+from public.opportunities_search_v1
+where source_key = 'it_anac_ocds';
+```
+
+### Dispatcher smoke test with anon + bearer
+```bash
+curl -s -X POST "https://<PROJECT_REF>.supabase.co/functions/v1/dispatcher" \
+  -H "apikey: <SUPABASE_ANON_KEY>" \
+  -H "Authorization: Bearer <USER_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expected: HTTP 200 with `{ "ok": true, ... }`.

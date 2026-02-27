@@ -4,7 +4,7 @@ import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
 import type { IngestionJobRow, OpportunityUpsertInput, SourceRow } from "../_shared/types.ts";
 import { safeStr } from "../_shared/text.ts";
 import { canonicalizeUrl, sha256Hex, normalizeText } from "../_shared/rp_ai_utils.ts";
-import { runConnector } from "./connectors/index.ts";
+import { runConnector, type ConnectorResult } from "./connectors/index.ts";
 
 /* -----------------------------
    Supabase client (service role)
@@ -32,6 +32,11 @@ function json(body: unknown, init: ResponseInit = {}) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function sanitizeErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.slice(0, 2000);
 }
 
 function getBoolEnv(name: string, def: boolean): boolean {
@@ -130,6 +135,63 @@ async function getSource(sourceId: string): Promise<SourceRow> {
   return data as SourceRow;
 }
 
+function currentPagingCursorFromMeta(meta: unknown): string | null {
+  const m = (meta ?? {}) as Record<string, unknown>;
+  if (typeof m.cursor === "string" && m.cursor.trim()) return m.cursor.trim();
+  if (typeof m.page === "number" && Number.isFinite(m.page)) return String(m.page);
+  if (typeof m.page === "string" && m.page.trim()) return m.page.trim();
+  return null;
+}
+
+async function startIngestionRun(source: SourceRow): Promise<{ runId: string; cursor: string | null }> {
+  const runCursor = currentPagingCursorFromMeta((source as any)?.meta);
+  const payload = {
+    source_id: source.id,
+    source_key: source.key,
+    status: "RUNNING",
+    started_at: nowIso(),
+    cursor: runCursor,
+    meta: {
+      source_kind: source.kind,
+      source_country_code: source.country_code,
+    },
+  };
+
+  const { data, error } = await sb()
+    .from("ingestion_runs")
+    .insert(payload)
+    .select("id")
+    .single();
+  if (error) throw new Error(`Failed to start ingestion run: ${error.message}`);
+  return { runId: String(data.id), cursor: runCursor };
+}
+
+async function finishIngestionRun(
+  runId: string,
+  patch: {
+    status: "SUCCESS" | "FAILED";
+    fetched_count: number;
+    raw_upserted_count: number;
+    opp_upserted_count: number;
+    cursor?: string | null;
+    error?: string | null;
+  },
+) {
+  const { error } = await sb()
+    .from("ingestion_runs")
+    .update({
+      status: patch.status,
+      fetched_count: patch.fetched_count,
+      raw_upserted_count: patch.raw_upserted_count,
+      opp_upserted_count: patch.opp_upserted_count,
+      cursor: patch.cursor ?? null,
+      error: patch.error ?? null,
+      finished_at: nowIso(),
+    })
+    .eq("id", runId);
+  if (error) throw new Error(`Failed to finish ingestion run: ${error.message}`);
+}
+
 /* -----------------------------
    Raw upsert (schema-aligned)
    Table: opportunities_raw
@@ -138,18 +200,6 @@ async function getSource(sourceId: string): Promise<SourceRow> {
      title_raw, snippet_raw, content_raw, content_hash, published_at, fetched_at,
      language_hint, raw_kind_hint, attachments, ingest_run_id, ingest_errors, created_at, updated_at
 ----------------------------- */
-
-async function getRawBySourceExternal(sourceKey: string, externalId: string) {
-  const { data, error } = await sb()
-    .from("opportunities_raw")
-    .select("id, content_hash")
-    .eq("source_key", sourceKey)
-    .eq("external_id", externalId)
-    .maybeSingle();
-
-  if (error) throw new Error(`Failed to load raw by external_id: ${error.message}`);
-  return data as { id: string; content_hash: string } | null;
-}
 
 async function getRawByCanonicalUrl(sourceId: string, urlCanonical: string) {
   const { data, error } = await sb()
@@ -163,23 +213,21 @@ async function getRawByCanonicalUrl(sourceId: string, urlCanonical: string) {
   return data as { id: string; content_hash: string } | null;
 }
 
-async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput) {
+async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput, runId: string) {
   const title_raw = ensureTitle(opp);
   const snippet_raw = pickSnippet(opp);
 
   // Construire un content_raw minimal (utile à l’AI et au hash)
   const rawJson = (opp as any)?.raw ? JSON.stringify((opp as any).raw) : "";
-  const content_raw = snippet_raw ? snippet_raw : (rawJson ? rawJson.slice(0, 8000) : null);
+  const content_raw = rawJson || snippet_raw;
 
   // URL: prefer opp.source_url; fallback to source.url
   const preferredUrl = safeStr((opp as any)?.source_url).trim() || safeStr((source as any)?.url).trim();
   const { url, url_canonical } = normalizeUrlOrThrow(preferredUrl, "opportunity/source");
 
   // external_id: prefer opp.external_id, else opp.fingerprint, else url_canonical
-  const external_id =
-    safeStr((opp as any)?.external_id).trim() ||
-    safeStr((opp as any)?.fingerprint).trim() ||
-    url_canonical;
+  const external_id_raw = safeStr((opp as any)?.external_id).trim();
+  const external_id = external_id_raw || null;
 
   // content_hash MUST be NOT NULL
   const hashBasis = normalizeText(`${title_raw}\n${snippet_raw ?? ""}\n${content_raw ?? ""}\n${url_canonical}`);
@@ -199,32 +247,24 @@ async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput) {
     fetched_at: nowIso(),
     language_hint: (opp as any)?.language ?? null,
     raw_kind_hint: source.kind ?? null,
+    attachments: null,
+    ingest_run_id: runId,
     ingest_errors: null,
     updated_at: nowIso(),
   };
 
-  // Dedupe path 1: (source_key, external_id)
-  const existingByExt = await getRawBySourceExternal(source.key, external_id);
-  if (existingByExt?.id) {
-    // micro-opt: si hash identique, on peut éviter l’update (mais on garde update_at)
-    if (existingByExt.content_hash === content_hash) {
-      const { data, error } = await sb().from("opportunities_raw").select("id").eq("id", existingByExt.id).single();
-      if (error) throw new Error(`Failed to reload raw: ${error.message}`);
-      return { id: data.id as string };
-    }
-
+  // Primary path: upsert by (source_key, external_id) when external_id exists.
+  if (external_id) {
     const { data, error } = await sb()
       .from("opportunities_raw")
-      .update(payload)
-      .eq("id", existingByExt.id)
+      .upsert(payload, { onConflict: "source_key,external_id" })
       .select("id")
       .single();
-
-    if (error) throw new Error(`Failed to update raw: ${error.message}`);
+    if (error) throw new Error(`Failed to upsert raw (by external_id): ${error.message}`);
     return { id: data.id as string };
   }
 
-  // Fallback dedupe path 2: (source_id, url_canonical)
+  // Fallback dedupe path: (source_id, url_canonical) when external_id missing.
   const existingByUrl = await getRawByCanonicalUrl(source.id, url_canonical);
   if (existingByUrl?.id) {
     if (existingByUrl.content_hash === content_hash) {
@@ -286,6 +326,32 @@ async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput)
   if (error) throw new Error(`Failed to upsert opportunities row: ${error.message}`);
 }
 
+async function persistSourcePagingState(source: SourceRow, result: ConnectorResult) {
+  const next = result.next ?? null;
+  if (!next) return;
+
+  const meta = { ...(((source as any)?.meta ?? {}) as Record<string, unknown>) };
+  let changed = false;
+
+  if (next.cursor !== undefined) {
+    meta.cursor = next.cursor;
+    changed = true;
+  }
+  if (typeof next.page === "number" && Number.isFinite(next.page)) {
+    meta.page = next.page;
+    changed = true;
+  }
+
+  if (!changed) return;
+
+  const { error } = await sb()
+    .from("sources")
+    .update({ meta, updated_at: nowIso() })
+    .eq("id", source.id);
+
+  if (error) throw new Error(`Failed to persist source paging state: ${error.message}`);
+}
+
 /* -----------------------------
    AI extract (fixed signature)
 ----------------------------- */
@@ -319,15 +385,25 @@ async function processJob(job: IngestionJobRow) {
   await setJobRunning(jobId);
 
   const source = await getSource((job as any).source_id);
+  const { runId, cursor: runCursor } = await startIngestionRun(source);
   const sourceCountry = String(source.country_code ?? "").toUpperCase();
 
   if (sourceCountry !== "IT") {
     await setJobSuccess(jobId);
+    await finishIngestionRun(runId, {
+      status: "SUCCESS",
+      fetched_count: 0,
+      raw_upserted_count: 0,
+      opp_upserted_count: 0,
+      cursor: runCursor,
+      error: null,
+    });
     return { ok: true, skipped: true, reason: "source_country_not_it", source: source.key };
   }
 
   try {
     const result = await runConnector(source);
+    const fetchedCount = Array.isArray(result.opportunities) ? result.opportunities.length : 0;
 
     let upsertedRaw = 0;
     let upsertedOpportunities = 0;
@@ -341,7 +417,7 @@ async function processJob(job: IngestionJobRow) {
         country_code: "IT",
       };
 
-      const raw = await upsertRaw(source, normalizedOpp);
+      const raw = await upsertRaw(source, normalizedOpp, runId);
       upsertedRaw += 1;
 
       await upsertOpportunity(source, normalizedOpp);
@@ -355,8 +431,17 @@ async function processJob(job: IngestionJobRow) {
       }
     }
 
+    await persistSourcePagingState(source, result);
     await markSourceSuccess(source.id);
     await setJobSuccess(jobId);
+    await finishIngestionRun(runId, {
+      status: "SUCCESS",
+      fetched_count: fetchedCount,
+      raw_upserted_count: upsertedRaw,
+      opp_upserted_count: upsertedOpportunities,
+      cursor: runCursor,
+      error: null,
+    });
 
     return {
       ok: true,
@@ -367,9 +452,17 @@ async function processJob(job: IngestionJobRow) {
       fetched_at: (result as any)?.fetched_at ?? null,
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = sanitizeErrorMessage(err);
     await markSourceError(source.id, msg);
     await setJobError(jobId, msg);
+    await finishIngestionRun(runId, {
+      status: "FAILED",
+      fetched_count: 0,
+      raw_upserted_count: 0,
+      opp_upserted_count: 0,
+      cursor: runCursor,
+      error: msg,
+    });
     return { ok: false, source: source.key, kind: source.kind, error: msg };
   }
 }

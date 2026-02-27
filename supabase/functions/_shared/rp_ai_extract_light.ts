@@ -196,6 +196,53 @@ function normalizeCountryCode(v: unknown): string | null {
   return cc;
 }
 
+async function findCanonicalOpportunityForRaw(
+  supabase: SupabaseClientLike,
+  raw: {
+    source_id?: string | null;
+    external_id?: string | null;
+    url?: string | null;
+    url_canonical?: string | null;
+  },
+): Promise<{ fingerprint: string; country_code: string | null } | null> {
+  const sourceId = normalizeNullableString(raw.source_id);
+  if (!sourceId) return null;
+
+  const externalId = normalizeNullableString(raw.external_id);
+  if (externalId) {
+    const { data } = await supabase
+      .from("opportunities")
+      .select("fingerprint,country_code")
+      .eq("source_id", sourceId)
+      .eq("external_id", externalId)
+      .limit(2);
+    if (Array.isArray(data) && data.length === 1 && data[0]?.fingerprint) {
+      return {
+        fingerprint: String(data[0].fingerprint),
+        country_code: normalizeCountryCode(data[0].country_code),
+      };
+    }
+  }
+
+  const candidates = [normalizeNullableString(raw.url_canonical), normalizeNullableString(raw.url)].filter(Boolean) as string[];
+  for (const candidate of candidates) {
+    const { data } = await supabase
+      .from("opportunities")
+      .select("fingerprint,country_code")
+      .eq("source_id", sourceId)
+      .eq("source_url", candidate)
+      .limit(2);
+    if (Array.isArray(data) && data.length === 1 && data[0]?.fingerprint) {
+      return {
+        fingerprint: String(data[0].fingerprint),
+        country_code: normalizeCountryCode(data[0].country_code),
+      };
+    }
+  }
+
+  return null;
+}
+
 export async function extractLightForRawId(
   supabase: SupabaseClientLike,
   rawId: string,
@@ -231,7 +278,7 @@ export async function extractLightForRawId(
   try {
     const { data: raw, error: rawErr } = await supabase
       .from("opportunities_raw")
-      .select("id,source_key,external_id,url,url_canonical,title_raw,snippet_raw,content_raw,published_at,content_hash")
+      .select("id,source_id,source_key,external_id,url,url_canonical,title_raw,snippet_raw,content_raw,published_at,content_hash")
       .eq("id", rawId)
       .single();
 
@@ -287,7 +334,7 @@ export async function extractLightForRawId(
     const buyer_type = parsed?.buyer_type;
     const buyer_name = normalizeNullableString(parsed?.buyer_name);
     const sector = parsed?.sector ?? null;
-    const country_code = normalizeCountryCode(parsed?.geo?.country_code);
+    const country_code_from_ai = normalizeCountryCode(parsed?.geo?.country_code);
     const region = normalizeNullableString(parsed?.geo?.region);
     const language = normalizeNullableString(parsed?.language) ?? parsed?.language ?? null;
 
@@ -311,6 +358,14 @@ export async function extractLightForRawId(
       deadline_at,
       url_canonical: urlCanonical,
     });
+    const canonical = await findCanonicalOpportunityForRaw(supabase, {
+      source_id: raw.source_id,
+      external_id: raw.external_id,
+      url: raw.url,
+      url_canonical: raw.url_canonical,
+    });
+    const fingerprintFinal = canonical?.fingerprint || fingerprintComputed;
+    const country_code = canonical?.country_code ?? country_code_from_ai;
 
     // Normalize snapshot to match canonical DB columns (audit-proof)
     const snapshotNormalized = (() => {
@@ -333,7 +388,7 @@ export async function extractLightForRawId(
           confidence: deadline_confidence,
         },
         summary_10s,
-        fingerprint: fingerprintComputed,
+        fingerprint: fingerprintFinal,
         risks,
         evidence,
         quality: {
@@ -381,7 +436,7 @@ export async function extractLightForRawId(
 
           summary_10s,
 
-          fingerprint: fingerprintComputed,
+          fingerprint: fingerprintFinal,
 
           extraction_quality: q.extraction_quality,
           needs_review: q.needs_review,
