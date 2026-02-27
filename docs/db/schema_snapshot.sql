@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict KW7SjT7bKMGn0XloKQHla9WZ0d3HEtxGvZiR6dTgjnIu4BzXZLPDUuuX5wCPypp
+\restrict yDZSSxywWasGPlKJHaxw3BRHOwcK6Iku5dHZ3LeOeTVxoADrQCuqijfiEnrCSFC
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -290,6 +290,35 @@ end $$;
 
 
 --
+-- Name: compute_opportunity_quality(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compute_opportunity_quality() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.completeness_score :=
+    (
+      (new.region is not null)::int +
+      (new.budget_value is not null)::int +
+      (new.deadline_at is not null)::int +
+      (new.buyer_name is not null)::int
+    ) / 4.0;
+
+  new.quality_score :=
+    new.completeness_score *
+    case
+      when new.extraction_quality = 'high' then 1.0
+      when new.extraction_quality = 'med' then 0.7
+      else 0.4
+    end;
+
+  return new;
+end;
+$$;
+
+
+--
 -- Name: rp_set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -298,6 +327,62 @@ CREATE FUNCTION public.rp_set_updated_at() RETURNS trigger
     AS $$
 begin
   new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
+-- Name: set_opportunity_ai_fingerprint_from_raw(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_opportunity_ai_fingerprint_from_raw() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+declare
+  v_source_id uuid;
+  v_external_id text;
+  v_url_canonical text;
+  v_url text;
+  v_fp text;
+begin
+  if new.fingerprint is not null and new.fingerprint <> '' then
+    return new;
+  end if;
+
+  if new.raw_id is null then
+    return new;
+  end if;
+
+  select r.source_id, r.external_id, r.url_canonical, r.url
+    into v_source_id, v_external_id, v_url_canonical, v_url
+  from public.opportunities_raw r
+  where r.id = new.raw_id;
+
+  if v_source_id is null then
+    return new;
+  end if;
+
+  if v_external_id is not null and v_external_id <> '' then
+    select o.fingerprint
+      into v_fp
+    from public.opportunities o
+    where o.source_id = v_source_id
+      and o.external_id = v_external_id
+    limit 1;
+  else
+    select o.fingerprint
+      into v_fp
+    from public.opportunities o
+    where o.source_id = v_source_id
+      and (o.source_url = v_url_canonical or o.source_url = v_url)
+    limit 1;
+  end if;
+
+  if v_fp is not null and v_fp <> '' then
+    new.fingerprint := v_fp;
+  end if;
+
   return new;
 end;
 $$;
@@ -346,6 +431,26 @@ CREATE SEQUENCE public.ingestion_jobs_id_seq
 --
 
 ALTER SEQUENCE public.ingestion_jobs_id_seq OWNED BY public.ingestion_jobs.id;
+
+
+--
+-- Name: ingestion_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ingestion_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    source_id uuid NOT NULL,
+    source_key text NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    status text DEFAULT 'RUNNING'::text NOT NULL,
+    fetched_count integer DEFAULT 0 NOT NULL,
+    raw_upserted_count integer DEFAULT 0 NOT NULL,
+    opp_upserted_count integer DEFAULT 0 NOT NULL,
+    error text,
+    cursor text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL
+);
 
 
 --
@@ -426,34 +531,8 @@ CREATE TABLE public.opportunities (
     language text,
     raw jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: opportunities_raw; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.opportunities_raw (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    source_id uuid,
-    source_key text NOT NULL,
-    external_id text,
-    url text NOT NULL,
-    url_canonical text NOT NULL,
-    title_raw text NOT NULL,
-    snippet_raw text,
-    content_raw text,
-    content_hash text NOT NULL,
-    published_at timestamp with time zone,
-    fetched_at timestamp with time zone DEFAULT now() NOT NULL,
-    language_hint text,
-    raw_kind_hint text,
-    attachments jsonb DEFAULT '[]'::jsonb,
-    ingest_run_id uuid,
-    ingest_errors jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunities_country_code_it_eu_check CHECK ((country_code = ANY (ARRAY['IT'::text, 'EU'::text])))
 );
 
 
@@ -492,8 +571,139 @@ CREATE TABLE public.opportunity_ai (
     signals jsonb DEFAULT '{}'::jsonb NOT NULL,
     raw_snapshot jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    quality_score numeric DEFAULT 0,
+    completeness_score numeric DEFAULT 0
+);
+
+
+--
+-- Name: sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    key text NOT NULL,
+    name text NOT NULL,
+    kind public.source_kind DEFAULT 'rss'::public.source_kind NOT NULL,
+    url text NOT NULL,
+    country_code text,
+    is_active boolean DEFAULT true NOT NULL,
+    schedule_minutes integer DEFAULT 60 NOT NULL,
+    last_run_at timestamp with time zone,
+    last_success_at timestamp with time zone,
+    last_error text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    origin_type text DEFAULT 'EU'::text,
+    CONSTRAINT sources_origin_type_check CHECK ((origin_type = ANY (ARRAY['IT_NATIVE'::text, 'EU'::text, 'OTHER'::text])))
+);
+
+
+--
+-- Name: opportunities_inbox_it_v1; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.opportunities_inbox_it_v1 AS
+ SELECT o.id,
+    o.title,
+    COALESCE(b.name, NULLIF(o.buyer_name, ''::text)) AS buyer_name,
+    ai.region,
+    ai.budget_value AS budget_amount,
+    ai.budget_currency,
+    o.deadline_at,
+    o.published_at,
+    COALESCE(s.key, (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
+    o.status,
+    o.is_public,
+    'IT'::text AS country_code,
+    ai.quality_score,
+    ai.completeness_score,
+    s.origin_type
+   FROM (((public.opportunities o
+     JOIN public.sources s ON ((s.id = o.source_id)))
+     LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
+     LEFT JOIN public.opportunity_ai ai ON ((ai.fingerprint = o.fingerprint)))
+  WHERE ((COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false) AND (o.is_public = true) AND ((s.key = 'rss_ted_comp_it'::text) OR (s.country_code = 'IT'::text) OR (s.key ~~ 'it_%'::text)));
+
+
+--
+-- Name: opportunities_raw; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunities_raw (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    source_id uuid,
+    source_key text NOT NULL,
+    external_id text,
+    url text NOT NULL,
+    url_canonical text NOT NULL,
+    title_raw text NOT NULL,
+    snippet_raw text,
+    content_raw text,
+    content_hash text NOT NULL,
+    published_at timestamp with time zone,
+    fetched_at timestamp with time zone DEFAULT now() NOT NULL,
+    language_hint text,
+    raw_kind_hint text,
+    attachments jsonb DEFAULT '[]'::jsonb,
+    ingest_run_id uuid,
+    ingest_errors jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: opportunities_search_it_v1; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.opportunities_search_it_v1 AS
+ SELECT o.id,
+    o.title,
+    COALESCE(b.name, NULLIF(o.buyer_name, ''::text)) AS buyer_name,
+    ai.region,
+    ai.budget_value AS budget_amount,
+    ai.budget_currency,
+    o.deadline_at,
+    o.published_at,
+    COALESCE(s.key, (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
+    o.status,
+    o.is_public,
+    'IT'::text AS country_code
+   FROM (((public.opportunities o
+     JOIN public.sources s ON ((s.id = o.source_id)))
+     LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
+     LEFT JOIN public.opportunity_ai ai ON ((ai.fingerprint = o.fingerprint)))
+  WHERE ((s.country_code = 'IT'::text) AND (COALESCE(s.is_active, true) = true) AND (COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false));
+
+
+--
+-- Name: opportunities_search_v1; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.opportunities_search_v1 AS
+ SELECT o.id,
+    o.title,
+    COALESCE(b.name, NULLIF(o.buyer_name, ''::text)) AS buyer_name,
+    ai.region,
+    ai.budget_value AS budget_amount,
+    ai.budget_currency,
+    o.deadline_at,
+    o.published_at,
+    COALESCE(s.key, (to_jsonb(o.*) ->> 'source_key'::text), (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
+    o.status,
+    o.is_public,
+    o.country_code,
+    ai.quality_score,
+    ai.completeness_score,
+    s.origin_type
+   FROM (((public.opportunities o
+     LEFT JOIN public.sources s ON ((s.id = o.source_id)))
+     LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
+     LEFT JOIN public.opportunity_ai ai ON ((ai.fingerprint = o.fingerprint)))
+  WHERE (COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false);
 
 
 --
@@ -557,28 +767,6 @@ CREATE TABLE public.rp_ai_runs (
     status public.rp_ai_run_status DEFAULT 'success'::public.rp_ai_run_status NOT NULL,
     error_message text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sources (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    key text NOT NULL,
-    name text NOT NULL,
-    kind public.source_kind DEFAULT 'rss'::public.source_kind NOT NULL,
-    url text NOT NULL,
-    country_code text,
-    is_active boolean DEFAULT true NOT NULL,
-    schedule_minutes integer DEFAULT 60 NOT NULL,
-    last_run_at timestamp with time zone,
-    last_success_at timestamp with time zone,
-    last_error text,
-    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -657,6 +845,14 @@ ALTER TABLE ONLY public.buyers
 
 ALTER TABLE ONLY public.ingestion_jobs
     ADD CONSTRAINT ingestion_jobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ingestion_runs ingestion_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ingestion_runs
+    ADD CONSTRAINT ingestion_runs_pkey PRIMARY KEY (id);
 
 
 --
@@ -787,6 +983,20 @@ CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree 
 
 
 --
+-- Name: idx_opportunities_country_deadline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_opportunities_country_deadline ON public.opportunities USING btree (country_code, deadline_at);
+
+
+--
+-- Name: idx_opportunities_country_updated_desc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_opportunities_country_updated_desc ON public.opportunities USING btree (country_code, updated_at DESC);
+
+
+--
 -- Name: ingestion_jobs_claim_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -812,6 +1022,13 @@ CREATE INDEX ingestion_jobs_queue_idx ON public.ingestion_jobs USING btree (stat
 --
 
 CREATE INDEX ingestion_jobs_source_idx ON public.ingestion_jobs USING btree (source_id);
+
+
+--
+-- Name: ingestion_runs_source_key_started_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ingestion_runs_source_key_started_idx ON public.ingestion_runs USING btree (source_key, started_at DESC);
 
 
 --
@@ -906,6 +1123,13 @@ CREATE INDEX opportunity_ai_evidence_field_idx ON public.opportunity_ai_evidence
 
 
 --
+-- Name: opportunity_ai_fingerprint_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_ai_fingerprint_idx ON public.opportunity_ai USING btree (fingerprint);
+
+
+--
 -- Name: opportunity_ai_fingerprint_unique; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -962,6 +1186,13 @@ CREATE INDEX subscriptions_user_idx ON public.subscriptions USING btree (user_id
 
 
 --
+-- Name: opportunity_ai trg_compute_opportunity_quality; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON public.opportunity_ai FOR EACH ROW EXECUTE FUNCTION public.compute_opportunity_quality();
+
+
+--
 -- Name: ingestion_jobs trg_jobs_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -980,6 +1211,13 @@ CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON public.o
 --
 
 CREATE TRIGGER trg_rp_set_updated_at_opportunity_ai BEFORE UPDATE ON public.opportunity_ai FOR EACH ROW EXECUTE FUNCTION public.rp_set_updated_at();
+
+
+--
+-- Name: opportunity_ai trg_set_opportunity_ai_fingerprint_from_raw; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_opportunity_ai_fingerprint_from_raw BEFORE INSERT OR UPDATE ON public.opportunity_ai FOR EACH ROW EXECUTE FUNCTION public.set_opportunity_ai_fingerprint_from_raw();
 
 
 --
@@ -1002,6 +1240,14 @@ CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON public.subscription
 
 ALTER TABLE ONLY public.ingestion_jobs
     ADD CONSTRAINT ingestion_jobs_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE CASCADE;
+
+
+--
+-- Name: ingestion_runs ingestion_runs_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ingestion_runs
+    ADD CONSTRAINT ingestion_runs_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id);
 
 
 --
@@ -1245,5 +1491,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict KW7SjT7bKMGn0XloKQHla9WZ0d3HEtxGvZiR6dTgjnIu4BzXZLPDUuuX5wCPypp
+\unrestrict yDZSSxywWasGPlKJHaxw3BRHOwcK6Iku5dHZ3LeOeTVxoADrQCuqijfiEnrCSFC
 
