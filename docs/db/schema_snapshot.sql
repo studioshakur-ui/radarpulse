@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict AIqrFwG5goLjso9Vhe48bDzCbhAHy8anbw6sgJVC59kS8ZjarY4fKafHx3kJvcf
+\restrict xzx3nL24aidIZQNLi6ge9b00U3dCeghDQNJad8EBH12DLelkagJmXady8YLSN96
 
 -- Dumped from database version 17.6
--- Dumped by pg_dump version 17.8
+-- Dumped by pg_dump version 17.9
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -1245,5 +1245,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AIqrFwG5goLjso9Vhe48bDzCbhAHy8anbw6sgJVC59kS8ZjarY4fKafHx3kJvcf
+\unrestrict xzx3nL24aidIZQNLi6ge9b00U3dCeghDQNJad8EBH12DLelkagJmXady8YLSN96
 
