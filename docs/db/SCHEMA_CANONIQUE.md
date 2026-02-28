@@ -1,5 +1,5 @@
-                                                                                           line                                                                                           
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                             line                                                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  # RadarPulse — Vue canonique de la base
  
  Générée automatiquement via `scripts/db/update-db-docs.sh` (Docker + psql/pg_dump).
@@ -34,16 +34,17 @@
  ### Résumé
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.ingestion_jobs` — size: 136 kB — RLS: on — cols: 11
+ - `public.ingestion_runs` — size: 24 kB — RLS: off — cols: 12
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 136 kB — RLS: on — cols: 20
+ - `public.opportunities` — size: 240 kB — RLS: on — cols: 21
  - `public.opportunities_raw` — size: 200 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 248 kB — RLS: off — cols: 31
+ - `public.opportunity_ai` — size: 280 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 112 kB — RLS: off — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.rp_ai_runs` — size: 96 kB — RLS: off — cols: 11
- - `public.sources` — size: 96 kB — RLS: on — cols: 14
+ - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 24 kB — RLS: on — cols: 7
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
  - `public.whatsapp_optins` — size: 16 kB — RLS: on — cols: 5
@@ -52,6 +53,7 @@
  
  #### Table: `public.buyers`
  #### Table: `public.ingestion_jobs`
+ #### Table: `public.ingestion_runs`
  #### Table: `public.notification_logs`
  #### Table: `public.notification_queue`
  #### Table: `public.opportunities`
@@ -67,6 +69,7 @@
  #### Table: `public.whatsapp_optins`
  - **RLS**: `on`
  - **RLS**: `on`
+ - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -82,11 +85,12 @@
  - **RLS**: `on`
  - **Size**: `24 kB`
  - **Size**: `136 kB`
+ - **Size**: `24 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
- - **Size**: `136 kB`
+ - **Size**: `240 kB`
  - **Size**: `200 kB`
- - **Size**: `248 kB`
+ - **Size**: `280 kB`
  - **Size**: `112 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
@@ -110,6 +114,7 @@
  
  
  
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -125,6 +130,8 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -156,6 +163,18 @@
  | `error` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `source_id` | `uuid` | `no` | — |
+ | `source_key` | `text` | `no` | — |
+ | `started_at` | `timestamp with time zone` | `no` | now() |
+ | `finished_at` | `timestamp with time zone` | `yes` | — |
+ | `status` | `text` | `no` | 'RUNNING'::text |
+ | `fetched_count` | `integer` | `no` | 0 |
+ | `raw_upserted_count` | `integer` | `no` | 0 |
+ | `opp_upserted_count` | `integer` | `no` | 0 |
+ | `error` | `text` | `yes` | — |
+ | `cursor` | `text` | `yes` | — |
+ | `meta` | `jsonb` | `no` | '{}'::jsonb |
  | `id` | `bigint` | `no` | nextval('notification_logs_id_seq'::regclass) |
  | `queue_id` | `bigint` | `yes` | — |
  | `user_id` | `uuid` | `yes` | — |
@@ -195,6 +214,7 @@
  | `raw` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `is_deleted` | `boolean` | `no` | false |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `source_id` | `uuid` | `yes` | — |
  | `source_key` | `text` | `no` | — |
@@ -245,6 +265,8 @@
  | `raw_snapshot` | `jsonb` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `quality_score` | `numeric` | `yes` | 0 |
+ | `completeness_score` | `numeric` | `yes` | 0 |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `ai_id` | `uuid` | `no` | — |
  | `field` | `text` | `no` | — |
@@ -291,6 +313,7 @@
  | `meta` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `origin_type` | `text` | `yes` | 'EU'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `user_id` | `uuid` | `no` | — |
  | `is_active` | `boolean` | `no` | true |
@@ -322,6 +345,8 @@
  
  
  
+ 
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -344,12 +369,19 @@
  - `CREATE UNIQUE INDEX ingestion_jobs_pkey ON public.ingestion_jobs USING btree (id)`
  - `CREATE INDEX ingestion_jobs_queue_idx ON public.ingestion_jobs USING btree (status, run_at, id)`
  - `CREATE INDEX ingestion_jobs_source_idx ON public.ingestion_jobs USING btree (source_id)`
+ - `CREATE UNIQUE INDEX ingestion_runs_pkey ON public.ingestion_runs USING btree (id)`
+ - `CREATE INDEX ingestion_runs_source_key_started_idx ON public.ingestion_runs USING btree (source_key, started_at DESC)`
  - `CREATE UNIQUE INDEX notification_logs_pkey ON public.notification_logs USING btree (id)`
  - `CREATE INDEX notification_queue_idx ON public.notification_queue USING btree (channel, status, scheduled_at, id)`
  - `CREATE UNIQUE INDEX notification_queue_pkey ON public.notification_queue USING btree (id)`
+ - `CREATE INDEX idx_opportunities_country_deadline ON public.opportunities USING btree (country_code, deadline_at)`
+ - `CREATE INDEX idx_opportunities_country_updated_desc ON public.opportunities USING btree (country_code, updated_at DESC)`
  - `CREATE INDEX opportunities_country_idx ON public.opportunities USING btree (country_code)`
  - `CREATE UNIQUE INDEX opportunities_fingerprint_key ON public.opportunities USING btree (fingerprint)`
+ - `CREATE INDEX opportunities_live_country_published_desc_idx ON public.opportunities USING btree (country_code, published_at DESC) WHERE (is_deleted = false)`
+ - `CREATE INDEX opportunities_live_published_at_desc_idx ON public.opportunities USING btree (published_at DESC) WHERE (is_deleted = false)`
  - `CREATE UNIQUE INDEX opportunities_pkey ON public.opportunities USING btree (id)`
+ - `CREATE INDEX opportunities_source_url_idx ON public.opportunities USING btree (source_url)`
  - `CREATE INDEX opportunities_status_deadline_idx ON public.opportunities USING btree (status, deadline_at)`
  - `CREATE INDEX opportunities_type_idx ON public.opportunities USING btree (type)`
  - `CREATE INDEX opportunities_raw_content_hash_idx ON public.opportunities_raw USING btree (content_hash)`
@@ -360,9 +392,11 @@
  - `CREATE INDEX opportunities_raw_url_canonical_idx ON public.opportunities_raw USING btree (url_canonical)`
  - `CREATE INDEX opportunity_ai_content_type_idx ON public.opportunity_ai USING btree (content_type)`
  - `CREATE INDEX opportunity_ai_deadline_at_idx ON public.opportunity_ai USING btree (deadline_at)`
+ - `CREATE INDEX opportunity_ai_fingerprint_idx ON public.opportunity_ai USING btree (fingerprint)`
  - `CREATE UNIQUE INDEX opportunity_ai_fingerprint_unique ON public.opportunity_ai USING btree (fingerprint)`
  - `CREATE INDEX opportunity_ai_needs_review_idx ON public.opportunity_ai USING btree (needs_review)`
  - `CREATE UNIQUE INDEX opportunity_ai_pkey ON public.opportunity_ai USING btree (id)`
+ - `CREATE INDEX opportunity_ai_raw_id_extracted_updated_idx ON public.opportunity_ai USING btree (raw_id, extracted_at DESC, updated_at DESC)`
  - `CREATE INDEX opportunity_ai_evidence_ai_id_idx ON public.opportunity_ai_evidence USING btree (ai_id)`
  - `CREATE INDEX opportunity_ai_evidence_field_idx ON public.opportunity_ai_evidence USING btree (field)`
  - `CREATE UNIQUE INDEX opportunity_ai_evidence_pkey ON public.opportunity_ai_evidence USING btree (id)`
@@ -380,6 +414,7 @@
  - `CREATE INDEX subscriptions_user_idx ON public.subscriptions USING btree (user_id, is_active)`
  - `CREATE UNIQUE INDEX telegram_profiles_pkey ON public.telegram_profiles USING btree (user_id)`
  - `CREATE UNIQUE INDEX whatsapp_optins_pkey ON public.whatsapp_optins USING btree (user_id)`
+ ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
@@ -415,6 +450,8 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ ##### Triggers
  ##### Triggers
  ##### Triggers
  ##### Triggers
@@ -432,7 +469,9 @@
  ##### Triggers
  - `trg_jobs_updated_at`: CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON ingestion_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_rp_set_updated_at_opportunities_raw`: CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON opportunities_raw FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
+ - `trg_compute_opportunity_quality`: CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION compute_opportunity_quality()
  - `trg_rp_set_updated_at_opportunity_ai`: CREATE TRIGGER trg_rp_set_updated_at_opportunity_ai BEFORE UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
+ - `trg_set_opportunity_ai_fingerprint_from_raw`: CREATE TRIGGER trg_set_opportunity_ai_fingerprint_from_raw BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION set_opportunity_ai_fingerprint_from_raw()
  - `trg_sources_updated_at`: CREATE TRIGGER trg_sources_updated_at BEFORE UPDATE ON sources FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_subscriptions_updated_at`: CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - (none)
@@ -445,6 +484,8 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ 
  
  
  
@@ -462,12 +503,16 @@
  
  
  ## Views
- _Aucune view détectée dans les schemas ciblés._
+ - `public.opportunities_inbox_it_v1` (view)
+ - `public.opportunities_search_it_v1` (view)
+ - `public.opportunities_search_v1` (view)
  
  ## Functions
  - `public.claim_next_ingestion_job(max_attempts integer)` → `ingestion_jobs` (lang: plpgsql)
  - `public.claim_next_notification(p_channel notify_channel)` → `notification_queue` (lang: plpgsql)
+ - `public.compute_opportunity_quality()` → `trigger` (lang: plpgsql)
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
+ - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(469 rows)
+(514 rows)
 
