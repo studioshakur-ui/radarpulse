@@ -37,9 +37,9 @@
  - `public.ingestion_runs` — size: 24 kB — RLS: off — cols: 12
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 168 kB — RLS: on — cols: 20
+ - `public.opportunities` — size: 240 kB — RLS: on — cols: 21
  - `public.opportunities_raw` — size: 200 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 264 kB — RLS: off — cols: 33
+ - `public.opportunity_ai` — size: 280 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 112 kB — RLS: off — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
@@ -88,9 +88,9 @@
  - **Size**: `24 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
- - **Size**: `168 kB`
+ - **Size**: `240 kB`
  - **Size**: `200 kB`
- - **Size**: `264 kB`
+ - **Size**: `280 kB`
  - **Size**: `112 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
@@ -214,6 +214,7 @@
  | `raw` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `is_deleted` | `boolean` | `no` | false |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `source_id` | `uuid` | `yes` | — |
  | `source_key` | `text` | `no` | — |
@@ -377,7 +378,10 @@
  - `CREATE INDEX idx_opportunities_country_updated_desc ON public.opportunities USING btree (country_code, updated_at DESC)`
  - `CREATE INDEX opportunities_country_idx ON public.opportunities USING btree (country_code)`
  - `CREATE UNIQUE INDEX opportunities_fingerprint_key ON public.opportunities USING btree (fingerprint)`
+ - `CREATE INDEX opportunities_live_country_published_desc_idx ON public.opportunities USING btree (country_code, published_at DESC) WHERE (is_deleted = false)`
+ - `CREATE INDEX opportunities_live_published_at_desc_idx ON public.opportunities USING btree (published_at DESC) WHERE (is_deleted = false)`
  - `CREATE UNIQUE INDEX opportunities_pkey ON public.opportunities USING btree (id)`
+ - `CREATE INDEX opportunities_source_url_idx ON public.opportunities USING btree (source_url)`
  - `CREATE INDEX opportunities_status_deadline_idx ON public.opportunities USING btree (status, deadline_at)`
  - `CREATE INDEX opportunities_type_idx ON public.opportunities USING btree (type)`
  - `CREATE INDEX opportunities_raw_content_hash_idx ON public.opportunities_raw USING btree (content_hash)`
@@ -392,6 +396,7 @@
  - `CREATE UNIQUE INDEX opportunity_ai_fingerprint_unique ON public.opportunity_ai USING btree (fingerprint)`
  - `CREATE INDEX opportunity_ai_needs_review_idx ON public.opportunity_ai USING btree (needs_review)`
  - `CREATE UNIQUE INDEX opportunity_ai_pkey ON public.opportunity_ai USING btree (id)`
+ - `CREATE INDEX opportunity_ai_raw_id_extracted_updated_idx ON public.opportunity_ai USING btree (raw_id, extracted_at DESC, updated_at DESC)`
  - `CREATE INDEX opportunity_ai_evidence_ai_id_idx ON public.opportunity_ai_evidence USING btree (ai_id)`
  - `CREATE INDEX opportunity_ai_evidence_field_idx ON public.opportunity_ai_evidence USING btree (field)`
  - `CREATE UNIQUE INDEX opportunity_ai_evidence_pkey ON public.opportunity_ai_evidence USING btree (id)`
@@ -509,5 +514,5 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(509 rows)
+(514 rows)
 

@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-02-27 21:19:57Z`
+- Generated (UTC): `2026-02-28 02:39:42Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,20 +15,10 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- FUNCTION public.compute_opportunity_quality
-- FUNCTION public.set_opportunity_ai_fingerprint_from_raw
-- INDEX idx_opportunities_country_deadline
-- INDEX idx_opportunities_country_updated_desc
-- INDEX ingestion_runs_source_key_started_idx
-- INDEX opportunity_ai_fingerprint_idx
-- TABLE public.ingestion_runs
-- TABLE public.opportunities_raw
-- TABLE public.sources
-- TRIGGER trg_compute_opportunity_quality
-- TRIGGER trg_set_opportunity_ai_fingerprint_from_raw
-- VIEW public.opportunities_inbox_it_v1
-- VIEW public.opportunities_search_it_v1
-- VIEW public.opportunities_search_v1
+- INDEX opportunities_live_country_published_desc_idx
+- INDEX opportunities_live_published_at_desc_idx
+- INDEX opportunities_source_url_idx
+- INDEX opportunity_ai_raw_id_extracted_updated_idx
 
 ## Notes
 

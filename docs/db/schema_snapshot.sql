@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict yDZSSxywWasGPlKJHaxw3BRHOwcK6Iku5dHZ3LeOeTVxoADrQCuqijfiEnrCSFC
+\restrict 2BSnlgJaMPGJFehpaORIq9VUHfdmdrhgyIEC8EENG17SmeZcJvhucG5nFm77I4Z
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -532,6 +532,7 @@ CREATE TABLE public.opportunities (
     raw jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
     CONSTRAINT opportunities_country_code_it_eu_check CHECK ((country_code = ANY (ARRAY['IT'::text, 'EU'::text])))
 );
 
@@ -692,18 +693,27 @@ CREATE VIEW public.opportunities_search_v1 AS
     ai.budget_currency,
     o.deadline_at,
     o.published_at,
-    COALESCE(s.key, (to_jsonb(o.*) ->> 'source_key'::text), (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
+    COALESCE(s.key, (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
     o.status,
     o.is_public,
     o.country_code,
     ai.quality_score,
     ai.completeness_score,
     s.origin_type
-   FROM (((public.opportunities o
-     LEFT JOIN public.sources s ON ((s.id = o.source_id)))
+   FROM ((((public.opportunities o
      LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
-     LEFT JOIN public.opportunity_ai ai ON ((ai.fingerprint = o.fingerprint)))
-  WHERE (COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false);
+     LEFT JOIN public.sources s ON ((s.id = o.source_id)))
+     LEFT JOIN public.opportunities_raw r ON ((r.url_canonical = o.source_url)))
+     LEFT JOIN LATERAL ( SELECT a.region,
+            a.budget_value,
+            a.budget_currency,
+            a.quality_score,
+            a.completeness_score
+           FROM public.opportunity_ai a
+          WHERE (a.raw_id = r.id)
+          ORDER BY a.extracted_at DESC NULLS LAST, a.updated_at DESC
+         LIMIT 1) ai ON (true))
+  WHERE (o.is_deleted = false);
 
 
 --
@@ -1046,6 +1056,20 @@ CREATE INDEX opportunities_country_idx ON public.opportunities USING btree (coun
 
 
 --
+-- Name: opportunities_live_country_published_desc_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunities_live_country_published_desc_idx ON public.opportunities USING btree (country_code, published_at DESC) WHERE (is_deleted = false);
+
+
+--
+-- Name: opportunities_live_published_at_desc_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunities_live_published_at_desc_idx ON public.opportunities USING btree (published_at DESC) WHERE (is_deleted = false);
+
+
+--
 -- Name: opportunities_raw_content_hash_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1078,6 +1102,13 @@ CREATE UNIQUE INDEX opportunities_raw_source_external_unique ON public.opportuni
 --
 
 CREATE INDEX opportunities_raw_url_canonical_idx ON public.opportunities_raw USING btree (url_canonical);
+
+
+--
+-- Name: opportunities_source_url_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunities_source_url_idx ON public.opportunities USING btree (source_url);
 
 
 --
@@ -1141,6 +1172,13 @@ CREATE UNIQUE INDEX opportunity_ai_fingerprint_unique ON public.opportunity_ai U
 --
 
 CREATE INDEX opportunity_ai_needs_review_idx ON public.opportunity_ai USING btree (needs_review);
+
+
+--
+-- Name: opportunity_ai_raw_id_extracted_updated_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_ai_raw_id_extracted_updated_idx ON public.opportunity_ai USING btree (raw_id, extracted_at DESC, updated_at DESC);
 
 
 --
@@ -1491,5 +1529,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict yDZSSxywWasGPlKJHaxw3BRHOwcK6Iku5dHZ3LeOeTVxoADrQCuqijfiEnrCSFC
+\unrestrict 2BSnlgJaMPGJFehpaORIq9VUHfdmdrhgyIEC8EENG17SmeZcJvhucG5nFm77I4Z
 
