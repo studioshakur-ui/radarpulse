@@ -1,0 +1,16 @@
+-- Optional guardrail (disabled by default):
+-- Create UNIQUE index on opportunities_raw(url_canonical) only after verifying no duplicates.
+--
+-- Precheck:
+-- select url_canonical, count(*) as c
+-- from public.opportunities_raw
+-- where url_canonical is not null and url_canonical <> ''
+-- group by url_canonical
+-- having count(*) > 1
+-- order by c desc, url_canonical
+-- limit 100;
+--
+-- Enable only when precheck returns 0 rows:
+-- create unique index opportunities_raw_url_canonical_unique_idx
+--   on public.opportunities_raw (url_canonical)
+--   where url_canonical is not null and url_canonical <> '';

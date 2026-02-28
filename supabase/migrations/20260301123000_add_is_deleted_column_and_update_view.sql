@@ -1,3 +1,14 @@
+-- Why this migration:
+-- 1) Replace JSON-derived soft-delete filter with a real boolean column for stable plans.
+-- 2) Keep public.opportunities_search_v1 output shape exactly unchanged.
+-- 3) Enable partial indexes on live rows (is_deleted=false) in follow-up migration.
+
+alter table public.opportunities
+add column if not exists is_deleted boolean not null default false;
+
+update public.opportunities o
+set is_deleted = coalesce((to_jsonb(o)->>'is_deleted')::boolean, false);
+
 create or replace view public.opportunities_search_v1 as
 select
   o.id,
@@ -12,9 +23,9 @@ select
   o.status,
   o.is_public,
   o.country_code,
-  s.origin_type,
   ai.quality_score,
-  ai.completeness_score
+  ai.completeness_score,
+  s.origin_type
 from public.opportunities o
 left join public.buyers b on b.id = o.buyer_id
 left join public.sources s on s.id = o.source_id
@@ -31,17 +42,7 @@ left join lateral (
   order by a.extracted_at desc nulls last, a.updated_at desc
   limit 1
 ) ai on true
-where coalesce((to_jsonb(o)->>'is_deleted')::boolean, false) = false;
+where o.is_deleted = false;
 
 grant select on public.opportunities_search_v1 to anon;
 grant select on public.opportunities_search_v1 to authenticated;
-
--- Validation:
--- select
---   count(*) as opps,
---   count(*) filter (where region is not null) as with_region,
---   count(*) filter (where completeness_score is not null) as with_scores
--- from public.opportunities_search_v1;
---
--- explain (analyze, costs off)
--- select * from public.opportunities_search_v1 limit 10;

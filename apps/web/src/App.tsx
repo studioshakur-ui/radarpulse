@@ -25,7 +25,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
         cn(
           "rounded-xl px-3 py-2 text-sm transition",
           "hover:bg-elevated/70",
-          isActive ? "bg-elevated shadow-soft" : "text-muted"
+          isActive ? "bg-elevated shadow-soft" : "text-muted",
         )
       }
     >
@@ -113,24 +113,24 @@ function InboxAccessGate({
   if (loading) {
     return (
       <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-        <div className="text-sm text-muted">Checking subscription…</div>
+        <div className="text-sm text-muted">Verifica abbonamento in corso...</div>
       </div>
     );
   }
 
-  if (!allowed) return <Navigate to="/subscribe" replace />;
+  if (!allowed) return <Navigate to="/abbonamento" replace />;
   return <>{children}</>;
 }
 
 function SettingsPage() {
   return (
     <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-      <div className="text-sm font-semibold">Settings</div>
-      <div className="mt-1 text-sm text-muted">Environment: {ENV.MODE}</div>
+      <div className="text-sm font-semibold">Impostazioni</div>
+      <div className="mt-1 text-sm text-muted">Ambiente: {ENV.MODE}</div>
       <div className="mt-4 flex items-center justify-between rounded-2xl border border-border/25 bg-bg/40 p-4">
         <div>
-          <div className="text-sm font-semibold">Theme</div>
-          <div className="text-xs text-muted">Auto matches your device setting.</div>
+          <div className="text-sm font-semibold">Tema</div>
+          <div className="text-xs text-muted">Segue automaticamente il dispositivo.</div>
         </div>
         <ThemeMenu />
       </div>
@@ -153,13 +153,13 @@ function AppShell({
             <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
             <div className="leading-tight">
               <div className="text-sm font-semibold">RadarPulse</div>
-              <div className="text-[11px] text-muted">Italy tenders</div>
+              <div className="text-[11px] text-muted">Bandi Italia</div>
             </div>
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
             <NavItem to="/inbox" label="Inbox" />
-            <NavItem to="/settings" label="Settings" />
+            <NavItem to="/settings" label="Impostazioni" />
           </div>
 
           <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ function AppShell({
                 to="/inbox"
                 className="inline-flex items-center rounded-xl border border-border/40 bg-surface/75 px-3 py-2 text-xs font-semibold text-muted transition hover:bg-elevated/80"
               >
-                Dev App
+                App dev
               </NavLink>
             ) : null}
             <ThemeMenu className="hidden sm:inline-flex" />
@@ -178,11 +178,11 @@ function AppShell({
                 cn(
                   "rounded-xl px-3 py-2 text-sm transition",
                   "hover:bg-elevated/70",
-                  isActive ? "bg-elevated shadow-soft" : "text-muted"
+                  isActive ? "bg-elevated shadow-soft" : "text-muted",
                 )
               }
             >
-              Landing
+              Home
             </NavLink>
           </div>
         </div>
@@ -198,12 +198,7 @@ function Shell({ children, canSeeDevApp }: { children: React.ReactNode; canSeeDe
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return (
-      p === "/" ||
-      p.startsWith("/request-access") ||
-      p.startsWith("/italie") ||
-      p.startsWith("/guides")
-    );
+    return p === "/" || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
@@ -219,7 +214,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-bg px-4 py-8 text-text">
         <div className="mx-auto max-w-6xl rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-          <div className="text-sm text-muted">Loading session…</div>
+          <div className="text-sm text-muted">Caricamento sessione...</div>
         </div>
       </div>
     );
@@ -228,12 +223,12 @@ export default function App() {
   return (
     <Shell canSeeDevApp={canSeeDevApp}>
       <Routes>
-        {/* Marketing */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/request-access" element={<RequestAccessPage />} />
-        <Route path="/subscribe" element={<SubscribePage />} />
+        <Route path="/abbonamento" element={<SubscribePage />} />
+        <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />
+        <Route path="/login" element={<Navigate to="/request-access" replace />} />
 
-        {/* Dedicated pages */}
         <Route path="/italie" element={<ItalyIndexPage />} />
         <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />
         <Route path="/italie/categorie/:categorySlug" element={<ItalyCategoryPage />} />
@@ -242,7 +237,6 @@ export default function App() {
         <Route path="/guides" element={<GuidesIndexPage />} />
         <Route path="/guides/:slug" element={<GuidePage />} />
 
-        {/* App */}
         <Route
           path="/inbox"
           element={

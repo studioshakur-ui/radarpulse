@@ -14,7 +14,7 @@ export default function SubscribePage() {
   const checkoutPayload = useMemo(
     () => ({
       success_url: `${window.location.origin}/inbox`,
-      cancel_url: `${window.location.origin}/subscribe`,
+      cancel_url: `${window.location.origin}/abbonamento`,
     }),
     []
   );

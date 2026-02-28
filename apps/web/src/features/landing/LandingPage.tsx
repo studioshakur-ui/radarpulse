@@ -4,7 +4,6 @@ import { ArrowRight, Check } from "lucide-react";
 import { CoreCard } from "@/components/ds/CoreCard";
 import { CorePill } from "@/components/ds/CorePill";
 import { useT } from "@/i18n";
-import { cn } from "@/lib/utils";
 
 function BenefitCard({
   title,
@@ -34,7 +33,7 @@ function BenefitCard({
 }
 
 export function LandingPage() {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
   const showDev = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV_APP === "true";
 
   return (
@@ -45,21 +44,6 @@ export function LandingPage() {
             RadarPulse
           </Link>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-line/25 bg-surface/60 p-1">
-              {(["fr", "en"] as const).map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => setLang(l)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                    lang === l ? "bg-brand text-white shadow-sm" : "text-subtext hover:text-text",
-                  )}
-                >
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
             <Link
               to="/guides"
               className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-4 py-2 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
