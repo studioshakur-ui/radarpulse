@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-02-28 02:39:42Z`
+- Generated (UTC): `2026-02-28 06:56:44Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,10 +15,7 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- INDEX opportunities_live_country_published_desc_idx
-- INDEX opportunities_live_published_at_desc_idx
-- INDEX opportunities_source_url_idx
-- INDEX opportunity_ai_raw_id_extracted_updated_idx
+- (none)
 
 ## Notes
 
