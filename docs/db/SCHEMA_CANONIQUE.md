@@ -32,6 +32,7 @@
  ## Tables
  
  ### Résumé
+ - `public.access_requests` — size: 16 kB — RLS: on — cols: 6
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.ingestion_jobs` — size: 136 kB — RLS: on — cols: 11
  - `public.ingestion_runs` — size: 24 kB — RLS: off — cols: 12
@@ -51,6 +52,7 @@
  
  ### Détails par table
  
+ #### Table: `public.access_requests`
  #### Table: `public.buyers`
  #### Table: `public.ingestion_jobs`
  #### Table: `public.ingestion_runs`
@@ -69,20 +71,22 @@
  #### Table: `public.whatsapp_optins`
  - **RLS**: `on`
  - **RLS**: `on`
- - **RLS**: `off`
- - **RLS**: `on`
- - **RLS**: `on`
- - **RLS**: `on`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
+ - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `off`
  - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `off`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **Size**: `16 kB`
  - **Size**: `24 kB`
  - **Size**: `136 kB`
  - **Size**: `24 kB`
@@ -115,6 +119,8 @@
  
  
  
+ 
+ | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -147,6 +153,13 @@
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
+ |---|---|---|---|
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `name` | `text` | `no` | — |
+ | `email` | `text` | `no` | — |
+ | `organization` | `text` | `yes` | — |
+ | `use_case` | `text` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `country_code` | `text` | `yes` | — |
  | `name` | `text` | `no` | — |
@@ -346,6 +359,7 @@
  
  
  
+ 
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -362,6 +376,8 @@
  ##### Indexes
  ##### Indexes
  ##### Indexes
+ ##### Indexes
+ - `CREATE UNIQUE INDEX access_requests_pkey ON public.access_requests USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_pkey ON public.buyers USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree (COALESCE(country_code, ''::text), normalized_name)`
  - `CREATE INDEX ingestion_jobs_claim_idx ON public.ingestion_jobs USING btree (run_at, id) WHERE (status = 'queued'::job_status)`
@@ -430,6 +446,9 @@
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
+ ##### RLS Policies
+ - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
+ - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
  - `opportunities_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunities` (cmd: SELECT, roles: {public})
@@ -467,6 +486,7 @@
  ##### Triggers
  ##### Triggers
  ##### Triggers
+ ##### Triggers
  - `trg_jobs_updated_at`: CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON ingestion_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_rp_set_updated_at_opportunities_raw`: CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON opportunities_raw FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
  - `trg_compute_opportunity_quality`: CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION compute_opportunity_quality()
@@ -485,6 +505,8 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ 
  
  
  
@@ -514,5 +536,5 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(514 rows)
+(536 rows)
 

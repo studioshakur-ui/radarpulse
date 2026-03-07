@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rSSNJL6DuuEe6c4G4KGN5HlblocbJULZu0NS4EOzfamXRmptS8e6W6F295jarB3
+\restrict 4hwEFbJdwf8XheDk2NFpnHsQWDIyIlrWT0mFnMvePTKWxucn7nXZ0Iv31SgepvF
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -399,6 +399,20 @@ begin
   new.updated_at = now();
   return new;
 end $$;
+
+
+--
+-- Name: access_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.access_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    email text NOT NULL,
+    organization text,
+    use_case text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -839,6 +853,14 @@ ALTER TABLE ONLY public.notification_logs ALTER COLUMN id SET DEFAULT nextval('p
 --
 
 ALTER TABLE ONLY public.notification_queue ALTER COLUMN id SET DEFAULT nextval('public.notification_queue_id_seq'::regclass);
+
+
+--
+-- Name: access_requests access_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_requests
+    ADD CONSTRAINT access_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -1361,6 +1383,19 @@ ALTER TABLE ONLY public.rp_ai_runs
 
 
 --
+-- Name: access_requests; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.access_requests ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: access_requests anon can insert access_requests; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "anon can insert access_requests" ON public.access_requests FOR INSERT TO authenticated, anon WITH CHECK (true);
+
+
+--
 -- Name: buyers; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1460,6 +1495,13 @@ CREATE POLICY public_read_opportunity_events ON public.opportunity_events FOR SE
 
 
 --
+-- Name: access_requests service_role can read access_requests; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "service_role can read access_requests" ON public.access_requests FOR SELECT TO service_role USING (true);
+
+
+--
 -- Name: sources; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1529,5 +1571,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rSSNJL6DuuEe6c4G4KGN5HlblocbJULZu0NS4EOzfamXRmptS8e6W6F295jarB3
+\unrestrict 4hwEFbJdwf8XheDk2NFpnHsQWDIyIlrWT0mFnMvePTKWxucn7nXZ0Iv31SgepvF
 
