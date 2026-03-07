@@ -1,25 +1,54 @@
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
 
-# Node
+# =========================
+# Dependencies
+# =========================
 node_modules/
+**/node_modules/
 
-# Vite / build
-apps/web/dist/
-apps/web/.vite/
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+**/dist/
+**/.vite/
+coverage/
 
-# Local env
+# =========================
+# Environment
+# =========================
 .env
 .env.*
+!.env.example
 
-# Supabase temp
+# =========================
+# Supabase local
+# =========================
 supabase/.temp/
+supabase/.branches/
+supabase/.cache/
+.supabase/
 
-# WIP: ai extract light (temp ignore)
+# =========================
+# Hosting / Deploy
+# =========================
+.vercel/
+.netlify/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# WIP AI (temp)
+# =========================
 supabase/functions/_shared/rp_ai_extract_light.ts
 supabase/functions/_shared/rp_ai_schema_v1_light.ts
 supabase/functions/_shared/rp_ai_utils.ts
 supabase/functions/ai-extract-light/
-.env.local
-!.env.example
