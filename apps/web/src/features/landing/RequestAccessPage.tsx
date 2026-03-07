@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, Mail, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ENV } from "@/lib/env";
 
 type FormState = {
   name: string;
@@ -10,39 +11,18 @@ type FormState = {
   useCase: string;
 };
 
-const LS_KEY = "rp.request_access.v1";
-
-function safeLoad(): FormState | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw);
-    if (!v || typeof v !== "object") return null;
-    return {
-      name: String((v as any).name ?? ""),
-      email: String((v as any).email ?? ""),
-      organization: String((v as any).organization ?? ""),
-      useCase: String((v as any).useCase ?? ""),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function save(v: FormState) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(v));
-  } catch {
-    // ignore
-  }
-}
+const INITIAL_FORM: FormState = {
+  name: "",
+  email: "",
+  organization: "",
+  useCase: "Consulting / Agencies",
+};
 
 export default function RequestAccessPage() {
-  const preset = useMemo(() => safeLoad(), []);
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState<FormState>(
-    preset ?? { name: "", email: "", organization: "", useCase: "Consulting / Agencies" }
-  );
+  const [error, setError] = useState<string | null>(null);
 
   const mailto = useMemo(() => {
     const subject = encodeURIComponent("RadarPulse — Request access");
@@ -62,6 +42,40 @@ export default function RequestAccessPage() {
     );
     return `mailto:hello@radarpulse.io?subject=${subject}&body=${body}`;
   }, [form]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/submit-access-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ENV.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          organization: form.organization.trim() || null,
+          use_case: form.useCase,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        throw new Error(String(data?.error ?? "Submission failed. Please try again."));
+      }
+
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue. Essayez par email.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -104,18 +118,12 @@ export default function RequestAccessPage() {
           <p className="mt-2 text-sm text-muted">Tell us your use case and your operating context.</p>
 
           {!done ? (
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                save(form);
-                setDone(true);
-              }}
-            >
+            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="request-name" className="text-xs font-medium text-muted">Name</label>
                 <input
                   id="request-name"
+                  required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
@@ -128,6 +136,7 @@ export default function RequestAccessPage() {
                 <input
                   id="request-email"
                   type="email"
+                  required
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
@@ -160,12 +169,27 @@ export default function RequestAccessPage() {
                 </select>
               </div>
 
+              {error ? (
+                <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">
+                  {error}
+                </div>
+              ) : null}
+
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="submit"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90"
+                  disabled={submitting}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Save request <ArrowRight className="h-4 w-4" />
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Sending…
+                    </>
+                  ) : (
+                    <>
+                      Send request <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </button>
 
                 <a
@@ -177,25 +201,27 @@ export default function RequestAccessPage() {
               </div>
 
               <div className="text-xs text-muted">
-                No account is created here — this page just collects context and can open an email draft.
+                Your request is saved instantly — the team will be notified and reach out within 24h.
               </div>
             </form>
           ) : (
             <div className="mt-6 rounded-2xl border border-good/20 bg-good/10 p-4">
-              <div className="text-sm font-semibold text-good">Saved.</div>
-              <div className="mt-1 text-sm text-muted">You can now send the email request.</div>
+              <div className="text-sm font-semibold text-good">Request received ✓</div>
+              <div className="mt-1 text-sm text-muted">
+                We'll be in touch at <strong>{form.email}</strong> within 24h.
+              </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <a
-                  href={mailto}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90"
-                >
-                  Email request <Mail className="h-4 w-4" />
-                </a>
                 <Link
                   to="/guides"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90"
+                >
+                  Read the guides <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/25 bg-surface/70 px-5 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated/70"
                 >
-                  Open guides <ArrowRight className="h-4 w-4" />
+                  Back to landing
                 </Link>
               </div>
             </div>
@@ -203,9 +229,9 @@ export default function RequestAccessPage() {
         </div>
 
         <div className="mt-4 text-center text-xs text-muted">
-          Prefer to jump straight in?{" "}
-          <Link className="text-accent hover:underline" to="/inbox">
-            Open the app
+          Ready to subscribe directly?{" "}
+          <Link className="text-accent hover:underline" to="/abbonamento">
+            Open checkout
           </Link>
           .
         </div>
