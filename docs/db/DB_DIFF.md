@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-03-07 12:37:28Z`
+- Generated (UTC): `2026-03-07 13:08:47Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,9 +15,7 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- POLICY "anon
-- POLICY "service_role
-- TABLE public.access_requests
+- (none)
 
 ## Notes
 
