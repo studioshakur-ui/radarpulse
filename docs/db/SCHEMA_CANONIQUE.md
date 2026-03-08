@@ -32,10 +32,11 @@
  ## Tables
  
  ### Résumé
- - `public.access_requests` — size: 16 kB — RLS: on — cols: 6
+ - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.ingestion_jobs` — size: 136 kB — RLS: on — cols: 11
  - `public.ingestion_runs` — size: 24 kB — RLS: off — cols: 12
+ - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
  - `public.opportunities` — size: 240 kB — RLS: on — cols: 21
@@ -56,6 +57,7 @@
  #### Table: `public.buyers`
  #### Table: `public.ingestion_jobs`
  #### Table: `public.ingestion_runs`
+ #### Table: `public.magic_link_tokens`
  #### Table: `public.notification_logs`
  #### Table: `public.notification_queue`
  #### Table: `public.opportunities`
@@ -76,20 +78,22 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
- - **Size**: `16 kB`
+ - **Size**: `32 kB`
  - **Size**: `24 kB`
  - **Size**: `136 kB`
  - **Size**: `24 kB`
+ - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `24 kB`
  - **Size**: `240 kB`
@@ -120,6 +124,7 @@
  
  
  
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -137,6 +142,8 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -188,6 +195,13 @@
  | `error` | `text` | `yes` | — |
  | `cursor` | `text` | `yes` | — |
  | `meta` | `jsonb` | `no` | '{}'::jsonb |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `email` | `text` | `no` | — |
+ | `token` | `text` | `no` | — |
+ | `used` | `boolean` | `yes` | false |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `expires_at` | `timestamp with time zone` | `no` | — |
+ | `used_at` | `timestamp with time zone` | `yes` | — |
  | `id` | `bigint` | `no` | nextval('notification_logs_id_seq'::regclass) |
  | `queue_id` | `bigint` | `yes` | — |
  | `user_id` | `uuid` | `yes` | — |
@@ -360,6 +374,8 @@
  
  
  
+ 
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -387,6 +403,10 @@
  - `CREATE INDEX ingestion_jobs_source_idx ON public.ingestion_jobs USING btree (source_id)`
  - `CREATE UNIQUE INDEX ingestion_runs_pkey ON public.ingestion_runs USING btree (id)`
  - `CREATE INDEX ingestion_runs_source_key_started_idx ON public.ingestion_runs USING btree (source_key, started_at DESC)`
+ - `CREATE INDEX idx_magic_link_tokens_email ON public.magic_link_tokens USING btree (email)`
+ - `CREATE INDEX idx_magic_link_tokens_token ON public.magic_link_tokens USING btree (token)`
+ - `CREATE UNIQUE INDEX magic_link_tokens_pkey ON public.magic_link_tokens USING btree (id)`
+ - `CREATE UNIQUE INDEX magic_link_tokens_token_key ON public.magic_link_tokens USING btree (token)`
  - `CREATE UNIQUE INDEX notification_logs_pkey ON public.notification_logs USING btree (id)`
  - `CREATE INDEX notification_queue_idx ON public.notification_queue USING btree (channel, status, scheduled_at, id)`
  - `CREATE UNIQUE INDEX notification_queue_pkey ON public.notification_queue USING btree (id)`
@@ -447,9 +467,12 @@
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
+ ##### RLS Policies
  - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
+ - `anon can read unused tokens` (cmd: SELECT, roles: {anon,authenticated})
+ - `service_role can manage tokens` (cmd: ALL, roles: {service_role})
  - `opportunities_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunities` (cmd: SELECT, roles: {public})
  - `opportunity_documents_public_read` (cmd: SELECT, roles: {anon})
@@ -487,6 +510,7 @@
  ##### Triggers
  ##### Triggers
  ##### Triggers
+ ##### Triggers
  - `trg_jobs_updated_at`: CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON ingestion_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_rp_set_updated_at_opportunities_raw`: CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON opportunities_raw FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
  - `trg_compute_opportunity_quality`: CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION compute_opportunity_quality()
@@ -506,6 +530,8 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ 
  
  
  
@@ -536,5 +562,5 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(536 rows)
+(562 rows)
 

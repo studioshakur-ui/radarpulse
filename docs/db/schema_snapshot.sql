@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict evXJSAzei9KFCmHtFuAgLksHosAnSgIn9djiLS55JKtddTdK1KaamAZ163ao9Z1
+\restrict OOhX4i5m7ljVfzAt2vVGSfai3R7bmgdFVOlq0PYClde8FXVcndQVa4zZFaJBM1w
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -468,6 +468,21 @@ CREATE TABLE public.ingestion_runs (
 
 
 --
+-- Name: magic_link_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.magic_link_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    email text NOT NULL,
+    token text NOT NULL,
+    used boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone
+);
+
+
+--
 -- Name: notification_logs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -888,6 +903,22 @@ ALTER TABLE ONLY public.ingestion_runs
 
 
 --
+-- Name: magic_link_tokens magic_link_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.magic_link_tokens
+    ADD CONSTRAINT magic_link_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: magic_link_tokens magic_link_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.magic_link_tokens
+    ADD CONSTRAINT magic_link_tokens_token_key UNIQUE (token);
+
+
+--
 -- Name: notification_logs notification_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1012,6 +1043,20 @@ ALTER TABLE ONLY public.whatsapp_optins
 --
 
 CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree (COALESCE(country_code, ''::text), normalized_name);
+
+
+--
+-- Name: idx_magic_link_tokens_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_magic_link_tokens_email ON public.magic_link_tokens USING btree (email);
+
+
+--
+-- Name: idx_magic_link_tokens_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_magic_link_tokens_token ON public.magic_link_tokens USING btree (token);
 
 
 --
@@ -1396,6 +1441,13 @@ CREATE POLICY "anon can insert access_requests" ON public.access_requests FOR IN
 
 
 --
+-- Name: magic_link_tokens anon can read unused tokens; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "anon can read unused tokens" ON public.magic_link_tokens FOR SELECT TO authenticated, anon USING (((NOT used) AND (expires_at > now())));
+
+
+--
 -- Name: buyers; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1413,6 +1465,12 @@ CREATE POLICY buyers_public_read ON public.buyers FOR SELECT TO anon USING (true
 --
 
 ALTER TABLE public.ingestion_jobs ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: magic_link_tokens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.magic_link_tokens ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: notification_logs; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1495,6 +1553,13 @@ CREATE POLICY public_read_opportunity_events ON public.opportunity_events FOR SE
 
 
 --
+-- Name: magic_link_tokens service_role can manage tokens; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "service_role can manage tokens" ON public.magic_link_tokens TO service_role USING (true);
+
+
+--
 -- Name: access_requests service_role can read access_requests; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1571,5 +1636,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict evXJSAzei9KFCmHtFuAgLksHosAnSgIn9djiLS55JKtddTdK1KaamAZ163ao9Z1
+\unrestrict OOhX4i5m7ljVfzAt2vVGSfai3R7bmgdFVOlq0PYClde8FXVcndQVa4zZFaJBM1w
 

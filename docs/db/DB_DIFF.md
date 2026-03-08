@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-03-07 18:50:20Z`
+- Generated (UTC): `2026-03-08 03:12:04Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,7 +15,11 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- (none)
+- INDEX idx_magic_link_tokens_email
+- INDEX idx_magic_link_tokens_token
+- POLICY "anon
+- POLICY "service_role
+- TABLE public.magic_link_tokens
 
 ## Notes
 
