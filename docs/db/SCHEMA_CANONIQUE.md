@@ -47,7 +47,7 @@
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.rp_ai_runs` — size: 96 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
- - `public.subscriptions` — size: 24 kB — RLS: on — cols: 7
+ - `public.subscriptions` — size: 56 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
  - `public.whatsapp_optins` — size: 16 kB — RLS: on — cols: 5
  
@@ -104,7 +104,7 @@
  - **Size**: `80 kB`
  - **Size**: `96 kB`
  - **Size**: `96 kB`
- - **Size**: `24 kB`
+ - **Size**: `56 kB`
  - **Size**: `16 kB`
  - **Size**: `16 kB`
  
@@ -348,6 +348,13 @@
  | `filters` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `stripe_customer_id` | `text` | `yes` | — |
+ | `stripe_subscription_id` | `text` | `yes` | — |
+ | `stripe_price_id` | `text` | `yes` | — |
+ | `status` | `text` | `yes` | 'inactive'::text |
+ | `current_period_start` | `timestamp with time zone` | `yes` | — |
+ | `current_period_end` | `timestamp with time zone` | `yes` | — |
+ | `cancel_at_period_end` | `boolean` | `yes` | false |
  | `user_id` | `uuid` | `no` | — |
  | `chat_id` | `text` | `no` | — |
  | `is_verified` | `boolean` | `no` | false |
@@ -446,7 +453,11 @@
  - `CREATE INDEX sources_active_idx ON public.sources USING btree (is_active, schedule_minutes)`
  - `CREATE UNIQUE INDEX sources_key_key ON public.sources USING btree (key)`
  - `CREATE UNIQUE INDEX sources_pkey ON public.sources USING btree (id)`
+ - `CREATE INDEX subscriptions_current_period_end_idx ON public.subscriptions USING btree (current_period_end DESC)`
  - `CREATE UNIQUE INDEX subscriptions_pkey ON public.subscriptions USING btree (id)`
+ - `CREATE INDEX subscriptions_status_idx ON public.subscriptions USING btree (status)`
+ - `CREATE UNIQUE INDEX subscriptions_stripe_subscription_id_unique_idx ON public.subscriptions USING btree (stripe_subscription_id) WHERE (stripe_subscription_id IS NOT NULL)`
+ - `CREATE UNIQUE INDEX subscriptions_user_id_unique_idx ON public.subscriptions USING btree (user_id)`
  - `CREATE INDEX subscriptions_user_idx ON public.subscriptions USING btree (user_id, is_active)`
  - `CREATE UNIQUE INDEX telegram_profiles_pkey ON public.telegram_profiles USING btree (user_id)`
  - `CREATE UNIQUE INDEX whatsapp_optins_pkey ON public.whatsapp_optins USING btree (user_id)`
@@ -471,7 +482,6 @@
  - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
- - `anon can read unused tokens` (cmd: SELECT, roles: {anon,authenticated})
  - `service_role can manage tokens` (cmd: ALL, roles: {service_role})
  - `opportunities_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunities` (cmd: SELECT, roles: {public})
@@ -562,5 +572,5 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(562 rows)
+(572 rows)
 

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict mLkYl5iYWseWPtUT5R18lwfuiSpeyeNP48fqOfIrx4u4fX2FNeN4ZLKNQUzIqDc
+\restrict aYHStoa4GhBhJjjewELODMtyxgTasCt8QJSbiFbFvdSstCunhvg3Vm5qhQyBqGl
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -820,7 +820,14 @@ CREATE TABLE public.subscriptions (
     channels jsonb DEFAULT '{}'::jsonb NOT NULL,
     filters jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    stripe_customer_id text,
+    stripe_subscription_id text,
+    stripe_price_id text,
+    status text DEFAULT 'inactive'::text,
+    current_period_start timestamp with time zone,
+    current_period_end timestamp with time zone,
+    cancel_at_period_end boolean DEFAULT false
 );
 
 
@@ -1284,6 +1291,34 @@ CREATE INDEX sources_active_idx ON public.sources USING btree (is_active, schedu
 
 
 --
+-- Name: subscriptions_current_period_end_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX subscriptions_current_period_end_idx ON public.subscriptions USING btree (current_period_end DESC);
+
+
+--
+-- Name: subscriptions_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX subscriptions_status_idx ON public.subscriptions USING btree (status);
+
+
+--
+-- Name: subscriptions_stripe_subscription_id_unique_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscriptions_stripe_subscription_id_unique_idx ON public.subscriptions USING btree (stripe_subscription_id) WHERE (stripe_subscription_id IS NOT NULL);
+
+
+--
+-- Name: subscriptions_user_id_unique_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscriptions_user_id_unique_idx ON public.subscriptions USING btree (user_id);
+
+
+--
 -- Name: subscriptions_user_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1441,13 +1476,6 @@ CREATE POLICY "anon can insert access_requests" ON public.access_requests FOR IN
 
 
 --
--- Name: magic_link_tokens anon can read unused tokens; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "anon can read unused tokens" ON public.magic_link_tokens FOR SELECT TO authenticated, anon USING (((NOT used) AND (expires_at > now())));
-
-
---
 -- Name: buyers; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1556,7 +1584,7 @@ CREATE POLICY public_read_opportunity_events ON public.opportunity_events FOR SE
 -- Name: magic_link_tokens service_role can manage tokens; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "service_role can manage tokens" ON public.magic_link_tokens TO service_role USING (true);
+CREATE POLICY "service_role can manage tokens" ON public.magic_link_tokens TO service_role USING (true) WITH CHECK (true);
 
 
 --
@@ -1636,5 +1664,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mLkYl5iYWseWPtUT5R18lwfuiSpeyeNP48fqOfIrx4u4fX2FNeN4ZLKNQUzIqDc
+\unrestrict aYHStoa4GhBhJjjewELODMtyxgTasCt8QJSbiFbFvdSstCunhvg3Vm5qhQyBqGl
 
