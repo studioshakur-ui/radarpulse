@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-03-08 13:10:37Z`
+- Generated (UTC): `2026-03-08 18:51:36Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,9 +15,7 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- INDEX subscriptions_current_period_end_idx
-- INDEX subscriptions_status_idx
-- POLICY "anon
+- (none)
 
 ## Notes
 
