@@ -46,11 +46,53 @@ function useAuthUser() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
+
+    async function init() {
+      // Check for magic link token in URL
+      const params = new URLSearchParams(window.location.search);
+      const magicToken = params.get("token");
+
+      if (magicToken) {
+        // Verify magic link and set session
+        try {
+          const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/verify-magic-link`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: ENV.SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ token: magicToken }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.accessToken) {
+            // Set session — supabase.auth.setSession takes access_token + refresh_token only
+            await supabase.auth.setSession({
+              access_token: data.accessToken,
+              refresh_token: data.refreshToken ?? "",
+            });
+
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Redirect to inbox
+            window.location.href = "/inbox";
+            return;
+          }
+        } catch (e) {
+          console.error("[App] magic link verification failed:", e);
+        }
+      }
+
+      // Normal auth flow
+      const { data } = await supabase.auth.getUser();
       if (!mounted) return;
       setUser(data.user ?? null);
       setLoading(false);
-    });
+    }
+
+    init();
     return () => {
       mounted = false;
     };
@@ -89,11 +131,13 @@ function InboxAccessGate({
       }
 
       const nowIso = new Date().toISOString();
+
+      // Check for active subscription OR trial status
       const { data } = await supabase
         .from("subscriptions")
         .select("id,status,current_period_end")
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "trial"])
         .gte("current_period_end", nowIso)
         .order("current_period_end", { ascending: false })
         .limit(1)

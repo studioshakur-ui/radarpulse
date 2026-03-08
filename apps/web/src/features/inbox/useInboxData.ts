@@ -27,9 +27,15 @@ export type UseInboxDataResult = {
 
 const PAGE_SIZE = 20;
 
+// BUG-24 FIX: throw if JWT is null — the caller will surface a proper auth error
+// instead of sending an empty token that triggers a confusing 401 from the server
 async function readJwt(): Promise<string> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? "";
+  const { data, error } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token || error) {
+    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione scaduta. Riaccedi per continuare.");
+  }
+  return token;
 }
 
 export function useInboxData(filters: InboxFilters): UseInboxDataResult {

@@ -59,7 +59,7 @@ export function LandingPage() {
               </Link>
             ) : null}
             <Link
-              to="/abbonamento"
+              to="/request-access"
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-glow hover:opacity-95"
             >
               {t("landing.nav.requestAccess")} <ArrowRight className="h-4 w-4" />
@@ -85,7 +85,7 @@ export function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
-                  to="/abbonamento"
+                  to="/request-access"
                   className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
                 >
                   {t("landing.hero.primaryCta")} <ArrowRight className="h-4 w-4" />
@@ -185,7 +185,7 @@ export function LandingPage() {
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/abbonamento"
+                to="/request-access"
                 className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
               >
                 {t("landing.final.primaryCta")} <ArrowRight className="h-4 w-4" />

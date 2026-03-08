@@ -49,7 +49,7 @@ export default function RequestAccessPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/submit-access-request`, {
+      const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/create-magic-link`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -206,9 +206,9 @@ export default function RequestAccessPage() {
             </form>
           ) : (
             <div className="mt-6 rounded-2xl border border-good/20 bg-good/10 p-4">
-              <div className="text-sm font-semibold text-good">Request received ✓</div>
+              <div className="text-sm font-semibold text-good">Access link sent ✓</div>
               <div className="mt-1 text-sm text-muted">
-                We'll be in touch at <strong>{form.email}</strong> within 24h.
+                Check <strong>{form.email}</strong> for your access link. Free trial: 7 days.
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link

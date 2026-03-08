@@ -25,3 +25,7 @@ create policy "service_role can read access_requests"
   for select
   to service_role
   using (true);
+
+-- BUG-06 FIX: index for deduplication checks by email
+create index if not exists idx_access_requests_email
+  on public.access_requests (email);

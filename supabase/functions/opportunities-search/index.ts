@@ -91,6 +91,13 @@ function parseBody(input: unknown): { ok: true; value: SearchQueryInput } | { ok
     if (!publishedAt || !id) {
       return { ok: false, response: err(400, "INVALID_CURSOR", "cursor must include published_at and id") };
     }
+    // BUG-15 FIX: validate formats to prevent cursor injection into the PostgREST query string
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(publishedAt)) {
+      return { ok: false, response: err(400, "INVALID_CURSOR", "cursor.published_at must be an ISO 8601 datetime") };
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return { ok: false, response: err(400, "INVALID_CURSOR", "cursor.id must be a valid UUID") };
+    }
   }
 
   return {

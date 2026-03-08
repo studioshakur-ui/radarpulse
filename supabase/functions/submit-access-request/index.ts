@@ -5,7 +5,7 @@
 // POST body: { name, email, organization?, use_case? }
 
 import { corsHeaders } from "../_shared/cors.ts";
-import { sbAdmin } from "../_shared/db.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -29,13 +29,19 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "name and email are required" }, 400);
     }
 
-    // Basic email format check
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    // BUG-13 FIX: stricter email regex
+    if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)) {
       return json({ ok: false, error: "Invalid email format" }, 400);
     }
 
-    // Insert into access_requests
-    const sb = sbAdmin();
+    // Insert into access_requests (using anon key — RLS allows anon inserts)
+    const sbUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    if (!sbUrl || !anonKey) {
+      return json({ ok: false, error: "Missing SUPABASE_URL or SUPABASE_ANON_KEY" }, 500);
+    }
+
+    const sb = createClient(sbUrl, anonKey, { auth: { persistSession: false } });
     const { error: dbError } = await sb.from("access_requests").insert({
       name,
       email,
@@ -45,8 +51,33 @@ Deno.serve(async (req) => {
 
     if (dbError) throw new Error(dbError.message);
 
-    // TODO: notify-email via Resend — activer une fois RESEND_API_KEY configuré
-    // (Supabase Dashboard > Project Settings > Edge Functions > Secrets)
+    // BUG-14 FIX: notify admin via notify-email (graceful degradation if not configured)
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
+    if (serviceKey) {
+      const emailRes = await fetch(`${sbUrl}/functions/v1/notify-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": serviceKey,
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          event: "access_request",
+          payload: { name, email, organization: organization ?? "", use_case: useCase ?? "" },
+        }),
+      }).catch((err) => {
+        console.error("[submit-access-request] notify-email network error:", err);
+        return null;
+      });
+
+      if (!emailRes?.ok) {
+        // Non-fatal: lead is already saved in DB, log but don't fail the request
+        const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
+        console.error("[submit-access-request] notify-email failed (non-fatal):", errText);
+      }
+    } else {
+      console.warn("[submit-access-request] SERVICE_ROLE_KEY not set — admin notification skipped");
+    }
 
     return json({ ok: true });
   } catch (e) {

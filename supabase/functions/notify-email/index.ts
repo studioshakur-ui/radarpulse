@@ -60,6 +60,29 @@ function buildAccessRequestEmail(notifyTo: string, notifyFrom: string, p: Record
   };
 }
 
+function buildMagicLinkEmail(
+  notifyFrom: string,
+  p: Record<string, string>
+): EmailPayload {
+  const magicLink = p.magic_link ?? "";
+  const name = p.name ?? "there";
+  return {
+    from: notifyFrom,
+    to: p.email ?? "",
+    subject: "Your RadarPulse access link",
+    html: `
+      <h2>Hi ${name},</h2>
+      <p>Your RadarPulse access is ready! Click the link below to get started with a 7-day free trial.</p>
+      <p>
+        <a href="${magicLink}" style="display:inline-block;background:#007BFF;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold">
+          Activate Access
+        </a>
+      </p>
+      <p style="color:#888;font-size:12px">This link expires in 24 hours. If you didn't request this, please ignore this email.</p>
+    `,
+  };
+}
+
 function buildSubscriptionEmail(
   notifyTo: string,
   notifyFrom: string,
@@ -89,11 +112,9 @@ Deno.serve(async (req) => {
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const notifyTo = Deno.env.get("NOTIFY_TO");
     const notifyFrom = Deno.env.get("NOTIFY_FROM") ?? "noreply@radarpulse.io";
 
     if (!resendApiKey) return json({ ok: false, error: "Missing RESEND_API_KEY" }, 500);
-    if (!notifyTo) return json({ ok: false, error: "Missing NOTIFY_TO" }, 500);
 
     const body = await req.json().catch(() => ({}));
     const event = String(body?.event ?? "").trim();
@@ -103,12 +124,21 @@ Deno.serve(async (req) => {
 
     let emailPayload: EmailPayload;
 
-    if (event === "access_request") {
-      emailPayload = buildAccessRequestEmail(notifyTo, notifyFrom, payload);
-    } else if (event === "subscription_created" || event === "subscription_updated") {
-      emailPayload = buildSubscriptionEmail(notifyTo, notifyFrom, payload, event);
+    if (event === "magic_link") {
+      // magic_link sends to the user's email — NOTIFY_TO not needed
+      emailPayload = buildMagicLinkEmail(notifyFrom, payload);
     } else {
-      return json({ ok: false, error: `Unknown event: ${event}` }, 400);
+      // All other events notify the admin — NOTIFY_TO is required
+      const notifyTo = Deno.env.get("NOTIFY_TO");
+      if (!notifyTo) return json({ ok: false, error: "Missing NOTIFY_TO" }, 500);
+
+      if (event === "access_request") {
+        emailPayload = buildAccessRequestEmail(notifyTo, notifyFrom, payload);
+      } else if (event === "subscription_created" || event === "subscription_updated") {
+        emailPayload = buildSubscriptionEmail(notifyTo, notifyFrom, payload, event);
+      } else {
+        return json({ ok: false, error: `Unknown event: ${event}` }, 400);
+      }
     }
 
     await sendEmail(resendApiKey, emailPayload);
