@@ -47,7 +47,7 @@
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.rp_ai_runs` — size: 96 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
- - `public.subscriptions` — size: 56 kB — RLS: on — cols: 14
+ - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
  - `public.whatsapp_optins` — size: 16 kB — RLS: on — cols: 5
  
@@ -104,7 +104,7 @@
  - **Size**: `80 kB`
  - **Size**: `96 kB`
  - **Size**: `96 kB`
- - **Size**: `56 kB`
+ - **Size**: `104 kB`
  - **Size**: `16 kB`
  - **Size**: `16 kB`
  
