@@ -10,6 +10,7 @@ import ItalyBuyerPage from "@/features/italy/ItalyBuyerPage";
 import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
 import GuidePage from "@/features/italy/GuidePage";
 import SubscribePage from "@/features/billing/SubscribePage";
+import SettingsPage from "@/features/settings/SettingsPage";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -157,29 +158,13 @@ function InboxAccessGate({
   if (loading) {
     return (
       <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-        <div className="text-sm text-muted">Verifica abbonamento in corso...</div>
+        <div className="text-sm text-muted">Checking subscription...</div>
       </div>
     );
   }
 
   if (!allowed) return <Navigate to="/abbonamento" replace />;
   return <>{children}</>;
-}
-
-function SettingsPage() {
-  return (
-    <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-      <div className="text-sm font-semibold">Impostazioni</div>
-      <div className="mt-1 text-sm text-muted">Ambiente: {ENV.MODE}</div>
-      <div className="mt-4 flex items-center justify-between rounded-2xl border border-border/25 bg-bg/40 p-4">
-        <div>
-          <div className="text-sm font-semibold">Tema</div>
-          <div className="text-xs text-muted">Segue automaticamente il dispositivo.</div>
-        </div>
-        <ThemeMenu />
-      </div>
-    </div>
-  );
 }
 
 function AppShell({
@@ -195,15 +180,12 @@ function AppShell({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">RadarPulse</div>
-              <div className="text-[11px] text-muted">Bandi Italia</div>
-            </div>
+            <div className="text-sm font-semibold">RadarPulse</div>
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
             <NavItem to="/inbox" label="Inbox" />
-            <NavItem to="/settings" label="Impostazioni" />
+            <NavItem to="/settings" label="Settings" />
           </div>
 
           <div className="flex items-center gap-2">
@@ -212,7 +194,7 @@ function AppShell({
                 to="/inbox"
                 className="inline-flex items-center rounded-xl border border-border/40 bg-surface/75 px-3 py-2 text-xs font-semibold text-muted transition hover:bg-elevated/80"
               >
-                App dev
+                Dev
               </NavLink>
             ) : null}
             <ThemeMenu className="hidden sm:inline-flex" />
@@ -258,7 +240,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-bg px-4 py-8 text-text">
         <div className="mx-auto max-w-6xl rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-          <div className="text-sm text-muted">Caricamento sessione...</div>
+          <div className="text-sm text-muted">Loading...</div>
         </div>
       </div>
     );
