@@ -28,6 +28,7 @@ export type OpportunitiesSearchInput = {
   status?: string;
   min_quality?: number;
   origin_type?: string;
+  country_code?: string | null;
   limit?: number;
   cursor?: OpportunitiesSearchCursor | null;
 };
@@ -102,7 +103,7 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
     origin_type: typeof input.origin_type === "string" && input.origin_type.trim() ? input.origin_type.trim() : undefined,
     limit: typeof input.limit === "number" ? input.limit : 20,
     cursor: input.cursor ?? null,
-    country_code: "IT" as const,
+    country_code: input.country_code ?? undefined,
   };
 
   const response = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunities-search`, {

@@ -13,6 +13,7 @@ export type InboxFilters = {
   status: string;
   minQuality?: number;
   originType?: string;
+  countryCode?: string;
 };
 
 export type UseInboxDataResult = {
@@ -53,6 +54,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     typeof filters.minQuality === "number" && Number.isFinite(filters.minQuality)
       ? Math.max(0, Math.min(1, filters.minQuality))
       : undefined;
+  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || "IT";
 
   const [debouncedQ, setDebouncedQ] = useState(q);
   const requestVersionRef = useRef(0);
@@ -68,9 +70,10 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
       status: normalizedStatus || undefined,
       min_quality: normalizedMinQuality,
       origin_type: normalizedOriginType || undefined,
+      country_code: normalizedCountryCode || undefined,
       limit: PAGE_SIZE,
     }),
-    [debouncedQ, normalizedMinQuality, normalizedOriginType, normalizedStatus],
+    [debouncedQ, normalizedMinQuality, normalizedOriginType, normalizedStatus, normalizedCountryCode],
   );
 
   const fetchPage = useCallback(
