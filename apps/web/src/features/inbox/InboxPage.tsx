@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale, type TFn } from "@/lib/i18n";
 import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
 import { useDecisions } from "./useDecisions";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "Date unavailable";
+function formatDate(iso: string | null, t: TFn): string {
+  if (!iso) return t("inbox.card.dateUnavailable");
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  if (Number.isNaN(date.getTime())) return t("inbox.card.dateUnavailable");
   return new Intl.DateTimeFormat(navigator.language, {
     day: "2-digit",
     month: "2-digit",
@@ -18,8 +19,8 @@ function formatDate(iso: string | null): string {
   }).format(date);
 }
 
-function formatBudget(value: number | null, currency: string | null): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "Budget unavailable";
+function formatBudget(value: number | null, currency: string | null, t: TFn): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return t("inbox.card.budgetUnavailable");
   return new Intl.NumberFormat(navigator.language, {
     style: "currency",
     currency: currency || "EUR",
@@ -27,10 +28,10 @@ function formatBudget(value: number | null, currency: string | null): string {
   }).format(value);
 }
 
-function formatQuality(score: number | null): string {
-  if (typeof score !== "number" || !Number.isFinite(score)) return "Quality n/a";
+function formatQuality(score: number | null, t: TFn): string {
+  if (typeof score !== "number" || !Number.isFinite(score)) return t("inbox.card.qualityNa");
   const percent = Math.round(Math.max(0, Math.min(1, score)) * 100);
-  return `Quality ${percent}%`;
+  return `${t("inbox.card.qualityPrefix")} ${percent}%`;
 }
 
 function DecisionButtons({
@@ -70,6 +71,7 @@ function DecisionButtons({
 type DecisionFilter = "all" | "undecided" | "GO" | "HOLD" | "NO_GO";
 
 export default function InboxPage() {
+  const { t } = useLocale();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [minQualityInput, setMinQualityInput] = useState("");
@@ -98,53 +100,61 @@ export default function InboxPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
       <section className="rounded-3xl border border-border/35 bg-surface/75 p-6 shadow-soft">
-        <h1 className="text-xl font-semibold tracking-tight">Opportunity Inbox</h1>
-        <p className="mt-1 text-sm text-muted">Search by title or buyer. Results load progressively.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("inbox.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("inbox.subtitle")}</p>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Search</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.search")}
+            </span>
             <input
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="Title or buyer"
+              placeholder={t("inbox.filter.search.placeholder")}
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Status</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.status")}
+            </span>
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
+              <option value="all">{t("inbox.filter.status.all")}</option>
+              <option value="active">{t("inbox.filter.status.active")}</option>
+              <option value="closed">{t("inbox.filter.status.closed")}</option>
             </select>
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Min quality (0–1)</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.minQuality")}
+            </span>
             <input
               value={minQualityInput}
               onChange={(event) => setMinQualityInput(event.target.value)}
-              placeholder="e.g. 0.7"
+              placeholder={t("inbox.filter.minQuality.placeholder")}
               inputMode="decimal"
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Decision</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.decision")}
+            </span>
             <select
               value={decisionFilter}
               onChange={(event) => setDecisionFilter(event.target.value as DecisionFilter)}
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             >
-              <option value="all">All</option>
-              <option value="undecided">Undecided</option>
+              <option value="all">{t("inbox.filter.decision.all")}</option>
+              <option value="undecided">{t("inbox.filter.decision.undecided")}</option>
               <option value="GO">GO</option>
               <option value="HOLD">HOLD</option>
               <option value="NO_GO">NO-GO</option>
@@ -158,12 +168,14 @@ export default function InboxPage() {
       ) : null}
 
       {loading ? (
-        <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-4 text-sm text-muted">Loading...</div>
+        <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-4 text-sm text-muted">
+          {t("inbox.loading")}
+        </div>
       ) : null}
 
       {!loading && filteredItems.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-6 text-sm text-muted">
-          No opportunities found for the selected filters.
+          {t("inbox.empty")}
         </div>
       ) : null}
 
@@ -185,11 +197,13 @@ export default function InboxPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-text">{item.title}</h2>
-                    <div className="mt-1 text-sm text-muted">{item.buyer_name || "Buyer unavailable"}</div>
+                    <div className="mt-1 text-sm text-muted">
+                      {item.buyer_name || t("inbox.card.buyerUnavailable")}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold text-subtext">
-                      {formatQuality(item.quality_score)}
+                      {formatQuality(item.quality_score, t)}
                     </span>
                     {item.origin_type ? (
                       <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
@@ -207,15 +221,19 @@ export default function InboxPage() {
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <CalendarDays className="h-4 w-4" />
-                    <span>Published: {formatDate(item.published_at)}</span>
+                    <span>
+                      {t("inbox.card.published")} {formatDate(item.published_at, t)}
+                    </span>
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
-                    <span>{formatBudget(item.budget_amount, item.budget_currency)}</span>
+                    <span>{formatBudget(item.budget_amount, item.budget_currency, t)}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <CircleGauge className="h-4 w-4" />
-                    <span>Deadline: {formatDate(item.deadline_at)}</span>
+                    <span>
+                      {t("inbox.card.deadline")} {formatDate(item.deadline_at, t)}
+                    </span>
                   </div>
                 </div>
               </article>
@@ -230,7 +248,7 @@ export default function InboxPage() {
                 disabled={loadingMore}
                 className="inline-flex items-center rounded-xl border border-border/35 bg-surface/80 px-4 py-2 text-sm font-semibold text-text transition hover:bg-elevated/70 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loadingMore ? "Loading..." : "Load more"}
+                {loadingMore ? t("inbox.loadingMore") : t("inbox.loadMore")}
               </button>
             </div>
           ) : null}

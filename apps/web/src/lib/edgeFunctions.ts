@@ -93,7 +93,7 @@ function asCursor(value: unknown): OpportunitiesSearchCursor | null {
 export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, jwt: string): Promise<OpportunitiesSearchResult> {
   if (!jwt) {
     redirectTo("/login");
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione non valida.");
+    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
   }
 
   const payload = {
@@ -120,16 +120,16 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
 
   if (response.status === 401) {
     redirectTo("/login");
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione non valida.");
+    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
   }
 
   if (response.status === 402) {
     redirectTo("/abbonamento");
-    throw new EdgeFunctionRequestError("SUBSCRIPTION_REQUIRED", "Abbonamento richiesto.");
+    throw new EdgeFunctionRequestError("SUBSCRIPTION_REQUIRED", "Subscription required.");
   }
 
   if (!response.ok) {
-    throw new EdgeFunctionRequestError("REQUEST_FAILED", "Errore temporaneo del servizio. Riprova.");
+    throw new EdgeFunctionRequestError("REQUEST_FAILED", "Temporary service error. Please try again.");
   }
 
   const rawItems = Array.isArray(body.items) ? body.items : [];
