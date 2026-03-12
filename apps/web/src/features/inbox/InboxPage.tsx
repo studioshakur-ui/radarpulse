@@ -5,6 +5,7 @@ import { useLocale, type TFn } from "@/lib/i18n";
 import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
 import { useDecisions } from "./useDecisions";
+import { useOpportunityBrief, type BriefInput, type OpportunityBrief } from "./useOpportunityBrief";
 
 function formatDate(iso: string | null, t: TFn): string {
   if (!iso) return t("inbox.card.dateUnavailable");
@@ -68,6 +69,71 @@ function DecisionButtons({
   );
 }
 
+function BriefPanel({ brief, t }: { brief: OpportunityBrief; t: TFn }) {
+  return (
+    <div className="mt-4 space-y-3 border-t border-border/30 pt-4 text-sm">
+      {brief.executive_summary ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.executiveSummary")}
+          </div>
+          <p className="leading-relaxed text-text">{brief.executive_summary}</p>
+        </div>
+      ) : null}
+
+      {brief.fit_assessment ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.fitAssessment")}
+          </div>
+          <p className="leading-relaxed text-subtext">{brief.fit_assessment}</p>
+        </div>
+      ) : null}
+
+      {brief.risk_flags.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.riskFlags")}
+          </div>
+          <ul className="space-y-1">
+            {brief.risk_flags.map((flag, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-warn">
+                <span className="mt-0.5 shrink-0">•</span>
+                <span>{flag}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {brief.required_documents.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.requiredDocuments")}
+          </div>
+          <ul className="space-y-1 text-subtext">
+            {brief.required_documents.map((doc, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0 text-muted">•</span>
+                <span>{doc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {brief.next_action ? (
+        <div className="rounded-xl border border-accent/30 bg-accent/8 px-3 py-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+            {t("inbox.card.brief.nextAction")}:{" "}
+          </span>
+          <span className="text-subtext">{brief.next_action}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type DecisionFilter = "all" | "undecided" | "GO" | "HOLD" | "NO_GO";
 
 export default function InboxPage() {
@@ -76,6 +142,7 @@ export default function InboxPage() {
   const [status, setStatus] = useState("all");
   const [minQualityInput, setMinQualityInput] = useState("");
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
+  const [expandedBriefs, setExpandedBriefs] = useState<Record<string, boolean>>({});
 
   const minQuality = useMemo(() => {
     const parsed = Number(minQualityInput);
@@ -90,12 +157,22 @@ export default function InboxPage() {
   });
 
   const { decide, getDecision, store } = useDecisions();
+  const { generate, getBrief, isLoading: isBriefLoading, getError: getBriefError } = useOpportunityBrief();
 
   const filteredItems = useMemo(() => {
     if (decisionFilter === "all") return items;
     if (decisionFilter === "undecided") return items.filter((item) => !store[item.id]);
     return items.filter((item) => store[item.id]?.decision === decisionFilter);
   }, [items, decisionFilter, store]);
+
+  function toggleBrief(item: BriefInput) {
+    const id = item.id;
+    const isExpanded = expandedBriefs[id];
+    if (!isExpanded && !getBrief(id) && !isBriefLoading(id)) {
+      void generate(item);
+    }
+    setExpandedBriefs((prev) => ({ ...prev, [id]: !isExpanded }));
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -183,6 +260,24 @@ export default function InboxPage() {
         <section className="mt-5 space-y-3">
           {filteredItems.map((item) => {
             const decision = getDecision(item.id);
+            const brief = getBrief(item.id);
+            const briefLoading = isBriefLoading(item.id);
+            const briefError = getBriefError(item.id);
+            const briefExpanded = expandedBriefs[item.id] ?? false;
+
+            const briefInput: BriefInput = {
+              id: item.id,
+              title: item.title,
+              buyer_name: item.buyer_name,
+              status: item.status,
+              deadline_at: item.deadline_at,
+              budget_amount: item.budget_amount,
+              budget_currency: item.budget_currency,
+              country_code: item.country_code,
+              origin_type: item.origin_type,
+              region: item.region,
+            };
+
             return (
               <article
                 key={item.id}
@@ -211,6 +306,20 @@ export default function InboxPage() {
                       </span>
                     ) : null}
                     <DecisionButtons id={item.id} current={decision} onDecide={decide} />
+                    <button
+                      type="button"
+                      onClick={() => toggleBrief(briefInput)}
+                      disabled={briefLoading}
+                      className={cn(
+                        "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+                        briefExpanded && brief
+                          ? "border-accent/50 bg-accent/15 text-accent"
+                          : "border-border/35 bg-bg/40 text-muted hover:bg-elevated/60",
+                        briefLoading && "cursor-wait opacity-70",
+                      )}
+                    >
+                      {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
+                    </button>
                   </div>
                 </div>
 
@@ -236,6 +345,14 @@ export default function InboxPage() {
                     </span>
                   </div>
                 </div>
+
+                {briefExpanded ? (
+                  briefError ? (
+                    <div className="mt-3 text-xs text-bad">{t("inbox.card.brief.error")}</div>
+                  ) : brief ? (
+                    <BriefPanel brief={brief} t={t} />
+                  ) : null
+                ) : null}
               </article>
             );
           })}
