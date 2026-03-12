@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
+import { useDecisions } from "./useDecisions";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "Date unavailable";
@@ -30,10 +33,47 @@ function formatQuality(score: number | null): string {
   return `Quality ${percent}%`;
 }
 
+function DecisionButtons({
+  id,
+  current,
+  onDecide,
+}: {
+  id: string;
+  current: Decision | null;
+  onDecide: (id: string, d: Decision) => void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {(["GO", "HOLD", "NO_GO"] as Decision[]).map((d) => {
+        const active = current === d;
+        return (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onDecide(id, d)}
+            className={cn(
+              "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+              active && d === "GO" && "border-good/60 bg-good/20 text-good",
+              active && d === "HOLD" && "border-warn/60 bg-warn/20 text-warn",
+              active && d === "NO_GO" && "border-bad/60 bg-bad/20 text-bad",
+              !active && "border-border/35 bg-bg/40 text-muted hover:bg-elevated/60",
+            )}
+          >
+            {d === "NO_GO" ? "NO" : d}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type DecisionFilter = "all" | "undecided" | "GO" | "HOLD" | "NO_GO";
+
 export default function InboxPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [minQualityInput, setMinQualityInput] = useState("");
+  const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
 
   const minQuality = useMemo(() => {
     const parsed = Number(minQualityInput);
@@ -47,13 +87,21 @@ export default function InboxPage() {
     minQuality,
   });
 
+  const { decide, getDecision, store } = useDecisions();
+
+  const filteredItems = useMemo(() => {
+    if (decisionFilter === "all") return items;
+    if (decisionFilter === "undecided") return items.filter((item) => !store[item.id]);
+    return items.filter((item) => store[item.id]?.decision === decisionFilter);
+  }, [items, decisionFilter, store]);
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
       <section className="rounded-3xl border border-border/35 bg-surface/75 p-6 shadow-soft">
         <h1 className="text-xl font-semibold tracking-tight">Opportunity Inbox</h1>
         <p className="mt-1 text-sm text-muted">Search by title or buyer. Results load progressively.</p>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Search</span>
             <input
@@ -87,6 +135,21 @@ export default function InboxPage() {
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             />
           </label>
+
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Decision</span>
+            <select
+              value={decisionFilter}
+              onChange={(event) => setDecisionFilter(event.target.value as DecisionFilter)}
+              className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+            >
+              <option value="all">All</option>
+              <option value="undecided">Undecided</option>
+              <option value="GO">GO</option>
+              <option value="HOLD">HOLD</option>
+              <option value="NO_GO">NO-GO</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -98,7 +161,7 @@ export default function InboxPage() {
         <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-4 text-sm text-muted">Loading...</div>
       ) : null}
 
-      {!loading && items.length === 0 ? (
+      {!loading && filteredItems.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-6 text-sm text-muted">
           No opportunities found for the selected filters.
         </div>
@@ -106,47 +169,60 @@ export default function InboxPage() {
 
       {!loading ? (
         <section className="mt-5 space-y-3">
-          {items.map((item) => (
-            <article key={item.id} className="rounded-2xl border border-border/35 bg-surface/70 p-4 shadow-soft">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-text">{item.title}</h2>
-                  <div className="mt-1 text-sm text-muted">{item.buyer_name || "Buyer unavailable"}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold text-subtext">
-                    {formatQuality(item.quality_score)}
-                  </span>
-                  {item.origin_type ? (
-                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
-                      {item.origin_type}
+          {filteredItems.map((item) => {
+            const decision = getDecision(item.id);
+            return (
+              <article
+                key={item.id}
+                className={cn(
+                  "rounded-2xl border bg-surface/70 p-4 shadow-soft transition",
+                  decision === "GO" && "border-good/40",
+                  decision === "HOLD" && "border-warn/40",
+                  decision === "NO_GO" && "border-bad/40",
+                  !decision && "border-border/35",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-text">{item.title}</h2>
+                    <div className="mt-1 text-sm text-muted">{item.buyer_name || "Buyer unavailable"}</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold text-subtext">
+                      {formatQuality(item.quality_score)}
                     </span>
-                  ) : null}
+                    {item.origin_type ? (
+                      <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
+                        {item.origin_type}
+                      </span>
+                    ) : null}
+                    <DecisionButtons id={item.id} current={decision} onDecide={decide} />
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
-                <div className="inline-flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{item.region || item.country_code || "—"}</span>
+                <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="inline-flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{item.region || item.country_code || "—"}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    <span>Published: {formatDate(item.published_at)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    <span>{formatBudget(item.budget_amount, item.budget_currency)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <CircleGauge className="h-4 w-4" />
+                    <span>Deadline: {formatDate(item.deadline_at)}</span>
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4" />
-                  <span>Published: {formatDate(item.published_at)}</span>
-                </div>
-                <div className="inline-flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span>{formatBudget(item.budget_amount, item.budget_currency)}</span>
-                </div>
-                <div className="inline-flex items-center gap-2">
-                  <CircleGauge className="h-4 w-4" />
-                  <span>Deadline: {formatDate(item.deadline_at)}</span>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
 
-          {hasMore ? (
+          {hasMore && decisionFilter === "all" ? (
             <div className="pt-2">
               <button
                 type="button"
