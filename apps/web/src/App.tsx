@@ -10,11 +10,15 @@ import ItalyBuyerPage from "@/features/italy/ItalyBuyerPage";
 import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
 import GuidePage from "@/features/italy/GuidePage";
 import SubscribePage from "@/features/billing/SubscribePage";
+import SettingsPage from "@/features/settings/SettingsPage";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ThemeMenu } from "@/components/ThemeMenu";
+import { LocaleContext, useLocale, useLocaleProvider, type Locale } from "@/lib/i18n";
+import OnboardingModal from "@/features/onboarding/OnboardingModal";
+import { useOnboarding } from "@/features/onboarding/useOnboarding";
 import type { User } from "@supabase/supabase-js";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -34,6 +38,27 @@ function NavItem({ to, label }: { to: string; label: string }) {
   );
 }
 
+function LocaleSwitcher() {
+  const { locale, setLocale } = useLocale();
+  return (
+    <div className="flex gap-0.5 rounded-xl border border-border/35 bg-bg/60 p-0.5">
+      {(["en", "fr", "it"] as Locale[]).map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLocale(l)}
+          className={cn(
+            "rounded-lg px-2 py-1 text-xs font-semibold uppercase transition",
+            locale === l ? "bg-elevated text-text shadow-soft" : "text-muted hover:text-text",
+          )}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function userRole(user: User | null): string {
   if (!user) return "";
   const role = (user.app_metadata as any)?.role ?? (user.user_metadata as any)?.role;
@@ -46,11 +71,53 @@ function useAuthUser() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
+
+    async function init() {
+      // Check for magic link token in URL
+      const params = new URLSearchParams(window.location.search);
+      const magicToken = params.get("token");
+
+      if (magicToken) {
+        // Verify magic link and set session
+        try {
+          const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/verify-magic-link`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: ENV.SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ token: magicToken }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.accessToken) {
+            // Set session — supabase.auth.setSession takes access_token + refresh_token only
+            await supabase.auth.setSession({
+              access_token: data.accessToken,
+              refresh_token: data.refreshToken ?? "",
+            });
+
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Redirect to inbox
+            window.location.href = "/inbox";
+            return;
+          }
+        } catch (e) {
+          console.error("[App] magic link verification failed:", e);
+        }
+      }
+
+      // Normal auth flow
+      const { data } = await supabase.auth.getUser();
       if (!mounted) return;
       setUser(data.user ?? null);
       setLoading(false);
-    });
+    }
+
+    init();
     return () => {
       mounted = false;
     };
@@ -70,6 +137,7 @@ function InboxAccessGate({
 }) {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const { t } = useLocale();
 
   useEffect(() => {
     let mounted = true;
@@ -89,11 +157,13 @@ function InboxAccessGate({
       }
 
       const nowIso = new Date().toISOString();
+
+      // Check for active subscription OR trial status
       const { data } = await supabase
         .from("subscriptions")
         .select("id,status,current_period_end")
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "trial"])
         .gte("current_period_end", nowIso)
         .order("current_period_end", { ascending: false })
         .limit(1)
@@ -113,29 +183,13 @@ function InboxAccessGate({
   if (loading) {
     return (
       <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-        <div className="text-sm text-muted">Verifica abbonamento in corso...</div>
+        <div className="text-sm text-muted">{t("app.checkingSubscription")}</div>
       </div>
     );
   }
 
   if (!allowed) return <Navigate to="/abbonamento" replace />;
   return <>{children}</>;
-}
-
-function SettingsPage() {
-  return (
-    <div className="rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-      <div className="text-sm font-semibold">Impostazioni</div>
-      <div className="mt-1 text-sm text-muted">Ambiente: {ENV.MODE}</div>
-      <div className="mt-4 flex items-center justify-between rounded-2xl border border-border/25 bg-bg/40 p-4">
-        <div>
-          <div className="text-sm font-semibold">Tema</div>
-          <div className="text-xs text-muted">Segue automaticamente il dispositivo.</div>
-        </div>
-        <ThemeMenu />
-      </div>
-    </div>
-  );
 }
 
 function AppShell({
@@ -145,21 +199,20 @@ function AppShell({
   children: React.ReactNode;
   canSeeDevApp: boolean;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="min-h-screen bg-bg text-text">
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-bg/70 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">RadarPulse</div>
-              <div className="text-[11px] text-muted">Bandi Italia</div>
-            </div>
+            <div className="text-sm font-semibold">RadarPulse</div>
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            <NavItem to="/inbox" label="Inbox" />
-            <NavItem to="/settings" label="Impostazioni" />
+            <NavItem to="/inbox" label={t("nav.inbox")} />
+            <NavItem to="/settings" label={t("nav.settings")} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -168,9 +221,10 @@ function AppShell({
                 to="/inbox"
                 className="inline-flex items-center rounded-xl border border-border/40 bg-surface/75 px-3 py-2 text-xs font-semibold text-muted transition hover:bg-elevated/80"
               >
-                App dev
+                Dev
               </NavLink>
             ) : null}
+            <LocaleSwitcher />
             <ThemeMenu className="hidden sm:inline-flex" />
             <NavLink
               to="/"
@@ -182,7 +236,7 @@ function AppShell({
                 )
               }
             >
-              Home
+              {t("nav.home")}
             </NavLink>
           </div>
         </div>
@@ -208,49 +262,62 @@ function Shell({ children, canSeeDevApp }: { children: React.ReactNode; canSeeDe
 
 export default function App() {
   const { loading: authLoading, user, isAdmin } = useAuthUser();
+  const localeCtx = useLocaleProvider();
+  const { t } = localeCtx;
   const canSeeDevApp = ENV.DEV || isAdmin;
+  const { needsOnboarding, checking: checkingOnboarding, saving: savingOnboarding, complete: completeOnboarding } = useOnboarding(user);
 
   if (authLoading && !ENV.DEV) {
     return (
       <div className="min-h-screen bg-bg px-4 py-8 text-text">
         <div className="mx-auto max-w-6xl rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
-          <div className="text-sm text-muted">Caricamento sessione...</div>
+          <div className="text-sm text-muted">{t("app.loading")}</div>
         </div>
       </div>
     );
   }
 
   return (
-    <Shell canSeeDevApp={canSeeDevApp}>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/request-access" element={<RequestAccessPage />} />
-        <Route path="/abbonamento" element={<SubscribePage />} />
-        <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />
-        <Route path="/login" element={<Navigate to="/request-access" replace />} />
+    <LocaleContext.Provider value={localeCtx}>
+      <Shell canSeeDevApp={canSeeDevApp}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/request-access" element={<RequestAccessPage />} />
+          <Route path="/abbonamento" element={<SubscribePage />} />
+          <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />
+          <Route path="/login" element={<Navigate to="/request-access" replace />} />
 
-        <Route path="/italie" element={<ItalyIndexPage />} />
-        <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />
-        <Route path="/italie/categorie/:categorySlug" element={<ItalyCategoryPage />} />
-        <Route path="/italie/enti/:buyerSlug" element={<ItalyBuyerPage />} />
+          <Route path="/italie" element={<ItalyIndexPage />} />
+          <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />
+          <Route path="/italie/categorie/:categorySlug" element={<ItalyCategoryPage />} />
+          <Route path="/italie/enti/:buyerSlug" element={<ItalyBuyerPage />} />
 
-        <Route path="/guides" element={<GuidesIndexPage />} />
-        <Route path="/guides/:slug" element={<GuidePage />} />
+          <Route path="/guides" element={<GuidesIndexPage />} />
+          <Route path="/guides/:slug" element={<GuidePage />} />
 
-        <Route
-          path="/inbox"
-          element={
-            <InboxAccessGate user={user} isAdmin={isAdmin}>
-              <InboxPage />
-            </InboxAccessGate>
-          }
-        />
-        <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/inbox"
+            element={
+              <InboxAccessGate user={user} isAdmin={isAdmin}>
+                <InboxPage />
+              </InboxAccessGate>
+            }
+          />
+          <Route path="/settings" element={<SettingsPage />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
 
-      <Toaster position="top-right" />
-    </Shell>
+        <Toaster position="top-right" />
+
+        {!checkingOnboarding && needsOnboarding && user ? (
+          <OnboardingModal
+            user={user}
+            saving={savingOnboarding}
+            onComplete={(state) => void completeOnboarding(state)}
+          />
+        ) : null}
+      </Shell>
+    </LocaleContext.Provider>
   );
 }

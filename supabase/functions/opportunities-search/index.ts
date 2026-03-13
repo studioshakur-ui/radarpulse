@@ -54,7 +54,7 @@ type SearchQueryInput = {
   origin_type?: string;
   cursor?: Cursor | null;
   limit: number;
-  country_code: "IT";
+  country_code?: string | null;
 };
 
 export type OpportunitiesSearchDeps = {
@@ -91,6 +91,13 @@ function parseBody(input: unknown): { ok: true; value: SearchQueryInput } | { ok
     if (!publishedAt || !id) {
       return { ok: false, response: err(400, "INVALID_CURSOR", "cursor must include published_at and id") };
     }
+    // BUG-15 FIX: validate formats to prevent cursor injection into the PostgREST query string
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(publishedAt)) {
+      return { ok: false, response: err(400, "INVALID_CURSOR", "cursor.published_at must be an ISO 8601 datetime") };
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return { ok: false, response: err(400, "INVALID_CURSOR", "cursor.id must be a valid UUID") };
+    }
   }
 
   return {
@@ -105,7 +112,9 @@ function parseBody(input: unknown): { ok: true; value: SearchQueryInput } | { ok
       origin_type: typeof body.origin_type === "string" ? body.origin_type : undefined,
       cursor,
       limit,
-      country_code: "IT",
+      country_code: typeof body.country_code === "string" && body.country_code.trim()
+        ? body.country_code.trim().toUpperCase()
+        : null,
     },
   };
 }
@@ -176,10 +185,13 @@ function buildRealDeps(): OpportunitiesSearchDeps {
         .select(
           "id,title,buyer_name,region,budget_amount,budget_currency,deadline_at,published_at,source_key,status,is_public,country_code,quality_score,completeness_score,origin_type"
         )
-        .eq("country_code", "IT")
         .order("published_at", { ascending: false, nullsFirst: false })
         .order("id", { ascending: false })
         .limit(input.limit);
+
+      if (input.country_code) {
+        query = query.eq("country_code", input.country_code);
+      }
 
       const q = String(input.q ?? "").trim();
       if (q) {
