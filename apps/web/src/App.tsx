@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ThemeMenu } from "@/components/ThemeMenu";
 import { LocaleContext, useLocale, useLocaleProvider, type Locale } from "@/lib/i18n";
+import OnboardingModal from "@/features/onboarding/OnboardingModal";
+import { useOnboarding } from "@/features/onboarding/useOnboarding";
 import type { User } from "@supabase/supabase-js";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -263,6 +265,7 @@ export default function App() {
   const localeCtx = useLocaleProvider();
   const { t } = localeCtx;
   const canSeeDevApp = ENV.DEV || isAdmin;
+  const { needsOnboarding, checking: checkingOnboarding, saving: savingOnboarding, complete: completeOnboarding } = useOnboarding(user);
 
   if (authLoading && !ENV.DEV) {
     return (
@@ -306,6 +309,14 @@ export default function App() {
         </Routes>
 
         <Toaster position="top-right" />
+
+        {!checkingOnboarding && needsOnboarding && user ? (
+          <OnboardingModal
+            user={user}
+            saving={savingOnboarding}
+            onComplete={(state) => void completeOnboarding(state)}
+          />
+        ) : null}
       </Shell>
     </LocaleContext.Provider>
   );
