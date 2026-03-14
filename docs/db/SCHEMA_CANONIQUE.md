@@ -38,6 +38,7 @@
  - `public.ingestion_runs` — size: 24 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
+ - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
  - `public.opportunities` — size: 240 kB — RLS: on — cols: 21
  - `public.opportunities_raw` — size: 200 kB — RLS: off — cols: 19
@@ -49,6 +50,7 @@
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
+ - `public.user_profiles` — size: 32 kB — RLS: on — cols: 7
  - `public.whatsapp_optins` — size: 16 kB — RLS: on — cols: 5
  
  ### Détails par table
@@ -59,6 +61,7 @@
  #### Table: `public.ingestion_runs`
  #### Table: `public.magic_link_tokens`
  #### Table: `public.notification_logs`
+ #### Table: `public.notification_preferences`
  #### Table: `public.notification_queue`
  #### Table: `public.opportunities`
  #### Table: `public.opportunities_raw`
@@ -70,6 +73,7 @@
  #### Table: `public.sources`
  #### Table: `public.subscriptions`
  #### Table: `public.telegram_profiles`
+ #### Table: `public.user_profiles`
  #### Table: `public.whatsapp_optins`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -79,12 +83,14 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
+ - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `off`
  - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
+ - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -95,6 +101,7 @@
  - **Size**: `24 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
+ - **Size**: `32 kB`
  - **Size**: `24 kB`
  - **Size**: `240 kB`
  - **Size**: `200 kB`
@@ -106,6 +113,7 @@
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
+ - **Size**: `32 kB`
  - **Size**: `16 kB`
  
  
@@ -125,6 +133,8 @@
  
  
  
+ 
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -143,6 +153,10 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -210,6 +224,12 @@
  | `provider_id` | `text` | `yes` | — |
  | `detail` | `jsonb` | `no` | '{}'::jsonb |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `user_id` | `uuid` | `no` | — |
+ | `email_digest_enabled` | `boolean` | `no` | true |
+ | `email_digest_frequency` | `text` | `no` | 'daily'::text |
+ | `last_digest_at` | `timestamp with time zone` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('notification_queue_id_seq'::regclass) |
  | `user_id` | `uuid` | `no` | — |
  | `channel` | `notify_channel` | `no` | — |
@@ -360,6 +380,13 @@
  | `is_verified` | `boolean` | `no` | false |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `user_id` | `uuid` | `no` | — |
+ | `full_name` | `text` | `yes` | — |
+ | `organization` | `text` | `yes` | — |
+ | `country_focus` | `text` | `yes` | — |
+ | `onboarding_complete_at` | `timestamp with time zone` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `user_id` | `uuid` | `no` | — |
  | `phone_e164` | `text` | `no` | — |
  | `language` | `text` | `yes` | — |
  | `consent_at` | `timestamp with time zone` | `no` | now() |
@@ -382,6 +409,10 @@
  
  
  
+ 
+ 
+ ##### Indexes
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -415,6 +446,7 @@
  - `CREATE UNIQUE INDEX magic_link_tokens_pkey ON public.magic_link_tokens USING btree (id)`
  - `CREATE UNIQUE INDEX magic_link_tokens_token_key ON public.magic_link_tokens USING btree (token)`
  - `CREATE UNIQUE INDEX notification_logs_pkey ON public.notification_logs USING btree (id)`
+ - `CREATE UNIQUE INDEX notification_preferences_pkey ON public.notification_preferences USING btree (user_id)`
  - `CREATE INDEX notification_queue_idx ON public.notification_queue USING btree (channel, status, scheduled_at, id)`
  - `CREATE UNIQUE INDEX notification_queue_pkey ON public.notification_queue USING btree (id)`
  - `CREATE INDEX idx_opportunities_country_deadline ON public.opportunities USING btree (country_code, deadline_at)`
@@ -460,7 +492,10 @@
  - `CREATE UNIQUE INDEX subscriptions_user_id_unique_idx ON public.subscriptions USING btree (user_id)`
  - `CREATE INDEX subscriptions_user_idx ON public.subscriptions USING btree (user_id, is_active)`
  - `CREATE UNIQUE INDEX telegram_profiles_pkey ON public.telegram_profiles USING btree (user_id)`
+ - `CREATE UNIQUE INDEX user_profiles_pkey ON public.user_profiles USING btree (user_id)`
  - `CREATE UNIQUE INDEX whatsapp_optins_pkey ON public.whatsapp_optins USING btree (user_id)`
+ ##### RLS Policies
+ ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
@@ -483,6 +518,8 @@
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
  - `service_role can manage tokens` (cmd: ALL, roles: {service_role})
+ - `owner_rw` (cmd: ALL, roles: {authenticated})
+ - `service_role_all` (cmd: ALL, roles: {service_role})
  - `opportunities_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunities` (cmd: SELECT, roles: {public})
  - `opportunity_documents_public_read` (cmd: SELECT, roles: {anon})
@@ -494,6 +531,7 @@
  - `subscriptions_owner_update` (cmd: UPDATE, roles: {public})
  - `subscriptions_owner_write` (cmd: INSERT, roles: {public})
  - `telegram_profiles_owner_rw` (cmd: ALL, roles: {public})
+ - `owner_rw` (cmd: ALL, roles: {authenticated})
  - `whatsapp_optins_owner_rw` (cmd: ALL, roles: {public})
  - (none)
  - (none)
@@ -503,6 +541,8 @@
  - (none)
  - (none)
  - (none)
+ ##### Triggers
+ ##### Triggers
  ##### Triggers
  ##### Triggers
  ##### Triggers
@@ -541,6 +581,10 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ - (none)
+ 
+ 
  
  
  
@@ -572,5 +616,5 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
-(572 rows)
+(616 rows)
 

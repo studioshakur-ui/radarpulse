@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict CDUcYms74rUOwwJ2CN0TEqYUctucDfys1xWkn6ob7BGc6OlglYOWBR4omPSL0G4
+\restrict lewV4m8ecsOM7dRK3w5IOU33iinQxBMLY1H4XeNXmjKhwiQRWLI4arMJyudDiyc
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -518,6 +518,20 @@ ALTER SEQUENCE public.notification_logs_id_seq OWNED BY public.notification_logs
 
 
 --
+-- Name: notification_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notification_preferences (
+    user_id uuid NOT NULL,
+    email_digest_enabled boolean DEFAULT true NOT NULL,
+    email_digest_frequency text DEFAULT 'daily'::text NOT NULL,
+    last_digest_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: notification_queue_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -561,8 +575,7 @@ CREATE TABLE public.opportunities (
     raw jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    is_deleted boolean DEFAULT false NOT NULL,
-    CONSTRAINT opportunities_country_code_it_eu_check CHECK ((country_code = ANY (ARRAY['IT'::text, 'EU'::text])))
+    is_deleted boolean DEFAULT false NOT NULL
 );
 
 
@@ -844,6 +857,21 @@ CREATE TABLE public.telegram_profiles (
 
 
 --
+-- Name: user_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_profiles (
+    user_id uuid NOT NULL,
+    full_name text,
+    organization text,
+    country_focus text,
+    onboarding_complete_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: whatsapp_optins; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -931,6 +959,14 @@ ALTER TABLE ONLY public.magic_link_tokens
 
 ALTER TABLE ONLY public.notification_logs
     ADD CONSTRAINT notification_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notification_preferences notification_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_preferences
+    ADD CONSTRAINT notification_preferences_pkey PRIMARY KEY (user_id);
 
 
 --
@@ -1035,6 +1071,14 @@ ALTER TABLE ONLY public.subscriptions
 
 ALTER TABLE ONLY public.telegram_profiles
     ADD CONSTRAINT telegram_profiles_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_profiles
+    ADD CONSTRAINT user_profiles_pkey PRIMARY KEY (user_id);
 
 
 --
@@ -1399,6 +1443,14 @@ ALTER TABLE ONLY public.notification_logs
 
 
 --
+-- Name: notification_preferences notification_preferences_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_preferences
+    ADD CONSTRAINT notification_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: opportunities opportunities_buyer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1463,6 +1515,14 @@ ALTER TABLE ONLY public.rp_ai_runs
 
 
 --
+-- Name: user_profiles user_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_profiles
+    ADD CONSTRAINT user_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: access_requests; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1505,6 +1565,12 @@ ALTER TABLE public.magic_link_tokens ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.notification_logs ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: notification_preferences; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: notification_queue; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1556,6 +1622,20 @@ CREATE POLICY opportunity_events_public_read ON public.opportunity_events FOR SE
 
 
 --
+-- Name: notification_preferences owner_rw; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_rw ON public.notification_preferences TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: user_profiles owner_rw; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_rw ON public.user_profiles TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: opportunities public_read_opportunities; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1592,6 +1672,13 @@ CREATE POLICY "service_role can manage tokens" ON public.magic_link_tokens TO se
 --
 
 CREATE POLICY "service_role can read access_requests" ON public.access_requests FOR SELECT TO service_role USING (true);
+
+
+--
+-- Name: notification_preferences service_role_all; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY service_role_all ON public.notification_preferences TO service_role USING (true) WITH CHECK (true);
 
 
 --
@@ -1648,6 +1735,12 @@ CREATE POLICY telegram_profiles_owner_rw ON public.telegram_profiles USING ((aut
 
 
 --
+-- Name: user_profiles; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: whatsapp_optins; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1664,5 +1757,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict CDUcYms74rUOwwJ2CN0TEqYUctucDfys1xWkn6ob7BGc6OlglYOWBR4omPSL0G4
+\unrestrict lewV4m8ecsOM7dRK3w5IOU33iinQxBMLY1H4XeNXmjKhwiQRWLI4arMJyudDiyc
 
