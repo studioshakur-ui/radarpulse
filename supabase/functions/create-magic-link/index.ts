@@ -72,12 +72,8 @@ Deno.serve(async (req) => {
 
     if (accessError) console.error("[create-magic-link] access_requests insert failed:", accessError);
 
-    const frontendUrl = Deno.env.get("FRONTEND_URL") ?? "https://radarpulse.io";
-    const isDev = frontendUrl.includes("localhost") || frontendUrl.includes("127.0.0.1");
-    const magicLink = `${frontendUrl}/?token=${token}`;
-
-    // 5. Send email via notify-email — non-fatal in dev (no verified domain needed)
-    let emailSent = false;
+    // 5. BUG-12 FIX: await email send and return error if it fails
+    const magicLink = `${Deno.env.get("FRONTEND_URL") ?? "https://radarpulse.io"}/?token=${token}`;
     if (url && serviceKey) {
       const emailRes = await fetch(`${url}/functions/v1/notify-email`, {
         method: "POST",
@@ -88,7 +84,11 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           event: "magic_link",
-          payload: { email, name, magic_link: magicLink },
+          payload: {
+            email,
+            name,
+            magic_link: magicLink,
+          },
         }),
       }).catch((err) => {
         console.error("[create-magic-link] notify-email network error:", err);
@@ -98,21 +98,13 @@ Deno.serve(async (req) => {
       if (!emailRes || !emailRes.ok) {
         const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
         console.error("[create-magic-link] notify-email failed:", errText);
-        if (!isDev) throw new Error("Email service unavailable — please try again");
-        // In dev: log and continue — magic link returned in response body
-      } else {
-        emailSent = true;
+        throw new Error("Email service unavailable — please try again");
       }
     } else {
       console.warn("[create-magic-link] Missing SB_URL or SERVICE_ROLE_KEY — email not sent");
     }
 
-    return json({
-      ok: true,
-      message: emailSent ? "Check your email for access link" : "Dev mode — use the link below",
-      // Only exposed in dev (localhost) — never in production
-      ...(isDev ? { dev_magic_link: magicLink } : {}),
-    });
+    return json({ ok: true, message: "Check your email for access link" });
   } catch (e) {
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }

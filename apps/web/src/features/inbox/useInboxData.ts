@@ -13,6 +13,7 @@ export type InboxFilters = {
   status: string;
   minQuality?: number;
   originType?: string;
+  countryCode?: string;
 };
 
 export type UseInboxDataResult = {
@@ -33,7 +34,7 @@ async function readJwt(): Promise<string> {
   const { data, error } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token || error) {
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione scaduta. Riaccedi per continuare.");
+    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
   }
   return token;
 }
@@ -53,6 +54,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     typeof filters.minQuality === "number" && Number.isFinite(filters.minQuality)
       ? Math.max(0, Math.min(1, filters.minQuality))
       : undefined;
+  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || undefined;
 
   const [debouncedQ, setDebouncedQ] = useState(q);
   const requestVersionRef = useRef(0);
@@ -68,9 +70,10 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
       status: normalizedStatus || undefined,
       min_quality: normalizedMinQuality,
       origin_type: normalizedOriginType || undefined,
+      country_code: normalizedCountryCode || undefined,
       limit: PAGE_SIZE,
     }),
-    [debouncedQ, normalizedMinQuality, normalizedOriginType, normalizedStatus],
+    [debouncedQ, normalizedMinQuality, normalizedOriginType, normalizedStatus, normalizedCountryCode],
   );
 
   const fetchPage = useCallback(
@@ -98,13 +101,14 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
         if (unknownError instanceof EdgeFunctionRequestError) {
           if (unknownError.code === "REQUEST_FAILED") {
             setError(unknownError.message);
-            toast.error("Impossibile caricare la inbox.");
+            toast.error(unknownError.message);
           }
           return;
         }
 
-        setError("Impossibile caricare la inbox.");
-        toast.error("Impossibile caricare la inbox.");
+        const msg = "Unable to load the inbox.";
+        setError(msg);
+        toast.error(msg);
       } finally {
         if (requestVersion !== requestVersionRef.current) return;
         if (append) {

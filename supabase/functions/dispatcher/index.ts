@@ -64,8 +64,7 @@ Deno.serve(async (req) => {
     const { data: sources, error } = await sb
       .from("sources")
       .select("id, key, kind, is_active, schedule_minutes, last_run_at, country_code")
-      .eq("is_active", true)
-      .eq("country_code", "IT");
+      .eq("is_active", true);
 
     if (error) throw error;
 
