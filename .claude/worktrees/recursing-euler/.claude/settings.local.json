@@ -5,7 +5,11 @@
       "Bash(where gh)",
       "Bash(powershell -Command \"[System.Environment]::GetEnvironmentVariable\\(''GITHUB_TOKEN'',''User''\\)\")",
       "Bash(powershell -Command \"git -C ''C:/Users/hamid/OneDrive/Documents/dev/radarpulse'' remote get-url origin\")",
-      "Bash(npx tsc --noEmit --project \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/tsconfig.json\")"
+      "Bash(npx tsc --noEmit --project \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/tsconfig.json\")",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx --prefix \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web\" tsc --noEmit --project \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/tsconfig.json\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\apps\\\\web && npx tsc --noEmit 2>&1\")",
+      "Bash(Select-Object -Last 20)"
     ]
   }
 }
