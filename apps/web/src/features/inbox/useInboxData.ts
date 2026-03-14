@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { ENV } from "@/lib/env";
 import {
   callOpportunitiesSearch,
   EdgeFunctionRequestError,
@@ -29,14 +30,61 @@ export type UseInboxDataResult = {
 
 const PAGE_SIZE = 20;
 
+type JwtForensicPayload = {
+  sub?: string;
+  iss?: string;
+  aud?: string | string[];
+  exp?: number;
+  role?: string;
+};
+
+function shouldLogJwtForensicsLocalOnly(): boolean {
+  if (ENV.DEV || ENV.MODE === "development") return true;
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local");
+}
+
+function decodeJwtPayloadUnverified(jwt: string): JwtForensicPayload | null {
+  const parts = jwt.split(".");
+  if (parts.length < 2 || !parts[1]) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const json = atob(padded);
+    return JSON.parse(json) as JwtForensicPayload;
+  } catch {
+    return null;
+  }
+}
+
 // BUG-24 FIX: throw if JWT is null — the caller will surface a proper auth error
 // instead of sending an empty token that triggers a confusing 401 from the server
 async function readJwt(): Promise<string> {
-  const { data, error } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token || error) {
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
+  // Authoritative server-side validation: do not trust local session storage alone.
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
   }
+
+  let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  let session = sessionData.session;
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const isExpiring = typeof session?.expires_at === "number" && session.expires_at <= nowEpoch + 10;
+
+  if (sessionError || !session?.access_token || isExpiring) {
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshData.session?.access_token) {
+      throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
+    }
+    session = refreshData.session;
+  }
+
+  const token = session.access_token;
+  if (!token || session.user?.id !== userData.user.id) {
+    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
+  }
+
   return token;
 }
 
@@ -56,7 +104,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     typeof filters.minQuality === "number" && Number.isFinite(filters.minQuality)
       ? Math.max(0, Math.min(1, filters.minQuality))
       : undefined;
-  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || "IT";
+  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || undefined;
 
   const [debouncedQ, setDebouncedQ] = useState(q);
   const requestVersionRef = useRef(0);
@@ -89,6 +137,38 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
 
       try {
         const jwt = await readJwt();
+        const shouldLogForensics = shouldLogJwtForensicsLocalOnly();
+        if (shouldLogForensics) {
+          const payload = decodeJwtPayloadUnverified(jwt);
+          const nowEpoch = Math.floor(Date.now() / 1000);
+          const nowIso = new Date(nowEpoch * 1000).toISOString();
+          const exp = typeof payload?.exp === "number" ? payload.exp : null;
+          const expIso = exp ? new Date(exp * 1000).toISOString() : null;
+          const isExpired = typeof exp === "number" ? exp <= nowEpoch : null;
+          const secondsUntilExpiry = typeof exp === "number" ? exp - nowEpoch : null;
+          const missingExp = exp === null;
+          // Temporary local forensic debug: never log the full JWT.
+          console.log("[RP JWT FORENSICS] runtime", {
+            envDev: ENV.DEV,
+            mode: ENV.MODE,
+            host: typeof window !== "undefined" ? window.location.hostname : "(no-window)",
+          });
+          console.log("[RP JWT FORENSICS] before opportunities-search", {
+            tokenPresent: Boolean(jwt),
+            tokenLength: jwt.length,
+            sub: payload?.sub ?? null,
+            iss: payload?.iss ?? null,
+            aud: payload?.aud ?? null,
+            exp,
+            expIso,
+            nowEpoch,
+            nowIso,
+            isExpired,
+            secondsUntilExpiry,
+            missingExp,
+            role: payload?.role ?? null,
+          });
+        }
         const result = await callOpportunitiesSearch({ ...baseInput, cursor }, jwt);
 
         if (requestVersion !== requestVersionRef.current) return;
@@ -106,13 +186,28 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
             setSubscriptionRequired(true);
             return;
           }
-          if (unknownError.code === "UNAUTHORIZED") {
+          if (unknownError.code === "AUTH_SESSION_INVALID") {
             setError("Session expired. Please sign in again.");
             return;
           }
-          if (unknownError.code === "REQUEST_FAILED") {
-            setError(unknownError.message);
-            toast.error(unknownError.message);
+          if (unknownError.code === "GATEWAY_INVALID_JWT") {
+            setError("Your sign-in token is invalid. Please sign in again.");
+            return;
+          }
+          if (unknownError.code === "HANDLER_UNAUTHORIZED") {
+            setError("You are not authorized to access inbox search.");
+            return;
+          }
+          if (unknownError.code === "NETWORK_ERROR") {
+            const msg = "Network error while loading inbox. Please check your connection.";
+            setError(msg);
+            toast.error(msg);
+            return;
+          }
+          if (unknownError.code === "UNEXPECTED_RESPONSE") {
+            const msg = "Temporary service error. Please try again.";
+            setError(msg);
+            toast.error(msg);
           }
           return;
         }

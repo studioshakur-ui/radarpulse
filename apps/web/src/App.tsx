@@ -295,7 +295,7 @@ export default function App() {
   const canSeeDevApp = ENV.DEV || isAdmin;
   const { needsOnboarding, checking: checkingOnboarding, saving: savingOnboarding, complete: completeOnboarding } = useOnboarding(user);
 
-  if (authLoading && !ENV.DEV) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-bg px-4 py-8 text-text">
         <div className="mx-auto max-w-6xl rounded-2xl border border-border/70 bg-surface p-4 shadow-soft">
@@ -328,12 +328,19 @@ export default function App() {
           <Route
             path="/inbox"
             element={
-              <InboxAccessGate user={user} isAdmin={isAdmin}>
-                <InboxPage />
-              </InboxAccessGate>
+              !user ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <InboxAccessGate user={user} isAdmin={isAdmin}>
+                  <InboxPage />
+                </InboxAccessGate>
+              )
             }
           />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/settings"
+            element={!user ? <Navigate to="/login" replace /> : <SettingsPage />}
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
