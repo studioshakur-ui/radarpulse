@@ -68,6 +68,18 @@ Deno.serve(async (req) => {
     const stripe = new Stripe(stripeSecret, { apiVersion: "2024-06-20" });
     const event = await stripe.webhooks.constructEventAsync(rawBody, sig, webhookSecret);
 
+    // Helper: fire-and-forget notify-email
+    const sbUrl = Deno.env.get("SB_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceKey = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    function notifyEmail(eventName: string, payload: Record<string, string>) {
+      if (!sbUrl || !serviceKey) return;
+      fetch(`${sbUrl}/functions/v1/notify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ event: eventName, payload }),
+      }).catch(() => console.error("[stripe-webhook] notify-email failed"));
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId =
@@ -80,6 +92,12 @@ Deno.serve(async (req) => {
           customerId: typeof session.customer === "string" ? session.customer : null,
           subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
           status: "active",
+        });
+        notifyEmail("subscription_created", {
+          user_id: userId,
+          status: "active",
+          stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : "—",
+          current_period_end: "—",
         });
       }
     }

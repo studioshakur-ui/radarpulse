@@ -309,7 +309,7 @@ async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput)
     type: (opp.type ?? "tender") as any,
     status: ((opp as any)?.status ?? "active") as any,
     is_public: true,
-    country_code: "IT",
+    country_code: opp.country_code ?? null,
     buyer_name: safeStr((opp as any)?.buyer_name).trim() || null,
     title: ensureTitle(opp),
     summary: pickSnippet(opp),
@@ -386,20 +386,6 @@ async function processJob(job: IngestionJobRow) {
 
   const source = await getSource((job as any).source_id);
   const { runId, cursor: runCursor } = await startIngestionRun(source);
-  const sourceCountry = String(source.country_code ?? "").toUpperCase();
-
-  if (sourceCountry !== "IT") {
-    await setJobSuccess(jobId);
-    await finishIngestionRun(runId, {
-      status: "SUCCESS",
-      fetched_count: 0,
-      raw_upserted_count: 0,
-      opp_upserted_count: 0,
-      cursor: runCursor,
-      error: null,
-    });
-    return { ok: true, skipped: true, reason: "source_country_not_it", source: source.key };
-  }
 
   try {
     const result = await runConnector(source);
@@ -409,12 +395,9 @@ async function processJob(job: IngestionJobRow) {
     let upsertedOpportunities = 0;
 
     for (const opp of result.opportunities as OpportunityUpsertInput[]) {
-      const oppCountry = String((opp.country_code ?? source.country_code ?? "")).toUpperCase();
-      if (oppCountry !== "IT") continue;
-
       const normalizedOpp: OpportunityUpsertInput = {
         ...opp,
-        country_code: "IT",
+        country_code: (opp.country_code ?? source.country_code ?? null) as string | null,
       };
 
       const raw = await upsertRaw(source, normalizedOpp, runId);
