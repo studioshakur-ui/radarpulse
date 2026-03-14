@@ -21,9 +21,8 @@ const DEFAULT_TED_FIELDS = [
   "title",
   "publication-date",
   "deadline",
-  "buyer_name",
 ];
-const TARGET_COUNTRY_CODE = "IT";
+// country_code is driven by the source row — "EU" means accept all TED notices.
 
 function getMeta(source: SourceRow): TedSearchParams {
   const meta = (source.meta ?? {}) as Record<string, unknown>;
@@ -101,9 +100,11 @@ function tedNoticeUrl(publicationNumber: string): string {
 }
 
 export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorResult> {
+  // "EU" = accept all TED notices; any other code = filter to that country only.
+  const sourceCountry = (source.country_code ?? "EU").trim().toUpperCase() || "EU";
   const meta = getMeta(source);
 
-  const body: Record<string, unknown> = {
+  const bodyBase: Record<string, unknown> = {
     query: meta.query ?? "",
     page: meta.page ?? 1,
     limit: meta.limit ?? 25,
@@ -112,11 +113,10 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
     paginationMode: meta.paginationMode ?? "PAGE_NUMBER",
     onlyLatestVersions: meta.onlyLatestVersions ?? false,
   };
-  // TED v3 rejects empty "fields". Always send a non-empty list.
-  body.fields = (meta.fields && meta.fields.length) ? meta.fields : DEFAULT_TED_FIELDS;
 
-  let data: any;
-  try {
+  const requestedFields = (meta.fields && meta.fields.length) ? meta.fields : DEFAULT_TED_FIELDS;
+
+  async function fetchTed(body: Record<string, unknown>): Promise<any> {
     const res = await safeJsonFetch<any>(String(meta.base_url), {
       method: "POST",
       headers: {
@@ -125,17 +125,44 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       },
       body: JSON.stringify(body),
     });
-    data = res.data;
+    return res.data;
+  }
+
+  let data: any;
+  try {
+    data = await fetchTed({ ...bodyBase, fields: requestedFields });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const fieldsUnsupported =
+      msg.includes("HTTP 400") &&
+      msg.includes("Parameter 'fields' contains unsupported value");
+
+    // Defensive fallback for TED schema drifts: retry once without "fields" instead
+    // of guessing newer field names.
+    if (fieldsUnsupported) {
+      try {
+        data = await fetchTed({ ...bodyBase });
+      } catch (retryErr) {
+        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        const safeMeta = {
+          base_url: String(meta.base_url ?? ""),
+          scope: meta.scope ?? "ACTIVE",
+          page: meta.page ?? 1,
+          limit: meta.limit ?? 25,
+          fields_count: requestedFields.length,
+        };
+        throw new Error(`TED_SEARCH_FAILED ${retryMsg} | payload_meta=${JSON.stringify(safeMeta)}`);
+      }
+    } else {
     const safeMeta = {
       base_url: String(meta.base_url ?? ""),
       scope: meta.scope ?? "ACTIVE",
       page: meta.page ?? 1,
       limit: meta.limit ?? 25,
-      fields_count: Array.isArray(body.fields) ? body.fields.length : 0,
+        fields_count: requestedFields.length,
     };
     throw new Error(`TED_SEARCH_FAILED ${msg} | payload_meta=${JSON.stringify(safeMeta)}`);
+    }
   }
 
   const notices: any[] = Array.isArray(data?.notices)
@@ -151,7 +178,8 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
 
   for (const n of notices) {
     const noticeCountry = inferNoticeCountryCode(n);
-    if (noticeCountry && noticeCountry !== TARGET_COUNTRY_CODE) {
+    // If the source targets a specific country (not "EU"), skip non-matching notices.
+    if (sourceCountry !== "EU" && noticeCountry && noticeCountry !== sourceCountry) {
       filteredOutByCountry++;
       continue;
     }
@@ -197,7 +225,7 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       type: "tender",
       status: "active",
       is_public: true,
-      country_code: TARGET_COUNTRY_CODE,
+      country_code: noticeCountry ?? sourceCountry,
       buyer_name: buyerName || null,
       title,
       summary: buyerName ? `Buyer: ${buyerName}` : null,
@@ -215,9 +243,9 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
 
   console.info(
     JSON.stringify({
-      event: "ted_it_filter_applied",
+      event: "ted_eu_fetch",
       source_key: source.key,
-      requested_country: TARGET_COUNTRY_CODE,
+      source_country: sourceCountry,
       notices_received: notices.length,
       notices_filtered_out: filteredOutByCountry,
       opportunities_emitted: out.length,

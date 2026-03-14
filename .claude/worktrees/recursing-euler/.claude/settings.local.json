@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh workflow enable radarpulse-15m.yml --repo studioshakur-ui/radarpulse)",
+      "Bash(where gh)",
+      "Bash(powershell -Command \"[System.Environment]::GetEnvironmentVariable\\(''GITHUB_TOKEN'',''User''\\)\")",
+      "Bash(powershell -Command \"git -C ''C:/Users/hamid/OneDrive/Documents/dev/radarpulse'' remote get-url origin\")",
+      "Bash(npx tsc --noEmit --project \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/tsconfig.json\")"
+    ]
+  }
+}

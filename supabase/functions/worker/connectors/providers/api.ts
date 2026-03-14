@@ -16,10 +16,10 @@ type ProviderConfig = {
 };
 
 const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
-  eu_ted_search: { key: "eu_ted_search", is_active: true, country_code: "IT" },
-  uk_find_tender: { key: "uk_find_tender", is_active: false, country_code: "GB" },
-  us_sam_gov: { key: "us_sam_gov", is_active: false, country_code: "US" },
-  us_grants_gov: { key: "us_grants_gov", is_active: false, country_code: "US" },
+  eu_ted_search: { key: "eu_ted_search", is_active: true, country_code: "EU" },
+  uk_find_tender: { key: "uk_find_tender", is_active: true, country_code: "GB" },
+  us_sam_gov: { key: "us_sam_gov", is_active: true, country_code: "US" },
+  us_grants_gov: { key: "us_grants_gov", is_active: true, country_code: "US" },
   it_anac_ocds: { key: "it_anac_ocds", is_active: true, country_code: "IT" },
 };
 
