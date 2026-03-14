@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale, type TFn } from "@/lib/i18n";
@@ -150,7 +151,7 @@ export default function InboxPage() {
     return Math.max(0, Math.min(1, parsed));
   }, [minQualityInput]);
 
-  const { items, loading, loadingMore, error, hasMore, loadMore } = useInboxData({
+  const { items, loading, loadingMore, error, hasMore, subscriptionRequired, loadMore } = useInboxData({
     q,
     status,
     minQuality,
@@ -239,6 +240,19 @@ export default function InboxPage() {
           </label>
         </div>
       </section>
+
+      {subscriptionRequired ? (
+        <div className="mt-5 rounded-2xl border border-warn/40 bg-warn/10 p-6">
+          <p className="text-base font-semibold text-text">{t("inbox.subscription.title")}</p>
+          <p className="mt-1 text-sm text-muted">{t("inbox.subscription.description")}</p>
+          <Link
+            to="/abbonamento"
+            className="mt-4 inline-flex items-center rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20"
+          >
+            {t("inbox.subscription.cta")}
+          </Link>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mt-5 rounded-2xl border border-bad/40 bg-bad/10 p-4 text-sm text-bad">{error}</div>

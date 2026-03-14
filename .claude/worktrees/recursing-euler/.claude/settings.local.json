@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(supabase secrets unset ALLOW_DEV_BYPASS --project-ref prtgvdkypsgyvfpxsnzm)",
+      "Bash(supabase db query \"SELECT id, email FROM auth.users ORDER BY created_at LIMIT 10;\" --project-ref prtgvdkypsgyvfpxsnzm)",
+      "Bash(supabase functions deploy opportunities-search --project-ref prtgvdkypsgyvfpxsnzm)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(cmd /c \"cd C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\apps\\\\web && npx tsc --noEmit\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\apps\\\\web''; npx tsc --noEmit 2>&1\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\supabase\\\\functions'' -Recurse -Name\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse''; supabase functions deploy login-magic-link 2>&1\")"
+    ]
+  }
+}

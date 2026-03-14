@@ -9,6 +9,8 @@ const dict: Record<Locale, Record<string, string>> = {
     "nav.home": "Home",
     "nav.inbox": "Inbox",
     "nav.settings": "Settings",
+    "nav.logout": "Sign out",
+    "nav.login": "Sign in",
     "app.loading": "Loading...",
     "app.checkingSubscription": "Checking subscription...",
 
@@ -45,6 +47,9 @@ const dict: Record<Locale, Record<string, string>> = {
     "inbox.card.brief.requiredDocuments": "Required documents",
     "inbox.card.brief.nextAction": "Next action",
     "inbox.card.brief.error": "Analysis failed. Try again.",
+    "inbox.subscription.title": "Subscription required",
+    "inbox.subscription.description": "Access to the Inbox requires an active subscription.",
+    "inbox.subscription.cta": "View plans",
 
     "settings.title": "Settings",
     "settings.subtitle": "RadarPulse uses a single curated theme (\"Twilight\"). No Light/Dark toggle.",
@@ -137,6 +142,8 @@ const dict: Record<Locale, Record<string, string>> = {
     "nav.home": "Accueil",
     "nav.inbox": "Boîte",
     "nav.settings": "Paramètres",
+    "nav.logout": "Déconnexion",
+    "nav.login": "Connexion",
     "app.loading": "Chargement...",
     "app.checkingSubscription": "Vérification de l'abonnement...",
 
@@ -173,6 +180,9 @@ const dict: Record<Locale, Record<string, string>> = {
     "inbox.card.brief.requiredDocuments": "Documents requis",
     "inbox.card.brief.nextAction": "Prochaine étape",
     "inbox.card.brief.error": "Analyse échouée. Réessayez.",
+    "inbox.subscription.title": "Abonnement requis",
+    "inbox.subscription.description": "L'accès à la boîte de réception nécessite un abonnement actif.",
+    "inbox.subscription.cta": "Voir les offres",
 
     "settings.title": "Paramètres",
     "settings.subtitle": "RadarPulse utilise un thème unique (\"Twilight\"). Pas de bascule Clair/Sombre.",
@@ -265,6 +275,8 @@ const dict: Record<Locale, Record<string, string>> = {
     "nav.home": "Home",
     "nav.inbox": "Posta",
     "nav.settings": "Impostazioni",
+    "nav.logout": "Esci",
+    "nav.login": "Accedi",
     "app.loading": "Caricamento...",
     "app.checkingSubscription": "Verifica abbonamento...",
 
@@ -301,6 +313,9 @@ const dict: Record<Locale, Record<string, string>> = {
     "inbox.card.brief.requiredDocuments": "Documenti richiesti",
     "inbox.card.brief.nextAction": "Prossima azione",
     "inbox.card.brief.error": "Analisi fallita. Riprova.",
+    "inbox.subscription.title": "Abbonamento richiesto",
+    "inbox.subscription.description": "L'accesso alla posta in arrivo richiede un abbonamento attivo.",
+    "inbox.subscription.cta": "Vedi i piani",
 
     "settings.title": "Impostazioni",
     "settings.subtitle": "RadarPulse utilizza un tema unico (\"Twilight\"). Nessun toggle Chiaro/Scuro.",

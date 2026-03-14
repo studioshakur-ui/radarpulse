@@ -3,6 +3,7 @@ import { NavLink, Route, Routes, Navigate, useLocation } from "react-router-dom"
 import InboxPage from "@/features/inbox/InboxPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
+import LoginPage from "@/features/landing/LoginPage";
 import ItalyIndexPage from "@/features/italy/ItalyIndexPage";
 import ItalyRegionPage from "@/features/italy/ItalyRegionPage";
 import ItalyCategoryPage from "@/features/italy/ItalyCategoryPage";
@@ -35,6 +36,41 @@ function NavItem({ to, label }: { to: string; label: string }) {
     >
       {label}
     </NavLink>
+  );
+}
+
+function UserMenu({ user }: { user: User | null }) {
+  const { t } = useLocale();
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    window.location.assign("/");
+  }
+
+  if (!user) {
+    return (
+      <NavLink
+        to="/login"
+        className="rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-elevated/70"
+      >
+        {t("nav.login")}
+      </NavLink>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden max-w-[120px] truncate text-xs text-muted sm:block">
+        {user.email?.split("@")[0]}
+      </span>
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        className="rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-elevated/70"
+      >
+        {t("nav.logout")}
+      </button>
+    </div>
   );
 }
 
@@ -195,9 +231,11 @@ function InboxAccessGate({
 function AppShell({
   children,
   canSeeDevApp,
+  user,
 }: {
   children: React.ReactNode;
   canSeeDevApp: boolean;
+  user: User | null;
 }) {
   const { t } = useLocale();
 
@@ -238,6 +276,7 @@ function AppShell({
             >
               {t("nav.home")}
             </NavLink>
+            <UserMenu user={user} />
           </div>
         </div>
       </div>
@@ -247,17 +286,17 @@ function AppShell({
   );
 }
 
-function Shell({ children, canSeeDevApp }: { children: React.ReactNode; canSeeDevApp: boolean }) {
+function Shell({ children, canSeeDevApp, user }: { children: React.ReactNode; canSeeDevApp: boolean; user: User | null }) {
   const loc = useLocation();
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return p === "/" || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
+    return p === "/" || p.startsWith("/login") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
 
-  return <AppShell canSeeDevApp={canSeeDevApp}>{children}</AppShell>;
+  return <AppShell canSeeDevApp={canSeeDevApp} user={user}>{children}</AppShell>;
 }
 
 export default function App() {
@@ -279,13 +318,13 @@ export default function App() {
 
   return (
     <LocaleContext.Provider value={localeCtx}>
-      <Shell canSeeDevApp={canSeeDevApp}>
+      <Shell canSeeDevApp={canSeeDevApp} user={user}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/request-access" element={<RequestAccessPage />} />
           <Route path="/abbonamento" element={<SubscribePage />} />
           <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />
-          <Route path="/login" element={<Navigate to="/request-access" replace />} />
+          <Route path="/login" element={<LoginPage />} />
 
           <Route path="/italie" element={<ItalyIndexPage />} />
           <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />

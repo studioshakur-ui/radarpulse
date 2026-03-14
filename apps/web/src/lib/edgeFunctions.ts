@@ -124,7 +124,6 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
   }
 
   if (response.status === 402) {
-    redirectTo("/abbonamento");
     throw new EdgeFunctionRequestError("SUBSCRIPTION_REQUIRED", "Subscription required.");
   }
 

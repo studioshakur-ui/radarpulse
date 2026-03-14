@@ -22,6 +22,7 @@ export type UseInboxDataResult = {
   loadingMore: boolean;
   error: string | null;
   hasMore: boolean;
+  subscriptionRequired: boolean;
   reload: () => Promise<void>;
   loadMore: () => Promise<void>;
 };
@@ -46,6 +47,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionRequired, setSubscriptionRequired] = useState(false);
 
   const q = filters.q.trim();
   const normalizedStatus = filters.status.trim().toLowerCase() === "all" ? "" : filters.status.trim();
@@ -92,6 +94,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
         if (requestVersion !== requestVersionRef.current) return;
 
         setError(null);
+        setSubscriptionRequired(false);
         setNextCursor(result.nextCursor);
         setHasMore(result.nextCursor !== null);
         setItems((prev) => (append ? [...prev, ...result.items] : result.items));
@@ -99,6 +102,14 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
         if (requestVersion !== requestVersionRef.current) return;
 
         if (unknownError instanceof EdgeFunctionRequestError) {
+          if (unknownError.code === "SUBSCRIPTION_REQUIRED") {
+            setSubscriptionRequired(true);
+            return;
+          }
+          if (unknownError.code === "UNAUTHORIZED") {
+            window.location.assign("/login");
+            return;
+          }
           if (unknownError.code === "REQUEST_FAILED") {
             setError(unknownError.message);
             toast.error(unknownError.message);
@@ -140,6 +151,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     loadingMore,
     error,
     hasMore,
+    subscriptionRequired,
     reload,
     loadMore,
   };

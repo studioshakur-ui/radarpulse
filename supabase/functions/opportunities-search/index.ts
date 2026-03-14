@@ -242,22 +242,19 @@ export function createHandler(deps: OpportunitiesSearchDeps) {
     const user = authRes.user;
 
     try {
-      const bypassEnabled = String(deps.getEnv("ALLOW_DEV_BYPASS") ?? "").toLowerCase() === "true";
-    const adminBypass = isAdminUser(user);
+      if (!isAdminUser(user)) {
+        let subRows: Record<string, unknown>[] = [];
+        try {
+          subRows = await deps.listSubscriptions(user.id);
+        } catch {
+          return err(500, "SUBSCRIPTION_CHECK_FAILED", "Failed to validate subscription");
+        }
 
-    if (!bypassEnabled && !adminBypass) {
-      let subRows: Record<string, unknown>[] = [];
-      try {
-        subRows = await deps.listSubscriptions(user.id);
-      } catch {
-        return err(500, "SUBSCRIPTION_CHECK_FAILED", "Failed to validate subscription");
+        const active = subRows.some((row) => isSubscriptionActive(row));
+        if (!active) {
+          return err(402, "SUBSCRIPTION_REQUIRED", "Active subscription required for Inbox access");
+        }
       }
-
-      const active = subRows.some((row) => isSubscriptionActive(row));
-      if (!active) {
-        return err(402, "SUBSCRIPTION_REQUIRED", "Active subscription required for Inbox access");
-      }
-    }
 
     let body: RequestBody = {};
     try {
