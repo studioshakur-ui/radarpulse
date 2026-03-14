@@ -56,12 +56,14 @@ begin
     return new;
   end if;
 
+  -- BUG-01 FIX: ORDER BY created_at DESC makes LIMIT 1 deterministic
   if v_external_id is not null and v_external_id <> '' then
     select o.fingerprint
       into v_fp
     from public.opportunities o
     where o.source_id = v_source_id
       and o.external_id = v_external_id
+    order by o.created_at desc
     limit 1;
   else
     select o.fingerprint
@@ -69,6 +71,7 @@ begin
     from public.opportunities o
     where o.source_id = v_source_id
       and (o.source_url = v_url_canonical or o.source_url = v_url)
+    order by o.created_at desc
     limit 1;
   end if;
 

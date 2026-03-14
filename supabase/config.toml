@@ -120,7 +120,7 @@ refresh_token_reuse_interval = 10
 enable_signup = true
 enable_anonymous_sign_ins = false
 enable_manual_linking = false
-minimum_password_length = 6
+minimum_password_length = 12 # BUG-27 FIX: raised from 6
 password_requirements = ""
 
 [auth.rate_limit]
@@ -251,6 +251,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-purge-test-data]
+verify_jwt = false
+
+# Public endpoints — callers don't have a session yet (signup / magic link flow)
+[functions.create-magic-link]
+verify_jwt = false
+
+[functions.submit-access-request]
+verify_jwt = false
+
+[functions.verify-magic-link]
 verify_jwt = false
 
 [functions.stripe-create-checkout]

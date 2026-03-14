@@ -40,7 +40,6 @@ jobs:
           BASE="https://${SUPABASE_REF}.supabase.co/functions/v1"
 
           H_APIKEY="apikey: ${SUPABASE_ANON_KEY}"
-          H_AUTH="Authorization: Bearer ${SUPABASE_ANON_KEY}"
           H_CT="Content-Type: application/json"
 
           CURL_OPTS=(
@@ -81,7 +80,7 @@ jobs:
             local body="$2"
             local resp
             resp="$(curl "${CURL_OPTS[@]}" -w $'\n%{http_code}' -X POST "${url}" \
-              -H "${H_APIKEY}" -H "${H_AUTH}" -H "${H_CT}" -d "${body}" || true)"
+              -H "${H_APIKEY}" -H "${H_CT}" -d "${body}" || true)"
             split_http "${resp}"
             printf '%s' "${HTTP_BODY}" > /tmp/resp.json
 
@@ -117,7 +116,7 @@ jobs:
             echo "-- worker call #${i}"
 
             resp="$(curl "${CURL_OPTS[@]}" -w $'\n%{http_code}' -X POST "${BASE}/worker" \
-              -H "${H_APIKEY}" -H "${H_AUTH}" -H "${H_CT}" -d '{}' || true)"
+              -H "${H_APIKEY}" -H "${H_CT}" -d '{}' || true)"
             split_http "${resp}"
             printf '%s' "${HTTP_BODY}" > /tmp/worker.json
 

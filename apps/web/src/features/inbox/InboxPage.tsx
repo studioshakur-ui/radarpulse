@@ -1,12 +1,18 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useLocale, type TFn } from "@/lib/i18n";
+import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
+import { useDecisions } from "./useDecisions";
+import { useOpportunityBrief, type BriefInput, type OpportunityBrief } from "./useOpportunityBrief";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "Data non disponibile";
+function formatDate(iso: string | null, t: TFn): string {
+  if (!iso) return t("inbox.card.dateUnavailable");
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Data non disponibile";
-  return new Intl.DateTimeFormat("it-IT", {
+  if (Number.isNaN(date.getTime())) return t("inbox.card.dateUnavailable");
+  return new Intl.DateTimeFormat(navigator.language, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -15,25 +21,129 @@ function formatDate(iso: string | null): string {
   }).format(date);
 }
 
-function formatBudget(value: number | null, currency: string | null): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "Budget non disponibile";
-  return new Intl.NumberFormat("it-IT", {
+function formatBudget(value: number | null, currency: string | null, t: TFn): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return t("inbox.card.budgetUnavailable");
+  return new Intl.NumberFormat(navigator.language, {
     style: "currency",
     currency: currency || "EUR",
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-function formatQuality(score: number | null): string {
-  if (typeof score !== "number" || !Number.isFinite(score)) return "Qualita n/d";
+function formatQuality(score: number | null, t: TFn): string {
+  if (typeof score !== "number" || !Number.isFinite(score)) return t("inbox.card.qualityNa");
   const percent = Math.round(Math.max(0, Math.min(1, score)) * 100);
-  return `Qualita ${percent}%`;
+  return `${t("inbox.card.qualityPrefix")} ${percent}%`;
 }
 
+function DecisionButtons({
+  id,
+  current,
+  onDecide,
+}: {
+  id: string;
+  current: Decision | null;
+  onDecide: (id: string, d: Decision) => void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {(["GO", "HOLD", "NO_GO"] as Decision[]).map((d) => {
+        const active = current === d;
+        return (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onDecide(id, d)}
+            className={cn(
+              "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+              active && d === "GO" && "border-good/60 bg-good/20 text-good",
+              active && d === "HOLD" && "border-warn/60 bg-warn/20 text-warn",
+              active && d === "NO_GO" && "border-bad/60 bg-bad/20 text-bad",
+              !active && "border-border/35 bg-bg/40 text-muted hover:bg-elevated/60",
+            )}
+          >
+            {d === "NO_GO" ? "NO" : d}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BriefPanel({ brief, t }: { brief: OpportunityBrief; t: TFn }) {
+  return (
+    <div className="mt-4 space-y-3 border-t border-border/30 pt-4 text-sm">
+      {brief.executive_summary ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.executiveSummary")}
+          </div>
+          <p className="leading-relaxed text-text">{brief.executive_summary}</p>
+        </div>
+      ) : null}
+
+      {brief.fit_assessment ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.fitAssessment")}
+          </div>
+          <p className="leading-relaxed text-subtext">{brief.fit_assessment}</p>
+        </div>
+      ) : null}
+
+      {brief.risk_flags.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.riskFlags")}
+          </div>
+          <ul className="space-y-1">
+            {brief.risk_flags.map((flag, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-warn">
+                <span className="mt-0.5 shrink-0">•</span>
+                <span>{flag}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {brief.required_documents.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("inbox.card.brief.requiredDocuments")}
+          </div>
+          <ul className="space-y-1 text-subtext">
+            {brief.required_documents.map((doc, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0 text-muted">•</span>
+                <span>{doc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {brief.next_action ? (
+        <div className="rounded-xl border border-accent/30 bg-accent/8 px-3 py-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+            {t("inbox.card.brief.nextAction")}:{" "}
+          </span>
+          <span className="text-subtext">{brief.next_action}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type DecisionFilter = "all" | "undecided" | "GO" | "HOLD" | "NO_GO";
+
 export default function InboxPage() {
+  const { t } = useLocale();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [minQualityInput, setMinQualityInput] = useState("");
+  const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
+  const [expandedBriefs, setExpandedBriefs] = useState<Record<string, boolean>>({});
 
   const minQuality = useMemo(() => {
     const parsed = Number(minQualityInput);
@@ -41,112 +151,227 @@ export default function InboxPage() {
     return Math.max(0, Math.min(1, parsed));
   }, [minQualityInput]);
 
-  const { items, loading, loadingMore, error, hasMore, loadMore } = useInboxData({
+  const { items, loading, loadingMore, error, hasMore, subscriptionRequired, loadMore } = useInboxData({
     q,
     status,
     minQuality,
   });
 
+  const { decide, getDecision, store } = useDecisions();
+  const { generate, getBrief, isLoading: isBriefLoading, getError: getBriefError } = useOpportunityBrief();
+
+  const filteredItems = useMemo(() => {
+    if (decisionFilter === "all") return items;
+    if (decisionFilter === "undecided") return items.filter((item) => !store[item.id]);
+    return items.filter((item) => store[item.id]?.decision === decisionFilter);
+  }, [items, decisionFilter, store]);
+
+  function toggleBrief(item: BriefInput) {
+    const id = item.id;
+    const isExpanded = expandedBriefs[id];
+    if (!isExpanded && !getBrief(id) && !isBriefLoading(id)) {
+      void generate(item);
+    }
+    setExpandedBriefs((prev) => ({ ...prev, [id]: !isExpanded }));
+  }
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
       <section className="rounded-3xl border border-border/35 bg-surface/75 p-6 shadow-soft">
-        <h1 className="text-xl font-semibold tracking-tight">Inbox opportunita Italia</h1>
-        <p className="mt-1 text-sm text-muted">Ricerca su titolo e stazione appaltante, con caricamento progressivo.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("inbox.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("inbox.subtitle")}</p>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Ricerca</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.search")}
+            </span>
             <input
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="Titolo o ente"
+              placeholder={t("inbox.filter.search.placeholder")}
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Stato</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.status")}
+            </span>
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             >
-              <option value="all">Tutti</option>
-              <option value="active">Attivi</option>
-              <option value="closed">Chiusi</option>
+              <option value="all">{t("inbox.filter.status.all")}</option>
+              <option value="active">{t("inbox.filter.status.active")}</option>
+              <option value="closed">{t("inbox.filter.status.closed")}</option>
             </select>
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Qualita minima (0-1)</span>
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.minQuality")}
+            </span>
             <input
               value={minQualityInput}
               onChange={(event) => setMinQualityInput(event.target.value)}
-              placeholder="es. 0.7"
+              placeholder={t("inbox.filter.minQuality.placeholder")}
               inputMode="decimal"
               className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
             />
           </label>
+
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              {t("inbox.filter.decision")}
+            </span>
+            <select
+              value={decisionFilter}
+              onChange={(event) => setDecisionFilter(event.target.value as DecisionFilter)}
+              className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+            >
+              <option value="all">{t("inbox.filter.decision.all")}</option>
+              <option value="undecided">{t("inbox.filter.decision.undecided")}</option>
+              <option value="GO">GO</option>
+              <option value="HOLD">HOLD</option>
+              <option value="NO_GO">NO-GO</option>
+            </select>
+          </label>
         </div>
       </section>
+
+      {subscriptionRequired ? (
+        <div className="mt-5 rounded-2xl border border-warn/40 bg-warn/10 p-6">
+          <p className="text-base font-semibold text-text">{t("inbox.subscription.title")}</p>
+          <p className="mt-1 text-sm text-muted">{t("inbox.subscription.description")}</p>
+          <Link
+            to="/abbonamento"
+            className="mt-4 inline-flex items-center rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20"
+          >
+            {t("inbox.subscription.cta")}
+          </Link>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mt-5 rounded-2xl border border-bad/40 bg-bad/10 p-4 text-sm text-bad">{error}</div>
       ) : null}
 
       {loading ? (
-        <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-4 text-sm text-muted">Caricamento in corso...</div>
+        <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-4 text-sm text-muted">
+          {t("inbox.loading")}
+        </div>
       ) : null}
 
-      {!loading && items.length === 0 ? (
+      {!loading && filteredItems.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-border/35 bg-surface/70 p-6 text-sm text-muted">
-          Nessuna opportunita trovata con i filtri selezionati.
+          {t("inbox.empty")}
         </div>
       ) : null}
 
       {!loading ? (
         <section className="mt-5 space-y-3">
-          {items.map((item) => (
-            <article key={item.id} className="rounded-2xl border border-border/35 bg-surface/70 p-4 shadow-soft">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-text">{item.title}</h2>
-                  <div className="mt-1 text-sm text-muted">{item.buyer_name || "Ente non disponibile"}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold text-subtext">
-                    {formatQuality(item.quality_score)}
-                  </span>
-                  {item.origin_type ? (
-                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
-                      {item.origin_type}
+          {filteredItems.map((item) => {
+            const decision = getDecision(item.id);
+            const brief = getBrief(item.id);
+            const briefLoading = isBriefLoading(item.id);
+            const briefError = getBriefError(item.id);
+            const briefExpanded = expandedBriefs[item.id] ?? false;
+
+            const briefInput: BriefInput = {
+              id: item.id,
+              title: item.title,
+              buyer_name: item.buyer_name,
+              status: item.status,
+              deadline_at: item.deadline_at,
+              budget_amount: item.budget_amount,
+              budget_currency: item.budget_currency,
+              country_code: item.country_code,
+              origin_type: item.origin_type,
+              region: item.region,
+            };
+
+            return (
+              <article
+                key={item.id}
+                className={cn(
+                  "rounded-2xl border bg-surface/70 p-4 shadow-soft transition",
+                  decision === "GO" && "border-good/40",
+                  decision === "HOLD" && "border-warn/40",
+                  decision === "NO_GO" && "border-bad/40",
+                  !decision && "border-border/35",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-text">{item.title}</h2>
+                    <div className="mt-1 text-sm text-muted">
+                      {item.buyer_name || t("inbox.card.buyerUnavailable")}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold text-subtext">
+                      {formatQuality(item.quality_score, t)}
                     </span>
-                  ) : null}
+                    {item.origin_type ? (
+                      <span className="inline-flex items-center rounded-full border border-line/40 bg-bg/60 px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
+                        {item.origin_type}
+                      </span>
+                    ) : null}
+                    <DecisionButtons id={item.id} current={decision} onDecide={decide} />
+                    <button
+                      type="button"
+                      onClick={() => toggleBrief(briefInput)}
+                      disabled={briefLoading}
+                      className={cn(
+                        "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+                        briefExpanded && brief
+                          ? "border-accent/50 bg-accent/15 text-accent"
+                          : "border-border/35 bg-bg/40 text-muted hover:bg-elevated/60",
+                        briefLoading && "cursor-wait opacity-70",
+                      )}
+                    >
+                      {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
-                <div className="inline-flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{item.region || "Italia"}</span>
+                <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="inline-flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{item.region || item.country_code || "—"}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    <span>
+                      {t("inbox.card.published")} {formatDate(item.published_at, t)}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    <span>{formatBudget(item.budget_amount, item.budget_currency, t)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
+                    <CircleGauge className="h-4 w-4" />
+                    <span>
+                      {t("inbox.card.deadline")} {formatDate(item.deadline_at, t)}
+                    </span>
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4" />
-                  <span>Pubblicazione: {formatDate(item.published_at)}</span>
-                </div>
-                <div className="inline-flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span>{formatBudget(item.budget_amount, item.budget_currency)}</span>
-                </div>
-                <div className="inline-flex items-center gap-2">
-                  <CircleGauge className="h-4 w-4" />
-                  <span>Scadenza: {formatDate(item.deadline_at)}</span>
-                </div>
-              </div>
-            </article>
-          ))}
 
-          {hasMore ? (
+                {briefExpanded ? (
+                  briefError ? (
+                    <div className="mt-3 text-xs text-bad">{t("inbox.card.brief.error")}</div>
+                  ) : brief ? (
+                    <BriefPanel brief={brief} t={t} />
+                  ) : null
+                ) : null}
+              </article>
+            );
+          })}
+
+          {hasMore && decisionFilter === "all" ? (
             <div className="pt-2">
               <button
                 type="button"
@@ -154,7 +379,7 @@ export default function InboxPage() {
                 disabled={loadingMore}
                 className="inline-flex items-center rounded-xl border border-border/35 bg-surface/80 px-4 py-2 text-sm font-semibold text-text transition hover:bg-elevated/70 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loadingMore ? "Caricamento..." : "Carica altro"}
+                {loadingMore ? t("inbox.loadingMore") : t("inbox.loadMore")}
               </button>
             </div>
           ) : null}

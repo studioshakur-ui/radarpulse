@@ -28,6 +28,7 @@ export type OpportunitiesSearchInput = {
   status?: string;
   min_quality?: number;
   origin_type?: string;
+  country_code?: string | null;
   limit?: number;
   cursor?: OpportunitiesSearchCursor | null;
 };
@@ -37,7 +38,13 @@ export type OpportunitiesSearchResult = {
   nextCursor: OpportunitiesSearchCursor | null;
 };
 
-type ErrorCode = "UNAUTHORIZED" | "SUBSCRIPTION_REQUIRED" | "REQUEST_FAILED";
+type ErrorCode =
+  | "AUTH_SESSION_INVALID"
+  | "GATEWAY_INVALID_JWT"
+  | "HANDLER_UNAUTHORIZED"
+  | "SUBSCRIPTION_REQUIRED"
+  | "NETWORK_ERROR"
+  | "UNEXPECTED_RESPONSE";
 
 export class EdgeFunctionRequestError extends Error {
   readonly code: ErrorCode;
@@ -47,12 +54,6 @@ export class EdgeFunctionRequestError extends Error {
     this.name = "EdgeFunctionRequestError";
     this.code = code;
   }
-}
-
-function redirectTo(path: string): void {
-  if (typeof window === "undefined") return;
-  if (window.location.pathname === path) return;
-  window.location.assign(path);
 }
 
 function asItem(value: unknown): OpportunitiesSearchItem | null {
@@ -91,8 +92,7 @@ function asCursor(value: unknown): OpportunitiesSearchCursor | null {
 
 export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, jwt: string): Promise<OpportunitiesSearchResult> {
   if (!jwt) {
-    redirectTo("/login");
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione non valida.");
+    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
   }
 
   const payload = {
@@ -102,36 +102,51 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
     origin_type: typeof input.origin_type === "string" && input.origin_type.trim() ? input.origin_type.trim() : undefined,
     limit: typeof input.limit === "number" ? input.limit : 20,
     cursor: input.cursor ?? null,
-    country_code: "IT" as const,
+    country_code: input.country_code ?? undefined,
   };
 
-  const response = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunities-search`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
-      apikey: ENV.SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(payload),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunities-search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+        apikey: ENV.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new EdgeFunctionRequestError("NETWORK_ERROR", "Network error while contacting the search service.");
+  }
 
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  const message = typeof body.message === "string" ? body.message : "";
+  const handlerError = typeof body.error === "string" ? body.error : "";
 
   if (response.status === 401) {
-    redirectTo("/login");
-    throw new EdgeFunctionRequestError("UNAUTHORIZED", "Sessione non valida.");
+    if (handlerError === "UNAUTHORIZED") {
+      throw new EdgeFunctionRequestError("HANDLER_UNAUTHORIZED", "Authentication required.");
+    }
+    if (message.toLowerCase().includes("invalid jwt")) {
+      throw new EdgeFunctionRequestError("GATEWAY_INVALID_JWT", "Invalid JWT.");
+    }
+    throw new EdgeFunctionRequestError("GATEWAY_INVALID_JWT", "JWT rejected by function gateway.");
   }
 
   if (response.status === 402) {
-    redirectTo("/abbonamento");
-    throw new EdgeFunctionRequestError("SUBSCRIPTION_REQUIRED", "Abbonamento richiesto.");
+    throw new EdgeFunctionRequestError("SUBSCRIPTION_REQUIRED", "Subscription required.");
   }
 
   if (!response.ok) {
-    throw new EdgeFunctionRequestError("REQUEST_FAILED", "Errore temporaneo del servizio. Riprova.");
+    throw new EdgeFunctionRequestError("UNEXPECTED_RESPONSE", `Unexpected response status: ${response.status}.`);
   }
 
-  const rawItems = Array.isArray(body.items) ? body.items : [];
+  if (!Array.isArray(body.items)) {
+    throw new EdgeFunctionRequestError("UNEXPECTED_RESPONSE", "Unexpected response payload.");
+  }
+
+  const rawItems = body.items as unknown[];
   const items = rawItems.map(asItem).filter((row): row is OpportunitiesSearchItem => row !== null);
   const nextCursor = asCursor(body.nextCursor);
 
