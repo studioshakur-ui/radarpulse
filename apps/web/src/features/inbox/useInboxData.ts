@@ -56,7 +56,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     typeof filters.minQuality === "number" && Number.isFinite(filters.minQuality)
       ? Math.max(0, Math.min(1, filters.minQuality))
       : undefined;
-  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || undefined;
+  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || "IT";
 
   const [debouncedQ, setDebouncedQ] = useState(q);
   const requestVersionRef = useRef(0);
@@ -107,7 +107,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
             return;
           }
           if (unknownError.code === "UNAUTHORIZED") {
-            window.location.assign("/login");
+            setError("Session expired. Please sign in again.");
             return;
           }
           if (unknownError.code === "REQUEST_FAILED") {

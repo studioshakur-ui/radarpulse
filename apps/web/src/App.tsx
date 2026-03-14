@@ -4,6 +4,8 @@ import InboxPage from "@/features/inbox/InboxPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
 import LoginPage from "@/features/landing/LoginPage";
+import AuthCallbackPage from "@/features/landing/AuthCallbackPage";
+import ResetPasswordPage from "@/features/landing/ResetPasswordPage";
 import ItalyIndexPage from "@/features/italy/ItalyIndexPage";
 import ItalyRegionPage from "@/features/italy/ItalyRegionPage";
 import ItalyCategoryPage from "@/features/italy/ItalyCategoryPage";
@@ -108,54 +110,41 @@ function useAuthUser() {
   useEffect(() => {
     let mounted = true;
 
+    // INITIAL_SESSION fires immediately from localStorage — do NOT trust it blindly.
+    // A stale/revoked JWT passes INITIAL_SESSION but fails getUser() server-side.
+    // We skip INITIAL_SESSION and let init() do the authoritative check first.
+    // Subsequent events (SIGNED_IN, TOKEN_REFRESHED, SIGNED_OUT) update state immediately.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === "INITIAL_SESSION") return; // handled by init() — avoids stale-JWT race
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
     async function init() {
-      // Check for magic link token in URL
-      const params = new URLSearchParams(window.location.search);
-      const magicToken = params.get("token");
+      // Server-side JWT validation — authoritative check before rendering protected UI.
+      // Keeps loading=true until we know whether the stored session is genuinely valid.
+      const { data, error } = await supabase.auth.getUser();
+      if (!mounted) return;
 
-      if (magicToken) {
-        // Verify magic link and set session
-        try {
-          const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/verify-magic-link`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: ENV.SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({ token: magicToken }),
-          });
-
-          const data = await res.json().catch(() => ({}));
-          if (res.ok && data?.accessToken) {
-            // Set session — supabase.auth.setSession takes access_token + refresh_token only
-            await supabase.auth.setSession({
-              access_token: data.accessToken,
-              refresh_token: data.refreshToken ?? "",
-            });
-
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-
-            // Redirect to inbox
-            window.location.href = "/inbox";
-            return;
-          }
-        } catch (e) {
-          console.error("[App] magic link verification failed:", e);
-        }
+      if (error || !data.user) {
+        // Stale/revoked JWT — wipe it so the UI shows logged-out state immediately.
+        await supabase.auth.signOut({ scope: "local" });
+        setUser(null);
+        setLoading(false);
+        return;
       }
 
-      // Normal auth flow
-      const { data } = await supabase.auth.getUser();
-      if (!mounted) return;
-      setUser(data.user ?? null);
+      setUser(data.user);
       setLoading(false);
     }
 
     init();
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -291,7 +280,7 @@ function Shell({ children, canSeeDevApp, user }: { children: React.ReactNode; ca
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return p === "/" || p.startsWith("/login") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
+    return p === "/" || p.startsWith("/login") || p.startsWith("/auth/callback") || p.startsWith("/reset-password") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
@@ -325,6 +314,8 @@ export default function App() {
           <Route path="/abbonamento" element={<SubscribePage />} />
           <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route path="/italie" element={<ItalyIndexPage />} />
           <Route path="/italie/regioni/:regionSlug" element={<ItalyRegionPage />} />

@@ -50,12 +50,6 @@ export class EdgeFunctionRequestError extends Error {
   }
 }
 
-function redirectTo(path: string): void {
-  if (typeof window === "undefined") return;
-  if (window.location.pathname === path) return;
-  window.location.assign(path);
-}
-
 function asItem(value: unknown): OpportunitiesSearchItem | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -92,7 +86,6 @@ function asCursor(value: unknown): OpportunitiesSearchCursor | null {
 
 export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, jwt: string): Promise<OpportunitiesSearchResult> {
   if (!jwt) {
-    redirectTo("/login");
     throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
   }
 
@@ -119,7 +112,6 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (response.status === 401) {
-    redirectTo("/login");
     throw new EdgeFunctionRequestError("UNAUTHORIZED", "Session expired. Please sign in again.");
   }
 

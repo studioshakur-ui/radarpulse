@@ -52,6 +52,11 @@ export default function SettingsPage() {
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwStatus, setPwStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [pwError, setPwError] = useState<string | null>(null);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const uid = data.user?.id ?? null;
@@ -119,6 +124,33 @@ export default function SettingsPage() {
 
     setSaveStatus("saved");
     setTimeout(() => setSaveStatus("idle"), 2500);
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwError(null);
+
+    if (newPassword.length < 8) {
+      setPwError("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError("Passwords do not match.");
+      return;
+    }
+
+    setPwStatus("saving");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setPwStatus("saved");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPwStatus("idle"), 2500);
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : "Failed to update password.");
+      setPwStatus("error");
+    }
   }
 
   function subLabel(): string {
@@ -252,6 +284,62 @@ export default function SettingsPage() {
             </NavLink>
           ) : null}
         </div>
+      </SectionCard>
+
+      {/* Security */}
+      <SectionCard title="Security">
+        <form className="space-y-3" onSubmit={(e) => void handleChangePassword(e)}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                New password
+              </span>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+              />
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Confirm new password
+              </span>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+              />
+            </label>
+          </div>
+
+          {pwError ? (
+            <div className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+              {pwError}
+            </div>
+          ) : null}
+
+          <div className="flex items-center gap-3 pt-1">
+            {pwStatus === "saved" ? (
+              <span className="text-sm font-semibold text-good">Password updated ✓</span>
+            ) : null}
+            <button
+              type="submit"
+              disabled={pwStatus === "saving"}
+              className="inline-flex items-center rounded-xl border border-border/40 bg-surface px-4 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pwStatus === "saving" ? "Updating…" : "Change password"}
+            </button>
+          </div>
+        </form>
       </SectionCard>
 
       {/* UI Standards */}
