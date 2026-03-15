@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict yn5ztVFUOLVzh1EBjsbYW9GmJbTJdK07gfpp2KXMtLDBvmB1gKQ6O6HDfBlGSZm
+\restrict BWoUK0gKD2J1728gbaSRYSIB2qzgX86Epx5qpMKHtr3fdyx4Kp1HRDabYDJANXh
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -402,6 +402,34 @@ end $$;
 
 
 --
+-- Name: set_updated_at_opportunity_briefs(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at_opportunity_briefs() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
+-- Name: set_updated_at_opportunity_decisions(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at_opportunity_decisions() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
 -- Name: access_requests; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -775,6 +803,43 @@ CREATE TABLE public.opportunity_ai_evidence (
 
 
 --
+-- Name: opportunity_briefs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_briefs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    executive_summary text DEFAULT ''::text NOT NULL,
+    fit_assessment text DEFAULT ''::text NOT NULL,
+    risk_flags text[] DEFAULT '{}'::text[] NOT NULL,
+    required_documents text[] DEFAULT '{}'::text[] NOT NULL,
+    next_action text DEFAULT ''::text NOT NULL,
+    model text DEFAULT ''::text NOT NULL,
+    prompt_version text DEFAULT 'v1'::text NOT NULL,
+    generation_ms integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: opportunity_decisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_decisions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    decision text NOT NULL,
+    note text,
+    decided_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunity_decisions_decision_check CHECK ((decision = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))
+);
+
+
+--
 -- Name: opportunity_documents; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1015,6 +1080,38 @@ ALTER TABLE ONLY public.opportunity_ai_evidence
 
 ALTER TABLE ONLY public.opportunity_ai
     ADD CONSTRAINT opportunity_ai_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_briefs opportunity_briefs_opportunity_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_briefs
+    ADD CONSTRAINT opportunity_briefs_opportunity_id_key UNIQUE (opportunity_id);
+
+
+--
+-- Name: opportunity_briefs opportunity_briefs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_briefs
+    ADD CONSTRAINT opportunity_briefs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_decisions opportunity_decisions_opportunity_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_decisions
+    ADD CONSTRAINT opportunity_decisions_opportunity_id_user_id_key UNIQUE (opportunity_id, user_id);
+
+
+--
+-- Name: opportunity_decisions opportunity_decisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_decisions
+    ADD CONSTRAINT opportunity_decisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1300,6 +1397,27 @@ CREATE INDEX opportunity_ai_raw_id_extracted_updated_idx ON public.opportunity_a
 
 
 --
+-- Name: opportunity_briefs_opportunity_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_briefs_opportunity_id_idx ON public.opportunity_briefs USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_decisions_opportunity_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_decisions_opportunity_id_idx ON public.opportunity_decisions USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_decisions_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_decisions_user_id_idx ON public.opportunity_decisions USING btree (user_id);
+
+
+--
 -- Name: opportunity_documents_opp_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1381,6 +1499,20 @@ CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON public
 --
 
 CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON public.ingestion_jobs FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: opportunity_briefs trg_opportunity_briefs_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_opportunity_briefs_updated_at BEFORE UPDATE ON public.opportunity_briefs FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_briefs();
+
+
+--
+-- Name: opportunity_decisions trg_opportunity_decisions_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_opportunity_decisions_updated_at BEFORE UPDATE ON public.opportunity_decisions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_decisions();
 
 
 --
@@ -1483,6 +1615,30 @@ ALTER TABLE ONLY public.opportunity_ai
 
 
 --
+-- Name: opportunity_briefs opportunity_briefs_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_briefs
+    ADD CONSTRAINT opportunity_briefs_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: opportunity_decisions opportunity_decisions_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_decisions
+    ADD CONSTRAINT opportunity_decisions_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: opportunity_decisions opportunity_decisions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_decisions
+    ADD CONSTRAINT opportunity_decisions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: opportunity_documents opportunity_documents_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1520,6 +1676,34 @@ ALTER TABLE ONLY public.rp_ai_runs
 
 ALTER TABLE ONLY public.user_profiles
     ADD CONSTRAINT user_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: opportunity_briefs Authenticated can read opportunity briefs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated can read opportunity briefs" ON public.opportunity_briefs FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: opportunity_briefs Service role manages opportunity briefs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages opportunity briefs" ON public.opportunity_briefs TO service_role USING (true) WITH CHECK (true);
+
+
+--
+-- Name: opportunity_decisions Service role reads all decisions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role reads all decisions" ON public.opportunity_decisions FOR SELECT TO service_role USING (true);
+
+
+--
+-- Name: opportunity_decisions Users manage own decisions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users manage own decisions" ON public.opportunity_decisions TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
 
 
 --
@@ -1590,6 +1774,18 @@ ALTER TABLE public.opportunities ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY opportunities_public_read ON public.opportunities FOR SELECT TO anon USING ((is_public = true));
 
+
+--
+-- Name: opportunity_briefs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_briefs ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_decisions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_decisions ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: opportunity_documents; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1757,5 +1953,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict yn5ztVFUOLVzh1EBjsbYW9GmJbTJdK07gfpp2KXMtLDBvmB1gKQ6O6HDfBlGSZm
+\unrestrict BWoUK0gKD2J1728gbaSRYSIB2qzgX86Epx5qpMKHtr3fdyx4Kp1HRDabYDJANXh
 
