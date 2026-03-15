@@ -40,15 +40,15 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 240 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 200 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 488 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 464 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 280 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 112 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 32 kB — RLS: on — cols: 12
  - `public.opportunity_decisions` — size: 40 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.rp_ai_runs` — size: 96 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 152 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -109,15 +109,15 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `240 kB`
- - **Size**: `200 kB`
+ - **Size**: `488 kB`
+ - **Size**: `464 kB`
  - **Size**: `280 kB`
  - **Size**: `112 kB`
  - **Size**: `32 kB`
  - **Size**: `40 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `96 kB`
+ - **Size**: `152 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
@@ -501,7 +501,7 @@
  - `CREATE INDEX opportunities_raw_fetched_at_idx ON public.opportunities_raw USING btree (fetched_at DESC)`
  - `CREATE UNIQUE INDEX opportunities_raw_pkey ON public.opportunities_raw USING btree (id)`
  - `CREATE INDEX opportunities_raw_published_at_idx ON public.opportunities_raw USING btree (published_at DESC)`
- - `CREATE UNIQUE INDEX opportunities_raw_source_external_unique ON public.opportunities_raw USING btree (source_key, external_id) WHERE (external_id IS NOT NULL)`
+ - `CREATE UNIQUE INDEX opportunities_raw_source_external_unique ON public.opportunities_raw USING btree (source_key, external_id)`
  - `CREATE INDEX opportunities_raw_url_canonical_idx ON public.opportunities_raw USING btree (url_canonical)`
  - `CREATE INDEX opportunity_ai_content_type_idx ON public.opportunity_ai USING btree (content_type)`
  - `CREATE INDEX opportunity_ai_deadline_at_idx ON public.opportunity_ai USING btree (deadline_at)`

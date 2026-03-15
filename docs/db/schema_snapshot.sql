@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict BWoUK0gKD2J1728gbaSRYSIB2qzgX86Epx5qpMKHtr3fdyx4Kp1HRDabYDJANXh
+\restrict bAbGVqbgSv4paJ28TLomtwT2bQpP29ovQEphszM0x0BOmSiRfTnvIVLbKa9STqA
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -1067,6 +1067,14 @@ ALTER TABLE ONLY public.opportunities_raw
 
 
 --
+-- Name: opportunities_raw opportunities_raw_source_external_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunities_raw
+    ADD CONSTRAINT opportunities_raw_source_external_unique UNIQUE (source_key, external_id);
+
+
+--
 -- Name: opportunity_ai_evidence opportunity_ai_evidence_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1303,13 +1311,6 @@ CREATE INDEX opportunities_raw_fetched_at_idx ON public.opportunities_raw USING 
 --
 
 CREATE INDEX opportunities_raw_published_at_idx ON public.opportunities_raw USING btree (published_at DESC);
-
-
---
--- Name: opportunities_raw_source_external_unique; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX opportunities_raw_source_external_unique ON public.opportunities_raw USING btree (source_key, external_id) WHERE (external_id IS NOT NULL);
 
 
 --
@@ -1953,5 +1954,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BWoUK0gKD2J1728gbaSRYSIB2qzgX86Epx5qpMKHtr3fdyx4Kp1HRDabYDJANXh
+\unrestrict bAbGVqbgSv4paJ28TLomtwT2bQpP29ovQEphszM0x0BOmSiRfTnvIVLbKa9STqA
 
