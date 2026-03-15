@@ -34,7 +34,7 @@
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
- - `public.ingestion_jobs` — size: 136 kB — RLS: on — cols: 11
+ - `public.ingestion_jobs` — size: 144 kB — RLS: on — cols: 11
  - `public.ingestion_runs` — size: 48 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
@@ -97,7 +97,7 @@
  - **RLS**: `on`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `136 kB`
+ - **Size**: `144 kB`
  - **Size**: `48 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
