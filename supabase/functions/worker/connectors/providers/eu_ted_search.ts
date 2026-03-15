@@ -112,6 +112,7 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
     checkQuerySyntax: meta.checkQuerySyntax ?? false,
     paginationMode: meta.paginationMode ?? "PAGE_NUMBER",
     onlyLatestVersions: meta.onlyLatestVersions ?? false,
+    language: "EN",
   };
 
   const requestedFields = (meta.fields && meta.fields.length) ? meta.fields : DEFAULT_TED_FIELDS;

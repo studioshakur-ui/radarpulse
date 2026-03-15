@@ -9,7 +9,11 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npx --prefix \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web\" tsc --noEmit --project \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/tsconfig.json\")",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\apps\\\\web && npx tsc --noEmit 2>&1\")",
-      "Bash(Select-Object -Last 20)"
+      "Bash(Select-Object -Last 20)",
+      "Bash(grep -n \"CREATE TABLE.*opportunities\" /c/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/*.sql)",
+      "Bash(grep -n \"CREATE TABLE.*opportunity_ai\" /c/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/*.sql)",
+      "Bash(grep -n \"CREATE TABLE.*decisions\" /c/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/*.sql)",
+      "Bash(grep -n \"opportunities_briefing\\\\|opportunity_briefs\\\\|decisions\" /c/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/*.sql)"
     ]
   }
 }

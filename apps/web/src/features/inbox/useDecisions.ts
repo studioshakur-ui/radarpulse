@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Decision, DecisionRecord } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "radarpulse:decisions";
 
-function load(): Record<string, DecisionRecord> {
+function loadLocal(): Record<string, DecisionRecord> {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<string, DecisionRecord>;
   } catch {
@@ -11,18 +12,103 @@ function load(): Record<string, DecisionRecord> {
   }
 }
 
+function saveLocal(store: Record<string, DecisionRecord>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // ignore
+  }
+}
+
 export function useDecisions() {
-  const [store, setStore] = useState<Record<string, DecisionRecord>>(load);
+  const [store, setStore] = useState<Record<string, DecisionRecord>>(loadLocal);
+
+  // On mount: load server state and merge (server wins over stale localStorage)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user?.id;
+        if (!userId || cancelled) return;
+
+        const { data, error } = await supabase
+          .from("opportunity_decisions")
+          .select("opportunity_id, decision, note, decided_at")
+          .eq("user_id", userId);
+
+        if (error || !data || cancelled) return;
+
+        const serverStore: Record<string, DecisionRecord> = {};
+        for (const row of data) {
+          serverStore[row.opportunity_id] = {
+            opportunityId: row.opportunity_id,
+            decision: row.decision as Decision,
+            reason: row.note ?? null,
+            decidedAt: row.decided_at,
+          };
+        }
+
+        setStore((local) => {
+          const merged = { ...local, ...serverStore };
+          saveLocal(merged);
+          return merged;
+        });
+      } catch {
+        // silent — localStorage remains the source of truth if server unreachable
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const decide = useCallback((opportunityId: string, decision: Decision) => {
     setStore((prev) => {
+      const isToggle = prev[opportunityId]?.decision === decision;
       const next = { ...prev };
-      if (prev[opportunityId]?.decision === decision) {
+
+      if (isToggle) {
         delete next[opportunityId];
       } else {
-        next[opportunityId] = { opportunityId, decision, decidedAt: new Date().toISOString() };
+        next[opportunityId] = {
+          opportunityId,
+          decision,
+          decidedAt: new Date().toISOString(),
+        };
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+
+      saveLocal(next);
+
+      // Fire-and-forget Supabase sync
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user?.id;
+        if (!userId) return;
+
+        if (isToggle) {
+          supabase
+            .from("opportunity_decisions")
+            .delete()
+            .eq("opportunity_id", opportunityId)
+            .eq("user_id", userId)
+            .then(() => {});
+        } else {
+          supabase
+            .from("opportunity_decisions")
+            .upsert(
+              {
+                opportunity_id: opportunityId,
+                user_id: userId,
+                decision,
+                decided_at: next[opportunityId]?.decidedAt ?? new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "opportunity_id,user_id" },
+            )
+            .then(() => {});
+        }
+      });
+
       return next;
     });
   }, []);

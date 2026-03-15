@@ -104,7 +104,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
     typeof filters.minQuality === "number" && Number.isFinite(filters.minQuality)
       ? Math.max(0, Math.min(1, filters.minQuality))
       : undefined;
-  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || "IT";
+  const normalizedCountryCode = filters.countryCode?.trim().toUpperCase() || undefined;
 
   const [debouncedQ, setDebouncedQ] = useState(q);
   const requestVersionRef = useRef(0);
