@@ -1,0 +1,271 @@
+import { corsHeaders } from "../_shared/cors.ts";
+import { sbAdmin } from "../_shared/db.ts";
+
+type DecisionValue = "GO" | "HOLD" | "NO_GO";
+type DecisionAction = "set" | "clear";
+
+type DecisionRequest = {
+  opportunity_id?: string;
+  action?: DecisionAction;
+  decision_value?: DecisionValue;
+  note?: string | null;
+};
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function normalizeString(value: unknown): string | null {
+  const s = typeof value === "string" ? value.trim() : "";
+  return s ? s : null;
+}
+
+function isDecisionValue(value: unknown): value is DecisionValue {
+  return value === "GO" || value === "HOLD" || value === "NO_GO";
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return json(401, { ok: false, error: "UNAUTHORIZED" });
+  }
+  const token = authHeader.slice(7).trim();
+
+  let sb: ReturnType<typeof sbAdmin>;
+  let userId = "";
+  try {
+    sb = sbAdmin();
+    const { data, error } = await sb.auth.getUser(token);
+    if (error || !data?.user?.id) return json(401, { ok: false, error: "UNAUTHORIZED" });
+    userId = data.user.id;
+  } catch {
+    return json(500, { ok: false, error: "SERVER_CONFIG_ERROR" });
+  }
+
+  let body: DecisionRequest;
+  try {
+    body = (await req.json()) as DecisionRequest;
+  } catch {
+    return json(400, { ok: false, error: "INVALID_BODY" });
+  }
+
+  const opportunityId = normalizeString(body?.opportunity_id);
+  const action = body?.action;
+  const note = normalizeString(body?.note);
+
+  if (!opportunityId || (action !== "set" && action !== "clear")) {
+    return json(400, { ok: false, error: "INVALID_BODY" });
+  }
+
+  if (action === "set" && !isDecisionValue(body?.decision_value)) {
+    return json(400, { ok: false, error: "INVALID_DECISION_VALUE" });
+  }
+
+  try {
+    const { data: existingRow, error: existingError } = await sb
+      .from("opportunity_decisions")
+      .select("id, decision, note, decided_at")
+      .eq("opportunity_id", opportunityId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("[opportunity-decision] failed to load current decision:", existingError.message);
+      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    }
+
+    if (action === "clear") {
+      if (!existingRow?.id) {
+        return json(200, { ok: true, action: "clear", changed: false });
+      }
+
+      const previousDecisionValue = existingRow.decision as DecisionValue | null;
+      const previousNote = existingRow.note ?? null;
+      const previousDecidedAt = existingRow.decided_at ?? nowIso();
+
+      const { error: deleteError } = await sb
+        .from("opportunity_decisions")
+        .delete()
+        .eq("id", existingRow.id);
+
+      if (deleteError) {
+        console.error("[opportunity-decision] failed to delete current decision:", deleteError.message);
+        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      }
+
+      const { error: historyError } = await sb.from("decision_history").insert({
+        opportunity_id: opportunityId,
+        user_id: userId,
+        opportunity_decision_id: existingRow.id,
+        event_type: "clear",
+        decision_value: null,
+        previous_decision_value: previousDecisionValue,
+        note,
+        source: "web",
+        is_backfilled: false,
+      });
+
+      if (historyError) {
+        const { error: restoreError } = await sb
+          .from("opportunity_decisions")
+          .insert({
+            id: existingRow.id,
+            opportunity_id: opportunityId,
+            user_id: userId,
+            decision: previousDecisionValue,
+            note: previousNote,
+            decided_at: previousDecidedAt,
+            updated_at: nowIso(),
+          });
+
+        if (restoreError) {
+          console.error("[opportunity-decision] failed to restore cleared current decision:", restoreError.message);
+        }
+        console.error("[opportunity-decision] failed to insert decision_history clear event:", historyError.message);
+        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      }
+
+      return json(200, {
+        ok: true,
+        action: "clear",
+        changed: true,
+      });
+    }
+
+    const decisionValue = body.decision_value as DecisionValue;
+
+    if (!existingRow?.id) {
+      const decidedAt = nowIso();
+      const { data: insertedRow, error: insertError } = await sb
+        .from("opportunity_decisions")
+        .insert({
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision: decisionValue,
+          note,
+          decided_at: decidedAt,
+          updated_at: decidedAt,
+        })
+        .select("id, decision, decided_at")
+        .single();
+
+      if (insertError || !insertedRow?.id) {
+        console.error("[opportunity-decision] failed to insert current decision:", insertError?.message);
+        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      }
+
+      const { error: historyError } = await sb.from("decision_history").insert({
+        opportunity_id: opportunityId,
+        user_id: userId,
+        opportunity_decision_id: insertedRow.id,
+        event_type: "set",
+        decision_value: decisionValue,
+        previous_decision_value: null,
+        note,
+        source: "web",
+        is_backfilled: false,
+      });
+
+      if (historyError) {
+        const { error: rollbackError } = await sb
+          .from("opportunity_decisions")
+          .delete()
+          .eq("id", insertedRow.id);
+
+        if (rollbackError) {
+          console.error("[opportunity-decision] failed to rollback inserted current decision:", rollbackError.message);
+        }
+        console.error("[opportunity-decision] failed to insert decision_history set event:", historyError.message);
+        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      }
+
+      return json(200, {
+        ok: true,
+        action: "set",
+        changed: true,
+        decision: decisionValue,
+      });
+    }
+
+    const previousDecisionValue = isDecisionValue(existingRow.decision) ? existingRow.decision : null;
+    const previousNote = existingRow.note ?? null;
+    const previousDecidedAt = existingRow.decided_at ?? null;
+    if (previousDecisionValue === decisionValue && (existingRow.note ?? null) === note) {
+      return json(200, {
+        ok: true,
+        action: "set",
+        changed: false,
+        decision: decisionValue,
+      });
+    }
+
+    const decidedAt = nowIso();
+    const { data: updatedRow, error: updateError } = await sb
+      .from("opportunity_decisions")
+      .update({
+        decision: decisionValue,
+        note,
+        decided_at: decidedAt,
+        updated_at: decidedAt,
+      })
+      .eq("id", existingRow.id)
+      .select("id, decision, decided_at")
+      .single();
+
+    if (updateError || !updatedRow?.id) {
+      console.error("[opportunity-decision] failed to update current decision:", updateError?.message);
+      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    }
+
+    const eventType = previousDecisionValue === null ? "set" : "change";
+    const { error: historyError } = await sb.from("decision_history").insert({
+      opportunity_id: opportunityId,
+      user_id: userId,
+      opportunity_decision_id: updatedRow.id,
+      event_type: eventType,
+      decision_value: decisionValue,
+      previous_decision_value: previousDecisionValue,
+      note,
+      source: "web",
+      is_backfilled: false,
+    });
+
+    if (historyError) {
+      const { error: restoreError } = await sb
+        .from("opportunity_decisions")
+        .update({
+          decision: previousDecisionValue,
+          note: previousNote,
+          decided_at: previousDecidedAt,
+          updated_at: nowIso(),
+        })
+        .eq("id", existingRow.id);
+
+      if (restoreError) {
+        console.error("[opportunity-decision] failed to restore changed current decision:", restoreError.message);
+      }
+      console.error("[opportunity-decision] failed to insert decision_history change event:", historyError.message);
+      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    }
+
+    return json(200, {
+      ok: true,
+      action: "set",
+      changed: true,
+      decision: decisionValue,
+    });
+  } catch (error) {
+    console.error("[opportunity-decision] error:", error instanceof Error ? error.message : String(error));
+    return json(500, { ok: false, error: "INTERNAL_ERROR" });
+  }
+});

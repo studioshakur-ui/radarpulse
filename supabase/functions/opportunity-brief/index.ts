@@ -24,9 +24,26 @@ export type Brief = {
 
 const BRIEF_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — regenerate after
 const PROMPT_VERSION = "v1";
+const BRIEF_AGENT_VERSION = "brief.dualwrite.v1";
+const BRIEF_VERSION = PROMPT_VERSION;
+
+class BriefHttpError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+}
 
 function serializeError(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 function json(status: number, body: unknown): Response {
@@ -34,6 +51,98 @@ function json(status: number, body: unknown): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function insertAgentRun(
+  sb: ReturnType<typeof sbAdmin>,
+  args: { opportunityId: string; model: string },
+): Promise<string> {
+  const { data, error } = await sb
+    .from("agent_runs")
+    .insert({
+      agent_type: "brief",
+      status: "running",
+      trigger_type: "system",
+      model: args.model,
+      prompt_version: PROMPT_VERSION,
+      agent_version: BRIEF_AGENT_VERSION,
+      started_at: nowIso(),
+      input_ref: {
+        opportunity_id: args.opportunityId,
+      },
+      meta: {
+        compatibility_table: "opportunity_briefs",
+        brief_version: BRIEF_VERSION,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert agent_runs row");
+  }
+
+  return String(data.id);
+}
+
+async function updateAgentRun(
+  sb: ReturnType<typeof sbAdmin>,
+  agentRunId: string,
+  patch: Record<string, unknown>,
+) {
+  const { error } = await sb.from("agent_runs").update(patch).eq("id", agentRunId);
+  if (error) throw new Error(`failed to update agent_runs row: ${error.message}`);
+}
+
+async function getCurrentBriefVersionIds(
+  sb: ReturnType<typeof sbAdmin>,
+  opportunityId: string,
+): Promise<string[]> {
+  const { data, error } = await sb
+    .from("brief_versions")
+    .select("id")
+    .eq("opportunity_id", opportunityId)
+    .eq("is_current", true);
+
+  if (error) throw new Error(`failed to load current brief_versions rows: ${error.message}`);
+
+  return Array.isArray(data)
+    ? data.map((row: { id?: unknown }) => String(row?.id ?? "")).filter(Boolean)
+    : [];
+}
+
+async function setBriefVersionsCurrentState(
+  sb: ReturnType<typeof sbAdmin>,
+  briefVersionIds: string[],
+  isCurrent: boolean,
+) {
+  if (!briefVersionIds.length) return;
+
+  const { error } = await sb
+    .from("brief_versions")
+    .update({ is_current: isCurrent })
+    .in("id", briefVersionIds);
+
+  if (error) {
+    throw new Error(`failed to set brief_versions is_current=${isCurrent}: ${error.message}`);
+  }
+}
+
+async function insertBriefVersion(
+  sb: ReturnType<typeof sbAdmin>,
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const { data, error } = await sb
+    .from("brief_versions")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert brief_versions row");
+  }
+
+  return String(data.id);
 }
 
 Deno.serve(async (req) => {
@@ -114,8 +223,11 @@ Deno.serve(async (req) => {
 
   const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
   const t0 = Date.now();
+  let agentRunId = "";
 
   try {
+    agentRunId = await insertAgentRun(sb, { opportunityId: body.id, model });
+
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -137,7 +249,7 @@ Deno.serve(async (req) => {
     if (!openaiRes.ok) {
       const errText = await openaiRes.text().catch(() => "");
       console.error("[opportunity-brief] OpenAI error:", openaiRes.status, errText);
-      return json(502, { ok: false, error: "AI_ERROR" });
+      throw new BriefHttpError(502, "AI_ERROR");
     }
 
     const generation_ms = Date.now() - t0;
@@ -177,6 +289,55 @@ Deno.serve(async (req) => {
       console.error("[opportunity-brief] persist error:", upsertErr.message);
     }
 
+    const previousCurrentBriefVersionIds = await getCurrentBriefVersionIds(sb, body.id);
+    let briefVersionId = "";
+    await setBriefVersionsCurrentState(sb, previousCurrentBriefVersionIds, false);
+    try {
+      briefVersionId = await insertBriefVersion(sb, {
+        opportunity_id: body.id,
+        agent_run_id: agentRunId,
+        is_backfilled: false,
+        is_current: true,
+        model,
+        prompt_version: PROMPT_VERSION,
+        brief_version: BRIEF_VERSION,
+        executive_summary: brief.executive_summary,
+        fit_assessment: brief.fit_assessment,
+        risk_flags: brief.risk_flags,
+        required_documents: brief.required_documents,
+        next_action: brief.next_action,
+        input_snapshot: {
+          input: body,
+          output: raw,
+        },
+        generation_ms,
+      });
+    } catch (insertErr) {
+      try {
+        await setBriefVersionsCurrentState(sb, previousCurrentBriefVersionIds, true);
+      } catch (restoreErr) {
+        console.error(
+          "[opportunity-brief] failed to restore previous current brief_versions rows:",
+          serializeError(restoreErr),
+        );
+      }
+      throw insertErr;
+    }
+
+    await updateAgentRun(sb, agentRunId, {
+      status: "success",
+      finished_at: nowIso(),
+      duration_ms: Date.now() - t0,
+      opportunity_id: body.id,
+      output_ref: {
+        brief_version_id: briefVersionId,
+      },
+      meta: {
+        compatibility_table: "opportunity_briefs",
+        brief_version: BRIEF_VERSION,
+      },
+    });
+
     console.info(
       JSON.stringify({
         event: "opportunity_brief_generated",
@@ -190,7 +351,29 @@ Deno.serve(async (req) => {
 
     return json(200, { ok: true, brief, cached: false });
   } catch (e) {
-    console.error("[opportunity-brief] error:", serializeError(e));
+    const originalError = e instanceof Error ? e : new Error(String(e));
+    if (agentRunId) {
+      try {
+        await updateAgentRun(sb, agentRunId, {
+          status: "error",
+          finished_at: nowIso(),
+          duration_ms: Date.now() - t0,
+          opportunity_id: body.id,
+          error_message: originalError.message,
+          output_ref: null,
+          meta: {
+            compatibility_table: "opportunity_briefs",
+            brief_version: BRIEF_VERSION,
+          },
+        });
+      } catch (agentRunErr) {
+        console.error("[opportunity-brief] failed to update agent_runs error status:", serializeError(agentRunErr));
+      }
+    }
+    console.error("[opportunity-brief] error:", serializeError(originalError));
+    if (originalError instanceof BriefHttpError) {
+      return json(originalError.status, { ok: false, error: originalError.code });
+    }
     return json(500, { ok: false, error: "INTERNAL_ERROR" });
   }
 });

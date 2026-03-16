@@ -355,7 +355,7 @@ async function persistSourcePagingState(source: SourceRow, result: ConnectorResu
 /* -----------------------------
    AI extract (fixed signature)
 ----------------------------- */
-async function upsertAi(rawId: string) {
+async function upsertAi(rawId: string, args?: { sourceId?: string | null; ingestionRunId?: string | null }) {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
   if (!OPENAI_API_KEY) return; // AI désactivée si secret manquant
 
@@ -369,6 +369,9 @@ async function upsertAi(rawId: string) {
     extractVersion: "v1.light",
     minContentChars: 280,
     maxContentChars: 24_000,
+    triggerType: "worker",
+    sourceId: args?.sourceId ?? null,
+    ingestionRunId: args?.ingestionRunId ?? null,
   });
 }
 
@@ -408,7 +411,7 @@ async function processJob(job: IngestionJobRow) {
 
       // AI best-effort
       try {
-        await upsertAi(raw.id);
+        await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
       } catch (e) {
         console.error("AI extract failed:", e instanceof Error ? e.message : String(e));
       }
