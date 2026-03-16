@@ -45,8 +45,8 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 496 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 480 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 488 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 432 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 280 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 112 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 32 kB — RLS: on — cols: 12
@@ -55,7 +55,7 @@
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.opportunity_extractions` — size: 56 kB — RLS: off — cols: 36
  - `public.opportunity_scores` — size: 48 kB — RLS: off — cols: 16
- - `public.rp_ai_runs` — size: 264 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 304 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -129,8 +129,8 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `496 kB`
- - **Size**: `480 kB`
+ - **Size**: `488 kB`
+ - **Size**: `432 kB`
  - **Size**: `280 kB`
  - **Size**: `112 kB`
  - **Size**: `32 kB`
@@ -139,7 +139,7 @@
  - **Size**: `80 kB`
  - **Size**: `56 kB`
  - **Size**: `48 kB`
- - **Size**: `264 kB`
+ - **Size**: `304 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
