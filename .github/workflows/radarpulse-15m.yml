@@ -134,7 +134,7 @@ jobs:
             upd="$(jq -r '.updated // 0' < /tmp/worker.json)"
             evs="$(jq -r '.events // 0' < /tmp/worker.json)"
 
-            echo "worker[$i] => ok=${ok} message=${msg} opps=${opps} raw=${raw}"
+            echo "worker[$i] => ok=${ok} message=${msg} ins=${ins} upd=${upd} evs=${evs}"
             jq . < /tmp/worker.json
 
             if [ "${ok}" != "true" ]; then
@@ -157,4 +157,4 @@ jobs:
           done
 
           echo "==> Summary"
-          echo "jobs_done=${jobs_done} opps_total=${opps_total} raw_total=${raw_total}"
+          echo "jobs_done=${jobs_done} inserted=${inserted_total} updated=${updated_total} events=${events_total}"
