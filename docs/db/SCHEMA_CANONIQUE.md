@@ -15,6 +15,8 @@
  - `public`
  
  ## Enums
+ - `public.agent_run_status` = 'queued', 'running', 'success', 'error', 'skipped'
+ - `public.agent_run_type` = 'source', 'extract', 'score', 'brief'
  - `public.event_type` = 'NEW', 'UPDATED', 'DEADLINE_CHANGED', 'NEW_DOC', 'AWARDED', 'EXPIRED'
  - `public.job_status` = 'queued', 'running', 'success', 'error'
  - `public.notify_channel` = 'email', 'telegram', 'whatsapp'
@@ -33,9 +35,12 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
+ - `public.agent_runs` — size: 56 kB — RLS: off — cols: 21
+ - `public.brief_versions` — size: 40 kB — RLS: off — cols: 18
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
- - `public.ingestion_jobs` — size: 144 kB — RLS: on — cols: 11
- - `public.ingestion_runs` — size: 80 kB — RLS: off — cols: 12
+ - `public.decision_history` — size: 32 kB — RLS: on — cols: 12
+ - `public.ingestion_jobs` — size: 152 kB — RLS: on — cols: 11
+ - `public.ingestion_runs` — size: 88 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
@@ -48,7 +53,9 @@
  - `public.opportunity_decisions` — size: 40 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.rp_ai_runs` — size: 152 kB — RLS: off — cols: 11
+ - `public.opportunity_extractions` — size: 56 kB — RLS: off — cols: 36
+ - `public.opportunity_scores` — size: 48 kB — RLS: off — cols: 16
+ - `public.rp_ai_runs` — size: 224 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -58,7 +65,10 @@
  ### Détails par table
  
  #### Table: `public.access_requests`
+ #### Table: `public.agent_runs`
+ #### Table: `public.brief_versions`
  #### Table: `public.buyers`
+ #### Table: `public.decision_history`
  #### Table: `public.ingestion_jobs`
  #### Table: `public.ingestion_runs`
  #### Table: `public.magic_link_tokens`
@@ -73,6 +83,8 @@
  #### Table: `public.opportunity_decisions`
  #### Table: `public.opportunity_documents`
  #### Table: `public.opportunity_events`
+ #### Table: `public.opportunity_extractions`
+ #### Table: `public.opportunity_scores`
  #### Table: `public.rp_ai_runs`
  #### Table: `public.sources`
  #### Table: `public.subscriptions`
@@ -80,6 +92,9 @@
  #### Table: `public.user_profiles`
  #### Table: `public.whatsapp_optins`
  - **RLS**: `on`
+ - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
@@ -95,6 +110,8 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
+ - **RLS**: `off`
+ - **RLS**: `off`
  - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -102,9 +119,12 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
+ - **Size**: `56 kB`
+ - **Size**: `40 kB`
  - **Size**: `24 kB`
- - **Size**: `144 kB`
- - **Size**: `80 kB`
+ - **Size**: `32 kB`
+ - **Size**: `152 kB`
+ - **Size**: `88 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
@@ -117,7 +137,9 @@
  - **Size**: `40 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `152 kB`
+ - **Size**: `56 kB`
+ - **Size**: `48 kB`
+ - **Size**: `224 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
@@ -145,6 +167,11 @@
  
  
  
+ 
+ 
+ 
+ 
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -167,6 +194,16 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
+ |---|---|---|---|
+ |---|---|---|---|
+ |---|---|---|---|
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -196,9 +233,60 @@
  | `use_case` | `text` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `agent_type` | `agent_run_type` | `no` | — |
+ | `status` | `agent_run_status` | `no` | — |
+ | `trigger_type` | `text` | `no` | — |
+ | `source_id` | `uuid` | `yes` | — |
+ | `ingestion_run_id` | `uuid` | `yes` | — |
+ | `raw_id` | `uuid` | `yes` | — |
+ | `opportunity_id` | `uuid` | `yes` | — |
+ | `user_id` | `uuid` | `yes` | — |
+ | `subject_key` | `text` | `yes` | — |
+ | `model` | `text` | `yes` | — |
+ | `prompt_version` | `text` | `yes` | — |
+ | `agent_version` | `text` | `no` | — |
+ | `started_at` | `timestamp with time zone` | `no` | — |
+ | `finished_at` | `timestamp with time zone` | `yes` | — |
+ | `duration_ms` | `integer` | `yes` | — |
+ | `error_message` | `text` | `yes` | — |
+ | `input_ref` | `jsonb` | `yes` | — |
+ | `output_ref` | `jsonb` | `yes` | — |
+ | `meta` | `jsonb` | `no` | '{}'::jsonb |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `agent_run_id` | `uuid` | `no` | — |
+ | `source_extraction_id` | `uuid` | `yes` | — |
+ | `source_score_id` | `uuid` | `yes` | — |
+ | `is_backfilled` | `boolean` | `no` | false |
+ | `is_current` | `boolean` | `no` | false |
+ | `model` | `text` | `no` | — |
+ | `prompt_version` | `text` | `no` | — |
+ | `brief_version` | `text` | `no` | — |
+ | `executive_summary` | `text` | `no` | — |
+ | `fit_assessment` | `text` | `no` | — |
+ | `risk_flags` | `text[]` | `no` | '{}'::text[] |
+ | `required_documents` | `text[]` | `no` | '{}'::text[] |
+ | `next_action` | `text` | `no` | — |
+ | `input_snapshot` | `jsonb` | `yes` | — |
+ | `generation_ms` | `integer` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
  | `country_code` | `text` | `yes` | — |
  | `name` | `text` | `no` | — |
  | `normalized_name` | `text` | `no` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `user_id` | `uuid` | `no` | — |
+ | `opportunity_decision_id` | `uuid` | `yes` | — |
+ | `agent_run_id` | `uuid` | `yes` | — |
+ | `event_type` | `text` | `no` | — |
+ | `decision_value` | `text` | `yes` | — |
+ | `previous_decision_value` | `text` | `yes` | — |
+ | `note` | `text` | `yes` | — |
+ | `source` | `text` | `no` | — |
+ | `is_backfilled` | `boolean` | `no` | false |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('ingestion_jobs_id_seq'::regclass) |
  | `source_id` | `uuid` | `no` | — |
@@ -370,6 +458,58 @@
  | `occurred_at` | `timestamp with time zone` | `no` | now() |
  | `data` | `jsonb` | `no` | '{}'::jsonb |
  | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `raw_id` | `uuid` | `no` | — |
+ | `agent_run_id` | `uuid` | `no` | — |
+ | `source_id` | `uuid` | `no` | — |
+ | `fingerprint` | `text` | `no` | — |
+ | `is_backfilled` | `boolean` | `no` | false |
+ | `is_current` | `boolean` | `no` | false |
+ | `extract_version` | `text` | `no` | — |
+ | `model` | `text` | `no` | — |
+ | `content_type` | `rp_content_type` | `no` | — |
+ | `buyer_type` | `rp_buyer_type` | `no` | — |
+ | `buyer_name` | `text` | `yes` | — |
+ | `sector` | `text` | `yes` | — |
+ | `country_code` | `text` | `yes` | — |
+ | `region` | `text` | `yes` | — |
+ | `language` | `text` | `yes` | — |
+ | `deadline_at` | `timestamp with time zone` | `yes` | — |
+ | `deadline_tz` | `text` | `yes` | — |
+ | `deadline_confidence` | `rp_deadline_confidence` | `no` | — |
+ | `eligibility` | `jsonb` | `yes` | — |
+ | `required_docs` | `jsonb` | `yes` | — |
+ | `submission` | `jsonb` | `yes` | — |
+ | `budget_value` | `numeric` | `yes` | — |
+ | `budget_currency` | `text` | `yes` | — |
+ | `budget_confidence` | `rp_evidence_confidence` | `yes` | — |
+ | `risks` | `jsonb` | `yes` | — |
+ | `summary_10s` | `text` | `no` | — |
+ | `extraction_quality` | `rp_extraction_quality` | `no` | — |
+ | `needs_review` | `boolean` | `no` | — |
+ | `missing_fields` | `jsonb` | `no` | — |
+ | `signals` | `jsonb` | `no` | — |
+ | `raw_snapshot` | `jsonb` | `yes` | — |
+ | `quality_score` | `numeric` | `yes` | — |
+ | `completeness_score` | `numeric` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `agent_run_id` | `uuid` | `no` | — |
+ | `user_id` | `uuid` | `no` | — |
+ | `subject_type` | `text` | `no` | 'user'::text |
+ | `is_backfilled` | `boolean` | `no` | false |
+ | `is_current` | `boolean` | `no` | false |
+ | `score_version` | `text` | `no` | — |
+ | `model` | `text` | `yes` | — |
+ | `score_value` | `numeric` | `no` | — |
+ | `score_band` | `text` | `yes` | — |
+ | `rationale_summary` | `text` | `no` | — |
+ | `rationale_json` | `jsonb` | `no` | — |
+ | `input_profile_snapshot` | `jsonb` | `yes` | — |
+ | `input_extraction_id` | `uuid` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
  | `raw_id` | `uuid` | `no` | — |
  | `ai_id` | `uuid` | `yes` | — |
  | `extract_version` | `text` | `no` | — |
@@ -447,6 +587,16 @@
  
  
  
+ 
+ 
+ 
+ 
+ 
+ ##### Indexes
+ ##### Indexes
+ ##### Indexes
+ ##### Indexes
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -470,8 +620,21 @@
  ##### Indexes
  ##### Indexes
  - `CREATE UNIQUE INDEX access_requests_pkey ON public.access_requests USING btree (id)`
+ - `CREATE INDEX agent_runs_agent_type_started_at_idx ON public.agent_runs USING btree (agent_type, started_at DESC)`
+ - `CREATE INDEX agent_runs_opportunity_agent_started_at_idx ON public.agent_runs USING btree (opportunity_id, agent_type, started_at DESC) WHERE (opportunity_id IS NOT NULL)`
+ - `CREATE UNIQUE INDEX agent_runs_pkey ON public.agent_runs USING btree (id)`
+ - `CREATE INDEX agent_runs_raw_agent_started_at_idx ON public.agent_runs USING btree (raw_id, agent_type, started_at DESC) WHERE (raw_id IS NOT NULL)`
+ - `CREATE INDEX agent_runs_source_agent_started_at_idx ON public.agent_runs USING btree (source_id, agent_type, started_at DESC) WHERE (source_id IS NOT NULL)`
+ - `CREATE INDEX agent_runs_status_started_at_idx ON public.agent_runs USING btree (status, started_at DESC)`
+ - `CREATE UNIQUE INDEX brief_versions_agent_run_id_key ON public.brief_versions USING btree (agent_run_id)`
+ - `CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_idx ON public.brief_versions USING btree (opportunity_id) WHERE (is_current = true)`
+ - `CREATE INDEX brief_versions_opportunity_created_at_idx ON public.brief_versions USING btree (opportunity_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX brief_versions_pkey ON public.brief_versions USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_pkey ON public.buyers USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree (COALESCE(country_code, ''::text), normalized_name)`
+ - `CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision_history USING btree (opportunity_id, user_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX decision_history_pkey ON public.decision_history USING btree (id)`
+ - `CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC)`
  - `CREATE INDEX ingestion_jobs_claim_idx ON public.ingestion_jobs USING btree (run_at, id) WHERE (status = 'queued'::job_status)`
  - `CREATE UNIQUE INDEX ingestion_jobs_one_open_per_source ON public.ingestion_jobs USING btree (source_id) WHERE (status = ANY (ARRAY['queued'::job_status, 'running'::job_status]))`
  - `CREATE UNIQUE INDEX ingestion_jobs_pkey ON public.ingestion_jobs USING btree (id)`
@@ -524,6 +687,17 @@
  - `CREATE UNIQUE INDEX opportunity_documents_pkey ON public.opportunity_documents USING btree (id)`
  - `CREATE INDEX opportunity_events_opp_idx ON public.opportunity_events USING btree (opportunity_id, occurred_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_events_pkey ON public.opportunity_events USING btree (id)`
+ - `CREATE UNIQUE INDEX opportunity_extractions_agent_run_id_key ON public.opportunity_extractions USING btree (agent_run_id)`
+ - `CREATE INDEX opportunity_extractions_fingerprint_idx ON public.opportunity_extractions USING btree (fingerprint)`
+ - `CREATE UNIQUE INDEX opportunity_extractions_one_current_per_opportunity_idx ON public.opportunity_extractions USING btree (opportunity_id) WHERE (is_current = true)`
+ - `CREATE INDEX opportunity_extractions_opportunity_created_at_idx ON public.opportunity_extractions USING btree (opportunity_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX opportunity_extractions_pkey ON public.opportunity_extractions USING btree (id)`
+ - `CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_extractions USING btree (raw_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX opportunity_scores_agent_run_id_key ON public.opportunity_scores USING btree (agent_run_id)`
+ - `CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_idx ON public.opportunity_scores USING btree (opportunity_id, user_id) WHERE (is_current = true)`
+ - `CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX opportunity_scores_pkey ON public.opportunity_scores USING btree (id)`
+ - `CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC)`
  - `CREATE UNIQUE INDEX rp_ai_runs_pkey ON public.rp_ai_runs USING btree (id)`
  - `CREATE INDEX rp_ai_runs_raw_id_idx ON public.rp_ai_runs USING btree (raw_id)`
  - `CREATE INDEX rp_ai_runs_started_at_idx ON public.rp_ai_runs USING btree (started_at DESC)`
@@ -561,9 +735,16 @@
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
  - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
+ - `Service role manages decision history` (cmd: ALL, roles: {service_role})
+ - `Users read own decision history` (cmd: SELECT, roles: {authenticated})
  - `service_role can manage tokens` (cmd: ALL, roles: {service_role})
  - `owner_rw` (cmd: ALL, roles: {authenticated})
  - `service_role_all` (cmd: ALL, roles: {service_role})
@@ -592,6 +773,15 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ - (none)
+ - (none)
+ - (none)
+ ##### Triggers
+ ##### Triggers
+ ##### Triggers
+ ##### Triggers
+ ##### Triggers
  ##### Triggers
  ##### Triggers
  ##### Triggers
@@ -638,6 +828,16 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ - (none)
+ - (none)
+ - (none)
+ - (none)
+ 
+ 
+ 
+ 
+ 
  
  
  
@@ -675,5 +875,5 @@
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_briefs()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_decisions()` → `trigger` (lang: plpgsql)
-(675 rows)
+(875 rows)
 
