@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bAbGVqbgSv4paJ28TLomtwT2bQpP29ovQEphszM0x0BOmSiRfTnvIVLbKa9STqA
+\restrict 48c4BVHUmEGWNsGBzlEj73ZEikZuamd3B4ijBvj1SSAV4D5gQO86l3uc089Tc5T
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -24,6 +24,31 @@ SET row_security = off;
 --
 
 CREATE SCHEMA public;
+
+
+--
+-- Name: agent_run_status; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.agent_run_status AS ENUM (
+    'queued',
+    'running',
+    'success',
+    'error',
+    'skipped'
+);
+
+
+--
+-- Name: agent_run_type; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.agent_run_type AS ENUM (
+    'source',
+    'extract',
+    'score',
+    'brief'
+);
 
 
 --
@@ -444,6 +469,61 @@ CREATE TABLE public.access_requests (
 
 
 --
+-- Name: agent_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    agent_type public.agent_run_type NOT NULL,
+    status public.agent_run_status NOT NULL,
+    trigger_type text NOT NULL,
+    source_id uuid,
+    ingestion_run_id uuid,
+    raw_id uuid,
+    opportunity_id uuid,
+    user_id uuid,
+    subject_key text,
+    model text,
+    prompt_version text,
+    agent_version text NOT NULL,
+    started_at timestamp with time zone NOT NULL,
+    finished_at timestamp with time zone,
+    duration_ms integer,
+    error_message text,
+    input_ref jsonb,
+    output_ref jsonb,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: brief_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.brief_versions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    agent_run_id uuid NOT NULL,
+    source_extraction_id uuid,
+    source_score_id uuid,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    is_current boolean DEFAULT false NOT NULL,
+    model text NOT NULL,
+    prompt_version text NOT NULL,
+    brief_version text NOT NULL,
+    executive_summary text NOT NULL,
+    fit_assessment text NOT NULL,
+    risk_flags text[] DEFAULT '{}'::text[] NOT NULL,
+    required_documents text[] DEFAULT '{}'::text[] NOT NULL,
+    next_action text NOT NULL,
+    input_snapshot jsonb,
+    generation_ms integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: buyers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -453,6 +533,30 @@ CREATE TABLE public.buyers (
     name text NOT NULL,
     normalized_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: decision_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.decision_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    opportunity_decision_id uuid,
+    agent_run_id uuid,
+    event_type text NOT NULL,
+    decision_value text,
+    previous_decision_value text,
+    note text,
+    source text NOT NULL,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT decision_history_decision_value_check CHECK (((decision_value IS NULL) OR (decision_value = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
+    CONSTRAINT decision_history_event_type_check CHECK ((event_type = ANY (ARRAY['set'::text, 'change'::text, 'clear'::text, 'backfill'::text]))),
+    CONSTRAINT decision_history_previous_decision_value_check CHECK (((previous_decision_value IS NULL) OR (previous_decision_value = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
+    CONSTRAINT decision_history_source_check CHECK ((source = ANY (ARRAY['web'::text, 'backfill'::text, 'system'::text])))
 );
 
 
@@ -869,6 +973,75 @@ CREATE TABLE public.opportunity_events (
 
 
 --
+-- Name: opportunity_extractions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_extractions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    raw_id uuid NOT NULL,
+    agent_run_id uuid NOT NULL,
+    source_id uuid NOT NULL,
+    fingerprint text NOT NULL,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    is_current boolean DEFAULT false NOT NULL,
+    extract_version text NOT NULL,
+    model text NOT NULL,
+    content_type public.rp_content_type NOT NULL,
+    buyer_type public.rp_buyer_type NOT NULL,
+    buyer_name text,
+    sector text,
+    country_code text,
+    region text,
+    language text,
+    deadline_at timestamp with time zone,
+    deadline_tz text,
+    deadline_confidence public.rp_deadline_confidence NOT NULL,
+    eligibility jsonb,
+    required_docs jsonb,
+    submission jsonb,
+    budget_value numeric,
+    budget_currency text,
+    budget_confidence public.rp_evidence_confidence,
+    risks jsonb,
+    summary_10s text NOT NULL,
+    extraction_quality public.rp_extraction_quality NOT NULL,
+    needs_review boolean NOT NULL,
+    missing_fields jsonb NOT NULL,
+    signals jsonb NOT NULL,
+    raw_snapshot jsonb,
+    quality_score numeric,
+    completeness_score numeric,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: opportunity_scores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_scores (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    agent_run_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    subject_type text DEFAULT 'user'::text NOT NULL,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    is_current boolean DEFAULT false NOT NULL,
+    score_version text NOT NULL,
+    model text,
+    score_value numeric NOT NULL,
+    score_band text,
+    rationale_summary text NOT NULL,
+    rationale_json jsonb NOT NULL,
+    input_profile_snapshot jsonb,
+    input_extraction_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunity_scores_subject_type_check CHECK ((subject_type = 'user'::text))
+);
+
+
+--
 -- Name: rp_ai_runs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -979,11 +1152,43 @@ ALTER TABLE ONLY public.access_requests
 
 
 --
+-- Name: agent_runs agent_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: brief_versions brief_versions_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_agent_run_id_key UNIQUE (agent_run_id);
+
+
+--
+-- Name: brief_versions brief_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: buyers buyers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.buyers
     ADD CONSTRAINT buyers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: decision_history decision_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decision_history
+    ADD CONSTRAINT decision_history_pkey PRIMARY KEY (id);
 
 
 --
@@ -1139,6 +1344,38 @@ ALTER TABLE ONLY public.opportunity_events
 
 
 --
+-- Name: opportunity_extractions opportunity_extractions_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_agent_run_id_key UNIQUE (agent_run_id);
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_agent_run_id_key UNIQUE (agent_run_id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: rp_ai_runs rp_ai_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1195,10 +1432,73 @@ ALTER TABLE ONLY public.whatsapp_optins
 
 
 --
+-- Name: agent_runs_agent_type_started_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_runs_agent_type_started_at_idx ON public.agent_runs USING btree (agent_type, started_at DESC);
+
+
+--
+-- Name: agent_runs_opportunity_agent_started_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_runs_opportunity_agent_started_at_idx ON public.agent_runs USING btree (opportunity_id, agent_type, started_at DESC) WHERE (opportunity_id IS NOT NULL);
+
+
+--
+-- Name: agent_runs_raw_agent_started_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_runs_raw_agent_started_at_idx ON public.agent_runs USING btree (raw_id, agent_type, started_at DESC) WHERE (raw_id IS NOT NULL);
+
+
+--
+-- Name: agent_runs_source_agent_started_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_runs_source_agent_started_at_idx ON public.agent_runs USING btree (source_id, agent_type, started_at DESC) WHERE (source_id IS NOT NULL);
+
+
+--
+-- Name: agent_runs_status_started_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_runs_status_started_at_idx ON public.agent_runs USING btree (status, started_at DESC);
+
+
+--
+-- Name: brief_versions_one_current_per_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_idx ON public.brief_versions USING btree (opportunity_id) WHERE (is_current = true);
+
+
+--
+-- Name: brief_versions_opportunity_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX brief_versions_opportunity_created_at_idx ON public.brief_versions USING btree (opportunity_id, created_at DESC);
+
+
+--
 -- Name: buyers_unique_country_name_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX buyers_unique_country_name_idx ON public.buyers USING btree (COALESCE(country_code, ''::text), normalized_name);
+
+
+--
+-- Name: decision_history_opportunity_user_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision_history USING btree (opportunity_id, user_id, created_at DESC);
+
+
+--
+-- Name: decision_history_user_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC);
 
 
 --
@@ -1433,6 +1733,55 @@ CREATE INDEX opportunity_events_opp_idx ON public.opportunity_events USING btree
 
 
 --
+-- Name: opportunity_extractions_fingerprint_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_fingerprint_idx ON public.opportunity_extractions USING btree (fingerprint);
+
+
+--
+-- Name: opportunity_extractions_one_current_per_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX opportunity_extractions_one_current_per_opportunity_idx ON public.opportunity_extractions USING btree (opportunity_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_extractions_opportunity_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_opportunity_created_at_idx ON public.opportunity_extractions USING btree (opportunity_id, created_at DESC);
+
+
+--
+-- Name: opportunity_extractions_raw_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_extractions USING btree (raw_id, created_at DESC);
+
+
+--
+-- Name: opportunity_scores_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_idx ON public.opportunity_scores USING btree (opportunity_id, user_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_scores_opportunity_user_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, created_at DESC);
+
+
+--
+-- Name: opportunity_scores_user_current_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC);
+
+
+--
 -- Name: rp_ai_runs_raw_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1552,6 +1901,110 @@ CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON public.subscription
 
 
 --
+-- Name: agent_runs agent_runs_ingestion_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_ingestion_run_id_fkey FOREIGN KEY (ingestion_run_id) REFERENCES public.ingestion_runs(id);
+
+
+--
+-- Name: agent_runs agent_runs_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: agent_runs agent_runs_raw_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_raw_id_fkey FOREIGN KEY (raw_id) REFERENCES public.opportunities_raw(id);
+
+
+--
+-- Name: agent_runs agent_runs_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id);
+
+
+--
+-- Name: agent_runs agent_runs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_runs
+    ADD CONSTRAINT agent_runs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: brief_versions brief_versions_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: brief_versions brief_versions_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: brief_versions brief_versions_source_extraction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_source_extraction_id_fkey FOREIGN KEY (source_extraction_id) REFERENCES public.opportunity_extractions(id);
+
+
+--
+-- Name: brief_versions brief_versions_source_score_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brief_versions
+    ADD CONSTRAINT brief_versions_source_score_id_fkey FOREIGN KEY (source_score_id) REFERENCES public.opportunity_scores(id);
+
+
+--
+-- Name: decision_history decision_history_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decision_history
+    ADD CONSTRAINT decision_history_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: decision_history decision_history_opportunity_decision_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decision_history
+    ADD CONSTRAINT decision_history_opportunity_decision_id_fkey FOREIGN KEY (opportunity_decision_id) REFERENCES public.opportunity_decisions(id);
+
+
+--
+-- Name: decision_history decision_history_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decision_history
+    ADD CONSTRAINT decision_history_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: decision_history decision_history_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decision_history
+    ADD CONSTRAINT decision_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
 -- Name: ingestion_jobs ingestion_jobs_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1656,6 +2109,70 @@ ALTER TABLE ONLY public.opportunity_events
 
 
 --
+-- Name: opportunity_extractions opportunity_extractions_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_raw_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_raw_id_fkey FOREIGN KEY (raw_id) REFERENCES public.opportunities_raw(id);
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_input_extraction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_input_extraction_id_fkey FOREIGN KEY (input_extraction_id) REFERENCES public.opportunity_extractions(id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: opportunity_scores opportunity_scores_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_scores
+    ADD CONSTRAINT opportunity_scores_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
 -- Name: rp_ai_runs rp_ai_runs_ai_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1687,6 +2204,13 @@ CREATE POLICY "Authenticated can read opportunity briefs" ON public.opportunity_
 
 
 --
+-- Name: decision_history Service role manages decision history; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages decision history" ON public.decision_history TO service_role USING (true) WITH CHECK (true);
+
+
+--
 -- Name: opportunity_briefs Service role manages opportunity briefs; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1705,6 +2229,13 @@ CREATE POLICY "Service role reads all decisions" ON public.opportunity_decisions
 --
 
 CREATE POLICY "Users manage own decisions" ON public.opportunity_decisions TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: decision_history Users read own decision history; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own decision history" ON public.decision_history FOR SELECT TO authenticated USING ((auth.uid() = user_id));
 
 
 --
@@ -1732,6 +2263,12 @@ ALTER TABLE public.buyers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY buyers_public_read ON public.buyers FOR SELECT TO anon USING (true);
 
+
+--
+-- Name: decision_history; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.decision_history ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: ingestion_jobs; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1954,5 +2491,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bAbGVqbgSv4paJ28TLomtwT2bQpP29ovQEphszM0x0BOmSiRfTnvIVLbKa9STqA
+\unrestrict 48c4BVHUmEGWNsGBzlEj73ZEikZuamd3B4ijBvj1SSAV4D5gQO86l3uc089Tc5T
 
