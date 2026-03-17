@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock, History, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock, History, ChevronDown, ChevronUp, Zap, Activity } from "lucide-react";
 import { cn, daysLeft, fmtRelative, fmtDateTime } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import type { Decision } from "@/lib/types";
@@ -11,6 +11,7 @@ import { useOpportunityScore } from "./useOpportunityScore";
 import { useOpportunityDocuments } from "./useOpportunityDocuments";
 import { useOpportunityExtraction } from "./useOpportunityExtraction";
 import { useBriefVersions } from "./useBriefVersions";
+import { useOpportunityTimeline } from "./useOpportunityTimeline";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -216,6 +217,10 @@ export default function WorkspacePage() {
   const { documents } = useOpportunityDocuments(id ?? null);
   const { extraction } = useOpportunityExtraction(id ?? null);
   const { versions: briefVersions } = useBriefVersions(id ?? null);
+  const { events: timelineEvents } = useOpportunityTimeline(
+    id ?? null,
+    opportunity?.created_at ?? null,
+  );
   const [briefHistoryOpen, setBriefHistoryOpen] = useState(false);
   const { decide, getDecision } = useDecisions();
   const {
@@ -528,6 +533,38 @@ export default function WorkspacePage() {
             )}
           </div>
 
+        {/* Next Actions */}
+        {(brief?.next_action || !decision || (score?.score_band === "low")) ? (
+          <div className="rounded-2xl border border-brand/25 bg-brand/5 p-5 shadow-soft">
+            <div className="mb-3 flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 text-brand/70" />
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-brand/70">
+                {t("workspace.nextActions.label")}
+              </h2>
+            </div>
+            <ul className="space-y-2.5">
+              {brief?.next_action ? (
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-brand/50 text-sm">→</span>
+                  <span className="text-sm text-text">{brief.next_action}</span>
+                </li>
+              ) : null}
+              {!decision ? (
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-warn/60 text-sm">→</span>
+                  <span className="text-sm text-subtext">{t("workspace.nextActions.takeDecision")}</span>
+                </li>
+              ) : null}
+              {score?.score_band === "low" ? (
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-bad/50 text-sm">→</span>
+                  <span className="text-sm text-subtext">{t("workspace.nextActions.lowScore")}</span>
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ) : null}
+
         {/* Documents */}
         {documents.length > 0 ? (
           <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
@@ -718,23 +755,56 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* Lineage strip */}
-      <section className="rounded-xl border border-line/15 bg-bg px-4 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-subtext">
-          <span className="font-semibold uppercase tracking-wide text-muted">
-            {t("workspace.lineage.title")}
-          </span>
-          {brief ? (
-            <span>
-              {t("workspace.lineage.briefGenerated")}{" "}
-              <span className="text-text">{fmtRelative(brief.generatedAt, fmtLocale)}</span>
-            </span>
-          ) : null}
-          <span>
-            {t("workspace.lineage.added")}{" "}
-            <span className="text-text">{fmtRelative(opportunity.created_at, fmtLocale)}</span>
-          </span>
+      {/* Timeline */}
+      <section className="rounded-2xl border border-line/20 bg-surface p-5 shadow-soft">
+        <div className="mb-4 flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-subtext/40" />
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
+            {t("workspace.timeline.label")}
+          </h2>
         </div>
+        {timelineEvents.length === 0 ? (
+          <p className="text-xs text-muted">{t("workspace.timeline.empty")}</p>
+        ) : (
+          <ol className="space-y-0">
+            {timelineEvents.map((ev, idx) => (
+              <li key={ev.id} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={cn(
+                      "mt-1 h-2 w-2 shrink-0 rounded-full border-2",
+                      ev.type === "added" && "border-subtext/30 bg-bg",
+                      ev.type === "extracted" && "border-brand/40 bg-brand/10",
+                      ev.type === "brief" && "border-brand/60 bg-brand/20",
+                      ev.type === "score" && "border-warn/50 bg-warn/15",
+                      ev.type === "decision_set" && "border-good/60 bg-good/20",
+                      ev.type === "decision_change" && "border-warn/60 bg-warn/20",
+                      ev.type === "decision_clear" && "border-bad/40 bg-bad/10",
+                    )}
+                  />
+                  {idx < timelineEvents.length - 1 ? (
+                    <div className="my-1 w-px flex-1 bg-line/15" style={{ minHeight: "14px" }} />
+                  ) : null}
+                </div>
+                <div className="min-w-0 pb-3">
+                  <p className="text-xs text-text">
+                    {t(`workspace.timeline.${ev.type}`)}
+                    {ev.type === "decision_set" && ev.decisionValue
+                      ? ` · ${ev.decisionValue === "NO_GO" ? "NO-GO" : ev.decisionValue}`
+                      : null}
+                    {ev.type === "decision_change" && ev.decisionValue
+                      ? ` → ${ev.decisionValue === "NO_GO" ? "NO-GO" : ev.decisionValue}`
+                      : null}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-subtext/40">
+                    {fmtRelative(ev.ts, fmtLocale)}
+                    {ev.durationMs ? ` · ${ev.durationMs}ms` : null}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </div>
   );
