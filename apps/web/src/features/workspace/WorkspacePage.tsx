@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock } from "lucide-react";
+import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock, History, ChevronDown, ChevronUp } from "lucide-react";
 import { cn, daysLeft, fmtRelative, fmtDateTime } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import type { Decision } from "@/lib/types";
@@ -10,6 +10,7 @@ import { useWorkspaceData } from "./useWorkspaceData";
 import { useOpportunityScore } from "./useOpportunityScore";
 import { useOpportunityDocuments } from "./useOpportunityDocuments";
 import { useOpportunityExtraction } from "./useOpportunityExtraction";
+import { useBriefVersions } from "./useBriefVersions";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -214,6 +215,8 @@ export default function WorkspacePage() {
   const { score, loading: scoreLoading } = useOpportunityScore(id ?? null);
   const { documents } = useOpportunityDocuments(id ?? null);
   const { extraction } = useOpportunityExtraction(id ?? null);
+  const { versions: briefVersions } = useBriefVersions(id ?? null);
+  const [briefHistoryOpen, setBriefHistoryOpen] = useState(false);
   const { decide, getDecision } = useDecisions();
   const {
     generate,
@@ -369,6 +372,50 @@ export default function WorkspacePage() {
         ) : null}
       </section>
 
+      {/* Dossier status strip */}
+      <section className="flex flex-wrap items-center gap-3 rounded-xl border border-line/20 bg-surface px-4 py-2.5 shadow-soft">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+          {t("workspace.status.title")}
+        </span>
+        {/* Decision */}
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+            decision === "GO" && "border border-good/40 bg-good/12 text-good",
+            decision === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
+            decision === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
+            !decision && "border border-line/25 bg-bg text-subtext",
+          )}
+        >
+          {decision === "NO_GO" ? "NO-GO" : decision ?? t("workspace.status.undecided")}
+        </span>
+        {/* Score */}
+        {!scoreLoading && score ? (
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums",
+              score.score_band === "high" && "border border-good/30 bg-good/8 text-good",
+              score.score_band === "med" && "border border-warn/30 bg-warn/8 text-warn",
+              score.score_band === "low" && "border border-bad/30 bg-bad/8 text-bad",
+            )}
+          >
+            {t(`workspace.score.${score.score_band}`)} · {Math.round(score.score_value * 100)}%
+          </span>
+        ) : !scoreLoading ? (
+          <span className="rounded-full border border-line/20 bg-bg px-2.5 py-0.5 text-[11px] text-muted">
+            {t("workspace.score.pending")}
+          </span>
+        ) : null}
+        {/* Deadline */}
+        <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+        {/* Brief freshness */}
+        {brief ? (
+          <span className="ml-auto text-[10px] text-subtext/50">
+            {t("workspace.status.briefFresh")} {fmtRelative(brief.generatedAt, fmtLocale)}
+          </span>
+        ) : null}
+      </section>
+
       {/* Main grid */}
       <div className="grid gap-5 lg:grid-cols-12">
         {/* Brief + Documents — left, larger */}
@@ -405,7 +452,51 @@ export default function WorkspacePage() {
                 {t("inbox.card.brief.error")}
               </button>
             ) : brief ? (
-              <BriefContent brief={brief} t={t} />
+              <>
+                <BriefContent brief={brief} t={t} />
+                {briefVersions.length > 0 ? (
+                  <div className="mt-4 border-t border-line/15 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setBriefHistoryOpen((v) => !v)}
+                      className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-subtext/50 hover:text-subtext transition"
+                    >
+                      <History className="h-3 w-3" />
+                      {t("workspace.brief.history.label")} ({briefVersions.length})
+                      {briefHistoryOpen ? (
+                        <ChevronUp className="ml-auto h-3 w-3" />
+                      ) : (
+                        <ChevronDown className="ml-auto h-3 w-3" />
+                      )}
+                    </button>
+                    {briefHistoryOpen ? (
+                      <ul className="mt-2 space-y-1.5">
+                        {briefVersions.map((v) => (
+                          <li
+                            key={v.id}
+                            className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-line/15 bg-bg px-3 py-2"
+                          >
+                            <span className="text-[11px] text-text">
+                              {fmtDateTime(v.created_at, fmtLocale)}
+                            </span>
+                            <span className="text-[10px] font-mono text-subtext/60">{v.model}</span>
+                            {v.is_current ? (
+                              <span className="rounded-full border border-brand/30 bg-brand/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-brand">
+                                {t("workspace.brief.history.current")}
+                              </span>
+                            ) : null}
+                            {v.generation_ms ? (
+                              <span className="ml-auto text-[10px] tabular-nums text-subtext/40">
+                                {v.generation_ms}ms
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
             ) : briefLoading ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (

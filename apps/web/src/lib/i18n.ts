@@ -171,6 +171,11 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.extraction.quality": "Data Quality",
     "workspace.extraction.quickSnapshot": "Quick Snapshot",
     "workspace.documents.label": "Documents",
+    "workspace.status.title": "Status",
+    "workspace.status.undecided": "Undecided",
+    "workspace.status.briefFresh": "Brief",
+    "workspace.brief.history.label": "Brief history",
+    "workspace.brief.history.current": "current",
   },
   fr: {
     "nav.home": "Accueil",
@@ -338,6 +343,11 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.extraction.quality": "Qualité des données",
     "workspace.extraction.quickSnapshot": "Aperçu rapide",
     "workspace.documents.label": "Documents",
+    "workspace.status.title": "Statut",
+    "workspace.status.undecided": "Indécis",
+    "workspace.status.briefFresh": "Analyse",
+    "workspace.brief.history.label": "Historique",
+    "workspace.brief.history.current": "actuel",
   },
   it: {
     "nav.home": "Home",
@@ -505,6 +515,11 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.extraction.quality": "Qualità dati",
     "workspace.extraction.quickSnapshot": "Anteprima rapida",
     "workspace.documents.label": "Documenti",
+    "workspace.status.title": "Stato",
+    "workspace.status.undecided": "Indeciso",
+    "workspace.status.briefFresh": "Analisi",
+    "workspace.brief.history.label": "Cronologia",
+    "workspace.brief.history.current": "attuale",
   },
 };
 
