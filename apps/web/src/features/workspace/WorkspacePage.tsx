@@ -9,6 +9,7 @@ import { useOpportunityBrief, type OpportunityBrief } from "@/features/inbox/use
 import { useWorkspaceData } from "./useWorkspaceData";
 import { useOpportunityScore } from "./useOpportunityScore";
 import { useOpportunityDocuments } from "./useOpportunityDocuments";
+import { useOpportunityExtraction } from "./useOpportunityExtraction";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -156,6 +157,51 @@ function BriefContent({ brief, t }: { brief: OpportunityBrief; t: (k: string) =>
   );
 }
 
+function getRationaleEntries(
+  json: Record<string, unknown>,
+): { label: string; text: string }[] {
+  if (Array.isArray(json.dimensions)) {
+    return json.dimensions
+      .slice(0, 4)
+      .filter((d): d is Record<string, unknown> => typeof d === "object" && d !== null)
+      .map((d) => ({
+        label: String(d.label ?? d.key ?? d.name ?? ""),
+        text: d.comment
+          ? String(d.comment)
+          : d.score !== undefined
+            ? `${Math.round(Number(d.score) * 100)}%`
+            : "",
+      }))
+      .filter((e) => e.label && e.text);
+  }
+  return Object.entries(json)
+    .filter(([, v]) => typeof v === "string")
+    .slice(0, 3)
+    .map(([k, v]) => ({ label: k, text: String(v) }));
+}
+
+function RationaleBreakdown({
+  json,
+  label,
+}: {
+  json: Record<string, unknown>;
+  label: string;
+}) {
+  const entries = getRationaleEntries(json);
+  if (entries.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1.5 border-t border-line/15 pt-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-subtext/50">{label}</p>
+      {entries.map((e) => (
+        <div key={e.label} className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-semibold capitalize text-subtext/60">{e.label}</span>
+          <span className="text-[11px] leading-relaxed text-subtext/80">{e.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // --- Main page ---
 
 export default function WorkspacePage() {
@@ -167,6 +213,7 @@ export default function WorkspacePage() {
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
   const { score, loading: scoreLoading } = useOpportunityScore(id ?? null);
   const { documents } = useOpportunityDocuments(id ?? null);
+  const { extraction } = useOpportunityExtraction(id ?? null);
   const { decide, getDecision } = useDecisions();
   const {
     generate,
@@ -284,15 +331,38 @@ export default function WorkspacePage() {
               </span>
             </div>
           </div>
-          {opportunity.status === "active" ? (
-            <span className="shrink-0 rounded-full border border-good/30 bg-good/10 px-2.5 py-0.5 text-[11px] font-semibold text-good">
-              {opportunity.status}
-            </span>
-          ) : (
-            <span className="shrink-0 rounded-full border border-line/30 bg-bg px-2.5 py-0.5 text-[11px] font-semibold text-subtext">
-              {opportunity.status}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {opportunity.status === "active" ? (
+              <span className="rounded-full border border-good/30 bg-good/10 px-2.5 py-0.5 text-[11px] font-semibold text-good">
+                {opportunity.status}
+              </span>
+            ) : (
+              <span className="rounded-full border border-line/30 bg-bg px-2.5 py-0.5 text-[11px] font-semibold text-subtext">
+                {opportunity.status}
+              </span>
+            )}
+            {extraction ? (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                  extraction.extraction_quality === "high" &&
+                    "border border-good/30 bg-good/8 text-good/80",
+                  extraction.extraction_quality === "med" &&
+                    "border border-warn/30 bg-warn/8 text-warn/80",
+                  extraction.extraction_quality === "low" &&
+                    "border border-bad/30 bg-bad/8 text-bad/80",
+                )}
+                title={t("workspace.extraction.quality")}
+              >
+                {t(`workspace.score.${extraction.extraction_quality}`)}
+              </span>
+            ) : null}
+            {extraction?.needs_review ? (
+              <span className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-[10px] font-semibold text-warn">
+                ⚠ {t("workspace.extraction.needsReview")}
+              </span>
+            ) : null}
+          </div>
         </div>
         {opportunity.summary ? (
           <p className="mt-3 text-sm leading-relaxed text-subtext">{opportunity.summary}</p>
@@ -345,6 +415,15 @@ export default function WorkspacePage() {
                     style={{ width: `${60 + i * 10}%` }}
                   />
                 ))}
+              </div>
+            ) : extraction?.summary_10s ? (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-subtext/50">
+                  {t("workspace.extraction.quickSnapshot")}
+                </p>
+                <p className="text-sm leading-relaxed text-subtext/80">
+                  {extraction.summary_10s}
+                </p>
               </div>
             ) : (
               <p className="text-sm text-subtext/60">{t("workspace.brief.empty")}</p>
@@ -430,6 +509,9 @@ export default function WorkspacePage() {
                     {score.rationale_summary}
                   </p>
                 ) : null}
+                {score.rationale_json ? (
+                  <RationaleBreakdown json={score.rationale_json} label={t("workspace.score.breakdown")} />
+                ) : null}
               </>
             ) : (
               <p className="text-xs text-muted">{t("workspace.score.pending")}</p>
@@ -472,6 +554,24 @@ export default function WorkspacePage() {
                   {opportunity.type}
                 </span>
               </div>
+              {extraction?.budget_value ? (
+                <div>
+                  <SectionLabel>{t("workspace.extraction.budget")}</SectionLabel>
+                  <p className="text-sm font-semibold text-text">
+                    {extraction.budget_value.toLocaleString(fmtLocale, {
+                      style: "currency",
+                      currency: extraction.budget_currency ?? "EUR",
+                      maximumFractionDigits: 0,
+                    })}
+                  </p>
+                </div>
+              ) : null}
+              {extraction?.sector ? (
+                <div>
+                  <SectionLabel>{t("workspace.extraction.sector")}</SectionLabel>
+                  <p className="text-sm text-subtext">{extraction.sector}</p>
+                </div>
+              ) : null}
               <div>
                 <SectionLabel>{t("workspace.published.label")}</SectionLabel>
                 <p className="text-sm text-subtext">

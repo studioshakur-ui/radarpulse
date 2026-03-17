@@ -5,6 +5,7 @@ export type OpportunityScore = {
   score_value: number;
   score_band: "high" | "med" | "low";
   rationale_summary: string;
+  rationale_json: Record<string, unknown> | null;
 };
 
 export function useOpportunityScore(opportunityId: string | null) {
@@ -31,7 +32,7 @@ export function useOpportunityScore(opportunityId: string | null) {
 
         const { data } = await supabase
           .from("opportunity_scores")
-          .select("score_value, score_band, rationale_summary")
+          .select("score_value, score_band, rationale_summary, rationale_json")
           .eq("opportunity_id", opportunityId)
           .eq("user_id", userId)
           .eq("is_current", true)
