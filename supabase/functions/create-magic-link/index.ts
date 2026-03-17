@@ -8,6 +8,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("create-magic-link");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -70,7 +73,7 @@ Deno.serve(async (req) => {
       use_case: useCase,
     });
 
-    if (accessError) console.error("[create-magic-link] access_requests insert failed:", accessError);
+    if (accessError) log.error(" access_requests insert failed:", accessError);
 
     // 5. BUG-12 FIX: await email send and return error if it fails
     const magicLink = `${Deno.env.get("FRONTEND_URL") ?? "https://radarpulse.io"}/?token=${token}`;
@@ -91,17 +94,17 @@ Deno.serve(async (req) => {
           },
         }),
       }).catch((err) => {
-        console.error("[create-magic-link] notify-email network error:", err);
+        log.error(" notify-email network error:", err);
         return null;
       });
 
       if (!emailRes || !emailRes.ok) {
         const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-        console.error("[create-magic-link] notify-email failed:", errText);
+        log.error(" notify-email failed:", errText);
         throw new Error("Email service unavailable — please try again");
       }
     } else {
-      console.warn("[create-magic-link] Missing SB_URL or SERVICE_ROLE_KEY — email not sent");
+      log.warn(" Missing SB_URL or SERVICE_ROLE_KEY — email not sent");
     }
 
     return json({ ok: true, message: "Check your email for access link" });

@@ -2,6 +2,9 @@ import type { OpportunityUpsertInput, SourceRow } from "../../../_shared/types.t
 import { sha256Hex } from "../../../_shared/rp_ai_utils.ts";
 import type { ConnectorResult } from "../index.ts";
 import { safeJsonFetch } from "../_utils.ts";
+import { createLogger } from "../../../_shared/logger.ts";
+
+const log = createLogger("worker/it_anac_ocds");
 
 type AnacOcdsParams = {
   base_url: string;
@@ -101,13 +104,7 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
   try {
     releasesRaw = await fetchReleasesViaOcids(base_url, limit);
   } catch (e) {
-    console.error(
-      JSON.stringify({
-        event: "anac_ocds_fetch_error",
-        source_key: source.key,
-        error: e instanceof Error ? e.message : String(e),
-      }),
-    );
+    log.error("fetch_error", { source_key: source.key, error: e instanceof Error ? e.message : String(e) });
     return { opportunities: [], fetched_at };
   }
 
@@ -183,15 +180,7 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
     });
   }
 
-  console.info(
-    JSON.stringify({
-      event: "anac_ocds_fetch_done",
-      source_key: source.key,
-      releases_received: releasesRaw.length,
-      opportunities_emitted: out.length,
-      limit,
-    }),
-  );
+  log.info("fetch_done", { source_key: source.key, releases_received: releasesRaw.length, opportunities_emitted: out.length, limit });
 
   return { opportunities: out, fetched_at };
 }

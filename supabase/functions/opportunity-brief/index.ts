@@ -1,5 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("opportunity-brief");
 
 type BriefInput = {
   id: string;
@@ -248,7 +251,7 @@ Deno.serve(async (req) => {
 
     if (!openaiRes.ok) {
       const errText = await openaiRes.text().catch(() => "");
-      console.error("[opportunity-brief] OpenAI error:", openaiRes.status, errText);
+      log.error(" OpenAI error:", openaiRes.status, errText);
       throw new BriefHttpError(502, "AI_ERROR");
     }
 
@@ -286,7 +289,7 @@ Deno.serve(async (req) => {
 
     if (upsertErr) {
       // Log but don't fail — brief is still usable even if persistence fails
-      console.error("[opportunity-brief] persist error:", upsertErr.message);
+      log.error(" persist error:", upsertErr.message);
     }
 
     const previousCurrentBriefVersionIds = await getCurrentBriefVersionIds(sb, body.id);
@@ -316,10 +319,7 @@ Deno.serve(async (req) => {
       try {
         await setBriefVersionsCurrentState(sb, previousCurrentBriefVersionIds, true);
       } catch (restoreErr) {
-        console.error(
-          "[opportunity-brief] failed to restore previous current brief_versions rows:",
-          serializeError(restoreErr),
-        );
+        log.error("restore_brief_versions_failed", { error: serializeError(restoreErr) });
       }
       throw insertErr;
     }
@@ -338,16 +338,13 @@ Deno.serve(async (req) => {
       },
     });
 
-    console.info(
-      JSON.stringify({
-        event: "opportunity_brief_generated",
-        opportunity_id: body.id,
-        model,
-        generation_ms,
-        prompt_version: PROMPT_VERSION,
-        cached: false,
-      }),
-    );
+    log.info("brief_generated", {
+      opportunity_id: body.id,
+      model,
+      generation_ms,
+      prompt_version: PROMPT_VERSION,
+      cached: false,
+    });
 
     return json(200, { ok: true, brief, cached: false });
   } catch (e) {
@@ -367,10 +364,10 @@ Deno.serve(async (req) => {
           },
         });
       } catch (agentRunErr) {
-        console.error("[opportunity-brief] failed to update agent_runs error status:", serializeError(agentRunErr));
+        log.error(" failed to update agent_runs error status:", serializeError(agentRunErr));
       }
     }
-    console.error("[opportunity-brief] error:", serializeError(originalError));
+    log.error(" error:", serializeError(originalError));
     if (originalError instanceof BriefHttpError) {
       return json(originalError.status, { ok: false, error: originalError.code });
     }

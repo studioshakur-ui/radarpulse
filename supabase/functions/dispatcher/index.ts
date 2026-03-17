@@ -1,5 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("dispatcher");
 
 function serializeError(err: unknown): { message: string; details?: Record<string, unknown> } {
   if (err instanceof Error) {
@@ -138,19 +141,16 @@ Deno.serve(async (req) => {
       created++;
     }
 
-    console.info(
-      JSON.stringify({
-        event: "dispatcher_dispatch_summary",
-        selected_sources_total: (sources ?? []).length,
-        selected_sources_by_kind: selectedByKind,
-        scheduled_jobs_count: created,
-        skipped_already_pending_count: skippedAlreadyPending,
-        skipped_queue_full_count: skippedQueueFull,
-        queued_before_run: queuedCount ?? 0,
-        max_queued_jobs: MAX_QUEUED_JOBS,
-        stale_timeout_minutes: STALE_JOB_TIMEOUT_MS / 60_000,
-      }),
-    );
+    log.info("dispatch_summary", {
+      selected_sources_total: (sources ?? []).length,
+      selected_sources_by_kind: selectedByKind,
+      scheduled_jobs_count: created,
+      skipped_already_pending_count: skippedAlreadyPending,
+      skipped_queue_full_count: skippedQueueFull,
+      queued_before_run: queuedCount ?? 0,
+      max_queued_jobs: MAX_QUEUED_JOBS,
+      stale_timeout_minutes: STALE_JOB_TIMEOUT_MS / 60_000,
+    });
 
     return new Response(JSON.stringify({ ok: true, created, skippedQueueFull }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -5,6 +5,9 @@
 
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("verify-magic-link");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -123,7 +126,7 @@ Deno.serve(async (req) => {
         cancel_at_period_end: false,
       });
 
-      if (subError) console.error("[verify-magic-link] subscription insert failed:", subError);
+      if (subError) log.error(" subscription insert failed:", subError);
     }
 
     // 3. Mark token as used — BUG-11 FIX: fail hard if this fails (prevents token reuse)
@@ -134,7 +137,7 @@ Deno.serve(async (req) => {
       .eq("used", false);
 
     if (updateError) {
-      console.error("[verify-magic-link] token mark-used failed:", updateError);
+      log.error(" token mark-used failed:", updateError);
       throw new Error("Token invalidation failed — please try again");
     }
 
