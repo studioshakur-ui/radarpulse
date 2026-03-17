@@ -3,6 +3,9 @@ import { sha256Hex } from "../../../_shared/rp_ai_utils.ts";
 
 import type { ConnectorResult } from "../index.ts";
 import { makeFingerprint, safeJsonFetch } from "../_utils.ts";
+import { createLogger } from "../../../_shared/logger.ts";
+
+const log = createLogger("worker/eu_ted_search");
 
 type TedSearchParams = {
   base_url?: string;
@@ -257,16 +260,13 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
     });
   }
 
-  console.info(
-    JSON.stringify({
-      event: "ted_eu_fetch",
-      source_key: source.key,
-      source_country: sourceCountry,
-      notices_received: notices.length,
-      notices_filtered_out: filteredOutByCountry,
-      opportunities_emitted: out.length,
-    })
-  );
+  log.info("fetch_done", {
+    source_key: source.key,
+    source_country: sourceCountry,
+    notices_received: notices.length,
+    notices_filtered_out: filteredOutByCountry,
+    opportunities_emitted: out.length,
+  });
 
   return {
     ok: true,

@@ -16,6 +16,9 @@
 //   FRONTEND_URL       — app URL for links (default: https://app.radarpulse.io)
 
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("notify-opportunities");
 import { corsHeaders } from "../_shared/cors.ts";
 
 const DEFAULT_SINCE_HOURS = 24;
@@ -129,12 +132,12 @@ Deno.serve(async (req) => {
     .returns<OpportunityRow[]>();
 
   if (oppsErr) {
-    console.error("[notify-opportunities] opps fetch error:", oppsErr.message);
+    log.error("opps_fetch_error", { error: oppsErr.message });
     return json(500, { ok: false, error: "QUERY_FAILED" });
   }
 
   if (!opps || opps.length === 0) {
-    console.info("[notify-opportunities] no new opportunities, skipping digest");
+    log.info("no_new_opportunities");
     return json(200, { ok: true, sent: 0, reason: "no_new_opportunities" });
   }
 
@@ -147,7 +150,7 @@ Deno.serve(async (req) => {
     .neq("email_digest_frequency", "off");
 
   if (prefsErr) {
-    console.error("[notify-opportunities] prefs fetch error:", prefsErr.message);
+    log.error("prefs_fetch_error", { error: prefsErr.message });
     return json(500, { ok: false, error: "QUERY_FAILED" });
   }
 
@@ -216,9 +219,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  console.info(
-    JSON.stringify({ event: "opportunity_digest_sent", sent, errors: errors.length, total_opps: opps.length }),
-  );
+  log.info("digest_sent", { sent, errors: errors.length, total_opps: opps.length });
 
   return json(200, { ok: true, sent, errors: errors.length > 0 ? errors : undefined });
 });

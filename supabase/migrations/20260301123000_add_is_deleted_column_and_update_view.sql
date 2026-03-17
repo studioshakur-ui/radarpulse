@@ -6,8 +6,13 @@
 alter table public.opportunities
 add column if not exists is_deleted boolean not null default false;
 
+-- BUG-03 FIX: use explicit CASE instead of ::boolean cast to avoid
+-- "invalid input syntax for type boolean" on non-standard values.
 update public.opportunities o
-set is_deleted = coalesce((to_jsonb(o)->>'is_deleted')::boolean, false);
+set is_deleted = case
+  when lower(to_jsonb(o)->>'is_deleted') in ('true', 't', 'yes', 'on', '1') then true
+  else false
+end;
 
 create or replace view public.opportunities_search_v1 as
 select

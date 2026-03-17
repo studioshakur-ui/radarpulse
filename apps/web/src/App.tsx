@@ -14,6 +14,7 @@ import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
 import GuidePage from "@/features/italy/GuidePage";
 import SubscribePage from "@/features/billing/SubscribePage";
 import SettingsPage from "@/features/settings/SettingsPage";
+import WorkspacePage from "@/features/workspace/WorkspacePage";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -100,7 +101,9 @@ function LocaleSwitcher() {
 
 function userRole(user: User | null): string {
   if (!user) return "";
-  const role = (user.app_metadata as any)?.role ?? (user.user_metadata as any)?.role;
+  const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const role = appMeta.role ?? userMeta.role;
   return String(role ?? "").toUpperCase();
 }
 
@@ -340,6 +343,18 @@ export default function App() {
           <Route
             path="/settings"
             element={!user ? <Navigate to="/login" replace /> : <SettingsPage />}
+          />
+          <Route
+            path="/workspace/:id"
+            element={
+              !user ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <InboxAccessGate user={user} isAdmin={isAdmin}>
+                  <WorkspacePage />
+                </InboxAccessGate>
+              )
+            }
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />

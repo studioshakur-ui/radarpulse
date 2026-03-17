@@ -1,5 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("worker");
 import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
 import type { IngestionJobRow, OpportunityUpsertInput, SourceRow } from "../_shared/types.ts";
 import { safeStr } from "../_shared/text.ts";
@@ -413,7 +416,7 @@ async function processJob(job: IngestionJobRow) {
       try {
         await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
       } catch (e) {
-        console.error("AI extract failed:", e instanceof Error ? e.message : String(e));
+        log.error("ai_extract_failed", { raw_id: raw.id, error: e instanceof Error ? e.message : String(e) });
       }
     }
 

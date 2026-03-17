@@ -27,20 +27,36 @@ type EmailPayload = {
   html: string;
 };
 
+// BUG-17 FIX: retry up to 3 times with exponential backoff (1s, 2s, 4s).
+// Resend is occasionally unavailable; a single attempt loses the email silently.
 async function sendEmail(apiKey: string, payload: EmailPayload): Promise<void> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const MAX_ATTEMPTS = 3;
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+    }
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) return;
+
     const text = await res.text().catch(() => "");
-    throw new Error(`Resend error ${res.status}: ${text}`);
+    lastError = new Error(`Resend error ${res.status}: ${text}`);
+
+    // 4xx errors (bad request, invalid key, etc.) are not retryable
+    if (res.status >= 400 && res.status < 500) break;
   }
+
+  throw lastError ?? new Error("sendEmail: unexpected exit");
 }
 
 function buildAccessRequestEmail(notifyTo: string, notifyFrom: string, p: Record<string, string>): EmailPayload {

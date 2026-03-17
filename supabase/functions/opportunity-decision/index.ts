@@ -1,5 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("opportunity-decision");
 
 type DecisionValue = "GO" | "HOLD" | "NO_GO";
 type DecisionAction = "set" | "clear";
@@ -80,7 +83,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingError) {
-      console.error("[opportunity-decision] failed to load current decision:", existingError.message);
+      log.error("load_decision_failed", { error: existingError.message });
       return json(500, { ok: false, error: "INTERNAL_ERROR" });
     }
 
@@ -99,7 +102,7 @@ Deno.serve(async (req) => {
         .eq("id", existingRow.id);
 
       if (deleteError) {
-        console.error("[opportunity-decision] failed to delete current decision:", deleteError.message);
+        log.error("delete_decision_failed", { error: deleteError.message });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -129,9 +132,9 @@ Deno.serve(async (req) => {
           });
 
         if (restoreError) {
-          console.error("[opportunity-decision] failed to restore cleared current decision:", restoreError.message);
+          log.error("restore_decision_failed", { error: restoreError.message });
         }
-        console.error("[opportunity-decision] failed to insert decision_history clear event:", historyError.message);
+        log.error("history_clear_insert_failed", { error: historyError.message });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -160,7 +163,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertError || !insertedRow?.id) {
-        console.error("[opportunity-decision] failed to insert current decision:", insertError?.message);
+        log.error("insert_decision_failed", { error: insertError?.message });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -183,9 +186,9 @@ Deno.serve(async (req) => {
           .eq("id", insertedRow.id);
 
         if (rollbackError) {
-          console.error("[opportunity-decision] failed to rollback inserted current decision:", rollbackError.message);
+          log.error("rollback_decision_failed", { error: rollbackError.message });
         }
-        console.error("[opportunity-decision] failed to insert decision_history set event:", historyError.message);
+        log.error("history_set_insert_failed", { error: historyError.message });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -223,7 +226,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (updateError || !updatedRow?.id) {
-      console.error("[opportunity-decision] failed to update current decision:", updateError?.message);
+      log.error("update_decision_failed", { error: updateError?.message });
       return json(500, { ok: false, error: "INTERNAL_ERROR" });
     }
 
@@ -252,9 +255,9 @@ Deno.serve(async (req) => {
         .eq("id", existingRow.id);
 
       if (restoreError) {
-        console.error("[opportunity-decision] failed to restore changed current decision:", restoreError.message);
+        log.error("restore_changed_decision_failed", { error: restoreError.message });
       }
-      console.error("[opportunity-decision] failed to insert decision_history change event:", historyError.message);
+      log.error("history_change_insert_failed", { error: historyError.message });
       return json(500, { ok: false, error: "INTERNAL_ERROR" });
     }
 
@@ -265,7 +268,7 @@ Deno.serve(async (req) => {
       decision: decisionValue,
     });
   } catch (error) {
-    console.error("[opportunity-decision] error:", error instanceof Error ? error.message : String(error));
+    log.error("handler_error", { error: error instanceof Error ? error.message : String(error) });
     return json(500, { ok: false, error: "INTERNAL_ERROR" });
   }
 });

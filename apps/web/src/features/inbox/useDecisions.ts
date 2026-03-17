@@ -50,7 +50,16 @@ export function useDecisions() {
         }
 
         setStore((local) => {
-          const merged = { ...local, ...serverStore };
+          // Merge: keep whichever decision has the most recent decidedAt.
+          // This prevents the server response from overwriting a decision
+          // the user made while the fetch was in flight.
+          const merged = { ...local };
+          for (const [id, serverRecord] of Object.entries(serverStore)) {
+            const localRecord = local[id];
+            if (!localRecord || localRecord.decidedAt <= serverRecord.decidedAt) {
+              merged[id] = serverRecord;
+            }
+          }
           saveLocal(merged);
           return merged;
         });

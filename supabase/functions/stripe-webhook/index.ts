@@ -1,6 +1,9 @@
 import Stripe from "npm:stripe@16.12.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("stripe-webhook");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -77,7 +80,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ event: eventName, payload }),
-      }).catch(() => console.error("[stripe-webhook] notify-email failed"));
+      }).catch((e: unknown) => log.error("notify_email_failed", { error: e instanceof Error ? e.message : String(e) }));
     }
 
     if (event.type === "checkout.session.completed") {
