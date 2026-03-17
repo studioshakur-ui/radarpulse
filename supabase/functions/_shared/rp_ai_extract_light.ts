@@ -10,6 +10,7 @@
 
 import { RP_AI_SCHEMA_NAME_V1_LIGHT, RP_AI_SCHEMA_V1_LIGHT } from "./rp_ai_schema_v1_light.ts";
 import { canonicalizeUrl, extractResponseText, normalizeText, sha256Hex } from "./rp_ai_utils.ts";
+import { scoreOpportunityForProfiles } from "./rp_score_v1.ts";
 
 type SupabaseClientLike = {
   from: (table: string) => any;
@@ -692,6 +693,30 @@ export async function extractLightForRawId(
       }));
 
       await supabase.from("opportunity_ai_evidence").insert(rows);
+    }
+
+    try {
+      await scoreOpportunityForProfiles(supabase, {
+        opportunityId,
+        extractionId,
+        extraction: {
+          country_code,
+          deadline_at,
+          budget_value: null,
+          extraction_quality: q.extraction_quality,
+          needs_review: q.needs_review,
+          missing_fields: q.missing_fields,
+          quality_score: compatibilityScores.quality_score,
+          completeness_score: compatibilityScores.completeness_score,
+          sector,
+          summary_10s,
+        },
+      });
+    } catch (scoreErr) {
+      console.error(
+        "[rp_ai_extract_light] score step failed:",
+        scoreErr instanceof Error ? scoreErr.message : String(scoreErr),
+      );
     }
 
     // Finish run log
