@@ -6,6 +6,7 @@ export type TimelineEventType =
   | "extracted"
   | "brief"
   | "score"
+  | "prep"
   | "decision_set"
   | "decision_change"
   | "decision_clear";
@@ -45,7 +46,7 @@ export function useOpportunityTimeline(
           .select("id, agent_type, status, model, duration_ms, started_at, user_id")
           .eq("opportunity_id", opportunityId)
           .eq("status", "success")
-          .in("agent_type", ["extract", "brief", "score"])
+          .in("agent_type", ["extract", "brief", "score", "prep"])
           .order("started_at", { ascending: false })
           .limit(20);
 
@@ -71,7 +72,9 @@ export function useOpportunityTimeline(
               ? "brief"
               : run.agent_type === "score"
                 ? "score"
-                : "extracted";
+                : run.agent_type === "prep"
+                  ? "prep"
+                  : "extracted";
 
           items.push({
             id: String(run.id),

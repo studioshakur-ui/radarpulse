@@ -12,6 +12,7 @@ import { useOpportunityDocuments } from "./useOpportunityDocuments";
 import { useOpportunityExtraction } from "./useOpportunityExtraction";
 import { useBriefVersions } from "./useBriefVersions";
 import { useOpportunityTimeline } from "./useOpportunityTimeline";
+import { useOpportunityPrep } from "./useOpportunityPrep";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -221,6 +222,7 @@ export default function WorkspacePage() {
     id ?? null,
     opportunity?.created_at ?? null,
   );
+  const { prep, loading: prepLoading, generating: prepGenerating, error: prepError, generate: generatePrep } = useOpportunityPrep(id ?? null);
   const [briefHistoryOpen, setBriefHistoryOpen] = useState(false);
   const { decide, getDecision } = useDecisions();
   const {
@@ -249,6 +251,13 @@ export default function WorkspacePage() {
     void generateScore(opportunity.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunity?.id, scoreLoading]);
+
+  // Trigger 11: decision GO → auto-generate prep plan if none exists
+  useEffect(() => {
+    if (!opportunity || decision !== "GO" || prepLoading || prep || prepGenerating) return;
+    void generatePrep(opportunity.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opportunity?.id, decision, prepLoading]);
 
   function handleGenerateBrief() {
     if (!opportunity) return;
@@ -420,6 +429,21 @@ export default function WorkspacePage() {
         ) : null}
         {/* Deadline */}
         <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+        {/* Deadline vs effort intelligence */}
+        {prep?.effort_days && dl !== null && dl >= 0 ? (
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+              dl < prep.effort_days * 1.5
+                ? "border border-bad/40 bg-bad/10 text-bad"
+                : dl < prep.effort_days * 3
+                  ? "border border-warn/40 bg-warn/10 text-warn"
+                  : "border border-line/25 bg-bg text-subtext",
+            )}
+          >
+            ~{prep.effort_days}d {t("workspace.status.effortVsDeadline")}
+          </span>
+        ) : null}
         {/* Brief freshness */}
         {brief ? (
           <span className="ml-auto text-[10px] text-subtext/50">
@@ -593,6 +617,126 @@ export default function WorkspacePage() {
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+        {/* Preparation Plan */}
+        {(decision === "GO" || prep || prepGenerating) ? (
+          <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
+                {t("workspace.prep.label")}
+              </h2>
+              <div className="flex items-center gap-2">
+                {prep?.effort_days ? (
+                  <span className="text-[10px] font-semibold text-subtext/50">
+                    ~{prep.effort_days}d
+                  </span>
+                ) : null}
+                {!prepLoading && !prepGenerating ? (
+                  <button
+                    type="button"
+                    onClick={() => opportunity && void generatePrep(opportunity.id)}
+                    className={cn(
+                      "rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition",
+                      prep
+                        ? "border-line/20 bg-bg text-subtext/50 hover:bg-elevated hover:text-subtext"
+                        : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
+                    )}
+                  >
+                    {prep ? t("workspace.prep.refresh") : t("workspace.prep.generate")}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {prepLoading || prepGenerating ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-3 animate-pulse rounded-lg bg-elevated"
+                    style={{ width: `${50 + i * 12}%` }}
+                  />
+                ))}
+                {prepGenerating ? (
+                  <p className="text-[10px] text-subtext/50">{t("workspace.prep.computing")}</p>
+                ) : null}
+              </div>
+            ) : prepError ? (
+              <button
+                type="button"
+                onClick={() => opportunity && void generatePrep(opportunity.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
+              >
+                {t("workspace.prep.error")}
+              </button>
+            ) : prep ? (
+              <div className="space-y-4">
+                {/* Response plan */}
+                {prep.response_plan ? (
+                  <div>
+                    <SectionLabel>{t("workspace.prep.responsePlan")}</SectionLabel>
+                    <p className="text-sm leading-relaxed text-subtext">{prep.response_plan}</p>
+                  </div>
+                ) : null}
+
+                {/* Checklist */}
+                {prep.checklist.length > 0 ? (
+                  <div>
+                    <SectionLabel>{t("workspace.prep.checklist")}</SectionLabel>
+                    <ul className="space-y-1.5">
+                      {prep.checklist.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5">
+                          <span
+                            className={cn(
+                              "mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-bold uppercase",
+                              item.priority === "high" && "bg-bad/15 text-bad",
+                              item.priority === "med" && "bg-warn/15 text-warn",
+                              item.priority === "low" && "bg-subtext/10 text-subtext/60",
+                            )}
+                          >
+                            {t(`workspace.prep.priority.${item.priority}`)}
+                          </span>
+                          <span className="text-sm text-text">{item.task}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {/* Missing docs */}
+                {prep.missing_docs.length > 0 ? (
+                  <div>
+                    <SectionLabel>{t("workspace.prep.missingDocs")}</SectionLabel>
+                    <ul className="space-y-1 text-sm text-subtext">
+                      {prep.missing_docs.map((doc, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-0.5 shrink-0 text-bad/50">✗</span>
+                          <span>{doc}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {/* Blockers */}
+                {prep.blockers.length > 0 ? (
+                  <div>
+                    <SectionLabel>{t("workspace.prep.blockers")}</SectionLabel>
+                    <ul className="space-y-1 text-sm text-warn">
+                      {prep.blockers.map((b, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-0.5 shrink-0">⚠</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-subtext/60">{t("workspace.prep.empty")}</p>
+            )}
           </div>
         ) : null}
         </div>
@@ -777,6 +921,7 @@ export default function WorkspacePage() {
                       ev.type === "extracted" && "border-brand/40 bg-brand/10",
                       ev.type === "brief" && "border-brand/60 bg-brand/20",
                       ev.type === "score" && "border-warn/50 bg-warn/15",
+                      ev.type === "prep" && "border-good/50 bg-good/15",
                       ev.type === "decision_set" && "border-good/60 bg-good/20",
                       ev.type === "decision_change" && "border-warn/60 bg-warn/20",
                       ev.type === "decision_clear" && "border-bad/40 bg-bad/10",
