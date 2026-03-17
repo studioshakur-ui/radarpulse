@@ -1,0 +1,96 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+
+# =========================
+# Logs
+# =========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Node / Workspaces
+# =========================
+node_modules/
+**/node_modules/
+
+# Keep only the root lockfile if using npm workspaces
+apps/**/package-lock.json
+packages/**/package-lock.json
+
+# =========================
+# Build / Cache
+# =========================
+dist/
+build/
+coverage/
+.tmp/
+temp/
+.cache/
+.eslintcache
+
+.vite/
+**/.vite/
+
+*.tsbuildinfo
+
+# =========================
+# Vite / App specific
+# =========================
+apps/web/dist/
+apps/web/.vite/
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+.env.local
+.env.local.*
+
+!.env.example
+!**/.env.example
+
+# =========================
+# Supabase
+# =========================
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/
+
+# local generated artifacts if any
+.supabase/
+.vercel/
+.netlify/
+
+# =========================
+# Test / Playwright / Cypress
+# =========================
+playwright-report/
+test-results/
+cypress/screenshots/
+cypress/videos/
+
+# =========================
+# Uploads / local binaries
+# =========================
+*.zip
+*.tar
+*.gz
+
+# =========================
+# Optional temporary WIP ignores
+# =========================
+supabase/functions/_shared/rp_ai_extract_light.ts
+supabase/functions/_shared/rp_ai_schema_v1_light.ts
+supabase/functions/_shared/rp_ai_utils.ts
+supabase/functions/ai-extract-light/
