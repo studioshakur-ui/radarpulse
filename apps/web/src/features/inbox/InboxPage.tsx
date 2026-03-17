@@ -315,6 +315,12 @@ function InboxDetail({
           >
             {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
           </button>
+          <Link
+            to={`/workspace/${item.id}`}
+            className="ml-auto rounded-lg border border-line/25 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext transition hover:bg-elevated"
+          >
+            {t("workspace.openBtn")}
+          </Link>
         </div>
 
         {/* Brief content */}

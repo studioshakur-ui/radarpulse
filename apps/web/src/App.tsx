@@ -14,6 +14,7 @@ import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
 import GuidePage from "@/features/italy/GuidePage";
 import SubscribePage from "@/features/billing/SubscribePage";
 import SettingsPage from "@/features/settings/SettingsPage";
+import WorkspacePage from "@/features/workspace/WorkspacePage";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -340,6 +341,18 @@ export default function App() {
           <Route
             path="/settings"
             element={!user ? <Navigate to="/login" replace /> : <SettingsPage />}
+          />
+          <Route
+            path="/workspace/:id"
+            element={
+              !user ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <InboxAccessGate user={user} isAdmin={isAdmin}>
+                  <WorkspacePage />
+                </InboxAccessGate>
+              )
+            }
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
