@@ -7,6 +7,7 @@ import type { Decision } from "@/lib/types";
 import { useDecisions } from "@/features/inbox/useDecisions";
 import { useOpportunityBrief, type OpportunityBrief } from "@/features/inbox/useOpportunityBrief";
 import { useWorkspaceData } from "./useWorkspaceData";
+import { useOpportunityScore } from "./useOpportunityScore";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -163,6 +164,7 @@ export default function WorkspacePage() {
   const daySuffix = t("inbox.deadline.daysSuffix");
 
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
+  const { score } = useOpportunityScore(id ?? null);
   const { decide, getDecision } = useDecisions();
   const {
     generate,
@@ -371,6 +373,33 @@ export default function WorkspacePage() {
               </p>
             ) : null}
           </div>
+
+          {/* Score */}
+          {score ? (
+            <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
+              <SectionLabel>{t("workspace.score.label")}</SectionLabel>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+                    score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
+                    score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
+                    score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
+                  )}
+                >
+                  {t(`workspace.score.${score.score_band}`)}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-text">
+                  {Math.round(score.score_value * 100)}%
+                </span>
+              </div>
+              {score.rationale_summary ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-subtext/70">
+                  {score.rationale_summary}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Deadline */}
           <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">

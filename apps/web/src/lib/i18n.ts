@@ -159,6 +159,10 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.lineage.briefGenerated": "Brief generated",
     "workspace.lineage.added": "Added",
     "workspace.openBtn": "Workspace →",
+    "workspace.score.label": "AI Score",
+    "workspace.score.high": "High",
+    "workspace.score.med": "Medium",
+    "workspace.score.low": "Low",
   },
   fr: {
     "nav.home": "Accueil",
@@ -314,6 +318,10 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.lineage.briefGenerated": "Analyse générée",
     "workspace.lineage.added": "Ajouté",
     "workspace.openBtn": "Workspace →",
+    "workspace.score.label": "Score IA",
+    "workspace.score.high": "Élevé",
+    "workspace.score.med": "Moyen",
+    "workspace.score.low": "Faible",
   },
   it: {
     "nav.home": "Home",
@@ -469,6 +477,10 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.lineage.briefGenerated": "Analisi generata",
     "workspace.lineage.added": "Aggiunto",
     "workspace.openBtn": "Workspace →",
+    "workspace.score.label": "Score IA",
+    "workspace.score.high": "Alto",
+    "workspace.score.med": "Medio",
+    "workspace.score.low": "Basso",
   },
 };
 

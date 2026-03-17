@@ -7,6 +7,7 @@ import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
 import { useDecisions } from "./useDecisions";
 import { useOpportunityBrief, type BriefInput, type OpportunityBrief } from "./useOpportunityBrief";
+import { useOpportunityScore, type OpportunityScore } from "@/features/workspace/useOpportunityScore";
 
 type InboxItem = ReturnType<typeof useInboxData>["items"][number];
 
@@ -239,6 +240,7 @@ function InboxDetail({
   brief,
   briefLoading,
   briefError,
+  score,
   t,
   fmtLocale,
   daySuffix,
@@ -250,6 +252,7 @@ function InboxDetail({
   brief: OpportunityBrief | null;
   briefLoading: boolean;
   briefError: string | null;
+  score: OpportunityScore | null;
   t: TFn;
   fmtLocale: string;
   daySuffix: string;
@@ -267,9 +270,23 @@ function InboxDetail({
               {item.buyer_name || t("inbox.card.buyerUnavailable")}
             </p>
           </div>
-          <span className="shrink-0 rounded-full border border-line/40 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext">
-            {formatQuality(item.quality_score, t)}
-          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {score ? (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-bold uppercase",
+                  score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
+                  score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
+                  score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
+                )}
+              >
+                {Math.round(score.score_value * 100)}%
+              </span>
+            ) : null}
+            <span className="rounded-full border border-line/40 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext">
+              {formatQuality(item.quality_score, t)}
+            </span>
+          </div>
         </div>
 
         {/* Metadata */}
@@ -375,6 +392,7 @@ export default function InboxPage() {
     isLoading: isBriefLoading,
     getError: getBriefError,
   } = useOpportunityBrief();
+  const { score: selectedScore } = useOpportunityScore(selectedId);
 
   const filteredItems = useMemo(() => {
     if (decisionFilter === "all") return items;
@@ -674,6 +692,7 @@ export default function InboxPage() {
                 brief={getBrief(selectedItem.id)}
                 briefLoading={isBriefLoading(selectedItem.id)}
                 briefError={getBriefError(selectedItem.id)}
+                score={selectedScore}
                 t={t}
                 fmtLocale={fmtLocale}
                 daySuffix={daySuffix}
