@@ -3,6 +3,8 @@ import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "radarpulse:briefs";
+// Must match server-side BRIEF_TTL_MS in opportunity-brief edge function
+const BRIEF_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type OpportunityBrief = {
   executive_summary: string;
@@ -28,7 +30,23 @@ export type BriefInput = {
 
 function loadCache(): Record<string, OpportunityBrief> {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<string, OpportunityBrief>;
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<string, OpportunityBrief>;
+    const now = Date.now();
+    const valid: Record<string, OpportunityBrief> = {};
+    for (const [id, brief] of Object.entries(raw)) {
+      if (brief.generatedAt && now - new Date(brief.generatedAt).getTime() < BRIEF_TTL_MS) {
+        valid[id] = brief;
+      }
+    }
+    // Persist the cleaned cache immediately so stale entries don't accumulate
+    if (Object.keys(valid).length !== Object.keys(raw).length) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      } catch {
+        // ignore storage errors
+      }
+    }
+    return valid;
   } catch {
     return {};
   }
