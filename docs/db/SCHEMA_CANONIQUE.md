@@ -35,7 +35,7 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 272 kB — RLS: off — cols: 21
+ - `public.agent_runs` — size: 296 kB — RLS: off — cols: 21
  - `public.brief_versions` — size: 40 kB — RLS: off — cols: 18
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 32 kB — RLS: on — cols: 12
@@ -53,9 +53,9 @@
  - `public.opportunity_decisions` — size: 40 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.opportunity_extractions` — size: 432 kB — RLS: off — cols: 36
+ - `public.opportunity_extractions` — size: 472 kB — RLS: off — cols: 36
  - `public.opportunity_scores` — size: 48 kB — RLS: off — cols: 16
- - `public.rp_ai_runs` — size: 400 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 416 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -119,7 +119,7 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `272 kB`
+ - **Size**: `296 kB`
  - **Size**: `40 kB`
  - **Size**: `24 kB`
  - **Size**: `32 kB`
@@ -137,9 +137,9 @@
  - **Size**: `40 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `432 kB`
+ - **Size**: `472 kB`
  - **Size**: `48 kB`
- - **Size**: `400 kB`
+ - **Size**: `416 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
