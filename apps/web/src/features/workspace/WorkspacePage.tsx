@@ -165,11 +165,12 @@ export default function WorkspacePage() {
   const daySuffix = t("inbox.deadline.daysSuffix");
 
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
-  const { score } = useOpportunityScore(id ?? null);
+  const { score, loading: scoreLoading } = useOpportunityScore(id ?? null);
   const { documents } = useOpportunityDocuments(id ?? null);
   const { decide, getDecision } = useDecisions();
   const {
     generate,
+    loadFromDB: loadBriefFromDB,
     getBrief,
     isLoading: isBriefLoading,
     getError: getBriefError,
@@ -180,30 +181,25 @@ export default function WorkspacePage() {
   const briefLoading = opportunity ? isBriefLoading(opportunity.id) : false;
   const briefError = opportunity ? getBriefError(opportunity.id) : null;
 
-  // Auto-generate brief on mount if not cached
+  // DB-first brief load on mount: read from opportunity_briefs before calling edge function
   useEffect(() => {
     if (!opportunity || brief || briefLoading) return;
-    void generate({
-      id: opportunity.id,
-      title: opportunity.title,
-      buyer_name: opportunity.buyer_name,
-      status: opportunity.status,
-      deadline_at: opportunity.deadline_at,
-      country_code: opportunity.country_code,
-    });
+    void loadBriefFromDB(opportunity.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunity?.id]);
 
   function handleGenerateBrief() {
     if (!opportunity) return;
-    void generate({
+    const input = {
       id: opportunity.id,
       title: opportunity.title,
       buyer_name: opportunity.buyer_name,
       status: opportunity.status,
       deadline_at: opportunity.deadline_at,
       country_code: opportunity.country_code,
-    });
+    };
+    // If brief already exists, force-regenerate (bypass local cache)
+    void generate(input, brief ? { force: true } : undefined);
   }
 
   if (!id) {
@@ -305,8 +301,8 @@ export default function WorkspacePage() {
 
       {/* Main grid */}
       <div className="grid gap-5 lg:grid-cols-12">
-        {/* Brief — left, larger */}
-        <div className="lg:col-span-7">
+        {/* Brief + Documents — left, larger */}
+        <div className="space-y-5 lg:col-span-7">
           <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">Brief</h2>
@@ -408,31 +404,37 @@ export default function WorkspacePage() {
           </div>
 
           {/* Score */}
-          {score ? (
-            <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
-              <SectionLabel>{t("workspace.score.label")}</SectionLabel>
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
-                    score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
-                    score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
-                    score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
-                  )}
-                >
-                  {t(`workspace.score.${score.score_band}`)}
-                </span>
-                <span className="text-sm font-semibold tabular-nums text-text">
-                  {Math.round(score.score_value * 100)}%
-                </span>
-              </div>
-              {score.rationale_summary ? (
-                <p className="mt-2 text-[11px] leading-relaxed text-subtext/70">
-                  {score.rationale_summary}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
+            <SectionLabel>{t("workspace.score.label")}</SectionLabel>
+            {scoreLoading ? (
+              <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
+            ) : score ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+                      score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
+                      score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
+                      score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
+                    )}
+                  >
+                    {t(`workspace.score.${score.score_band}`)}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-text">
+                    {Math.round(score.score_value * 100)}%
+                  </span>
+                </div>
+                {score.rationale_summary ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-subtext/70">
+                    {score.rationale_summary}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-xs text-muted">{t("workspace.score.pending")}</p>
+            )}
+          </div>
 
           {/* Deadline */}
           <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">

@@ -163,6 +163,7 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.score.high": "High",
     "workspace.score.med": "Medium",
     "workspace.score.low": "Low",
+    "workspace.score.pending": "Not yet scored",
     "workspace.documents.label": "Documents",
   },
   fr: {
@@ -323,6 +324,7 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.score.high": "Élevé",
     "workspace.score.med": "Moyen",
     "workspace.score.low": "Faible",
+    "workspace.score.pending": "Score non disponible",
     "workspace.documents.label": "Documents",
   },
   it: {
@@ -483,6 +485,7 @@ const dict: Record<Locale, Record<string, string>> = {
     "workspace.score.high": "Alto",
     "workspace.score.med": "Medio",
     "workspace.score.low": "Basso",
+    "workspace.score.pending": "Score non disponibile",
     "workspace.documents.label": "Documenti",
   },
 };

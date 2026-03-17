@@ -38,13 +38,8 @@ function loadCache(): Record<string, OpportunityBrief> {
         valid[id] = brief;
       }
     }
-    // Persist the cleaned cache immediately so stale entries don't accumulate
     if (Object.keys(valid).length !== Object.keys(raw).length) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
-      } catch {
-        // ignore storage errors
-      }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(valid)); } catch { /* ignore */ }
     }
     return valid;
   } catch {
@@ -52,15 +47,75 @@ function loadCache(): Record<string, OpportunityBrief> {
   }
 }
 
+function persistCache(next: Record<string, OpportunityBrief>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+}
+
 export function useOpportunityBrief() {
   const [cache, setCache] = useState<Record<string, OpportunityBrief>>(loadCache);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  /**
+   * Load brief from DB (opportunity_briefs table) — DB-first strategy.
+   * Populates localStorage cache if found and within TTL.
+   * Returns true if a valid brief was found.
+   */
+  const loadFromDB = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const { data } = await supabase
+        .from("opportunity_briefs")
+        .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action, updated_at")
+        .eq("opportunity_id", id)
+        .single();
+
+      if (!data) return false;
+
+      // Respect same TTL as localStorage
+      if (Date.now() - new Date(data.updated_at as string).getTime() > BRIEF_TTL_MS) return false;
+
+      const brief: OpportunityBrief = {
+        executive_summary: data.executive_summary as string,
+        fit_assessment: data.fit_assessment as string,
+        risk_flags: (data.risk_flags as string[]) ?? [],
+        required_documents: (data.required_documents as string[]) ?? [],
+        next_action: data.next_action as string,
+        generatedAt: data.updated_at as string,
+      };
+
+      setCache((prev) => {
+        const next = { ...prev, [id]: brief };
+        persistCache(next);
+        return next;
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /**
+   * Generate (or force-refresh) a brief via edge function.
+   * Pass `{ force: true }` to bypass the local cache (used by the Refresh button).
+   */
   const generate = useCallback(
-    async (input: BriefInput) => {
+    async (input: BriefInput, options?: { force?: boolean }) => {
       const { id } = input;
-      if (cache[id] || loadingId === id) return;
+      const force = options?.force ?? false;
+
+      // Prevent concurrent loads; respect cache unless forced
+      if (loadingId === id) return;
+      if (!force && cache[id]) return;
+
+      // Evict stale local cache entry before forced regeneration
+      if (force) {
+        setCache((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          persistCache(next);
+          return next;
+        });
+      }
 
       setLoadingId(id);
       setErrors((prev) => {
@@ -94,7 +149,7 @@ export function useOpportunityBrief() {
 
         setCache((prev) => {
           const next = { ...prev, [id]: brief };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          persistCache(next);
           return next;
         });
       } catch (e) {
@@ -110,5 +165,5 @@ export function useOpportunityBrief() {
   const isLoading = useCallback((id: string): boolean => loadingId === id, [loadingId]);
   const getError = useCallback((id: string): string | null => errors[id] ?? null, [errors]);
 
-  return { generate, getBrief, isLoading, getError };
+  return { generate, loadFromDB, getBrief, isLoading, getError };
 }
