@@ -98,14 +98,14 @@ Deno.serve(async (req) => {
         event: "magic_link",
         payload: { email, name: email.split("@")[0], magic_link: magicLink },
       }),
-    }).catch((err) => {
-      log.error(" notify-email network error:", err);
+    }).catch((err: unknown) => {
+      log.error("notify_email_network_error", { error: err instanceof Error ? err.message : String(err) });
       return null;
     });
 
     if (!emailRes || !emailRes.ok) {
       const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-      log.error(" notify-email failed:", errText);
+      log.error("notify_email_failed", { response: errText });
       throw new Error("Email service unavailable — please try again");
     }
 

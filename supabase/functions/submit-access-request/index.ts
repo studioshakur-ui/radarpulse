@@ -68,18 +68,18 @@ Deno.serve(async (req) => {
           event: "access_request",
           payload: { name, email, organization: organization ?? "", use_case: useCase ?? "" },
         }),
-      }).catch((err) => {
-        log.error(" notify-email network error:", err);
+      }).catch((err: unknown) => {
+        log.error("notify_email_network_error", { error: err instanceof Error ? err.message : String(err) });
         return null;
       });
 
       if (!emailRes?.ok) {
         // Non-fatal: lead is already saved in DB, log but don't fail the request
         const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-        log.error(" notify-email failed (non-fatal):", errText);
+        log.error("notify_email_failed", { response: errText });
       }
     } else {
-      log.warn(" SERVICE_ROLE_KEY not set — admin notification skipped");
+      log.warn("admin_notification_skipped_missing_env");
     }
 
     return json({ ok: true });

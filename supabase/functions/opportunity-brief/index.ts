@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
 
     if (!openaiRes.ok) {
       const errText = await openaiRes.text().catch(() => "");
-      log.error(" OpenAI error:", openaiRes.status, errText);
+      log.error("openai_error", { status: openaiRes.status, response: errText });
       throw new BriefHttpError(502, "AI_ERROR");
     }
 
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
 
     if (upsertErr) {
       // Log but don't fail — brief is still usable even if persistence fails
-      log.error(" persist error:", upsertErr.message);
+      log.error("persist_error", { error: upsertErr.message });
     }
 
     const previousCurrentBriefVersionIds = await getCurrentBriefVersionIds(sb, body.id);
@@ -364,10 +364,10 @@ Deno.serve(async (req) => {
           },
         });
       } catch (agentRunErr) {
-        log.error(" failed to update agent_runs error status:", serializeError(agentRunErr));
+        log.error("agent_runs_update_failed", { error: serializeError(agentRunErr) });
       }
     }
-    log.error(" error:", serializeError(originalError));
+    log.error("handler_error", { error: serializeError(originalError) });
     if (originalError instanceof BriefHttpError) {
       return json(originalError.status, { ok: false, error: originalError.code });
     }

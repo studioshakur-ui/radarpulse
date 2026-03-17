@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
       use_case: useCase,
     });
 
-    if (accessError) log.error(" access_requests insert failed:", accessError);
+    if (accessError) log.error("access_requests_insert_failed", { error: accessError.message });
 
     // 5. BUG-12 FIX: await email send and return error if it fails
     const magicLink = `${Deno.env.get("FRONTEND_URL") ?? "https://radarpulse.io"}/?token=${token}`;
@@ -93,18 +93,18 @@ Deno.serve(async (req) => {
             magic_link: magicLink,
           },
         }),
-      }).catch((err) => {
-        log.error(" notify-email network error:", err);
+      }).catch((err: unknown) => {
+        log.error("notify_email_network_error", { error: err instanceof Error ? err.message : String(err) });
         return null;
       });
 
       if (!emailRes || !emailRes.ok) {
         const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-        log.error(" notify-email failed:", errText);
+        log.error("notify_email_failed", { response: errText });
         throw new Error("Email service unavailable — please try again");
       }
     } else {
-      log.warn(" Missing SB_URL or SERVICE_ROLE_KEY — email not sent");
+      log.warn("email_not_sent_missing_env");
     }
 
     return json({ ok: true, message: "Check your email for access link" });

@@ -1,7 +1,8 @@
 // verify-magic-link — RadarPulse
-// Verifies a magic link token and creates a Supabase auth user.
-// Called from frontend with ?token=xxx
-// Response: { ok: true, accessToken, email } OR { ok: false, error }
+// Verifies a magic link token and creates/signs in a Supabase auth user.
+// Called from frontend with POST { token }
+// Response: { ok: true, accessToken, refreshToken, email, userId }
+//           { ok: false, error: "..." }
 
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
@@ -16,7 +17,8 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// BUG-08 FIX: use crypto.getRandomValues() instead of Math.random()
+// BUG-08 FIX: use crypto.getRandomValues() — Math.random() is not CSPRNG.
+// Only used for new users (temp bootstrap password, immediately discarded).
 function generateRandomPassword(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
   const buf = new Uint8Array(24);
@@ -26,23 +28,6 @@ function generateRandomPassword(): string {
     pwd += chars.charAt(byte % chars.length);
   }
   return pwd;
-}
-
-// BUG-09 FIX: look up user by email via admin API — O(1) instead of listUsers() O(n)
-async function findUserByEmail(sbUrl: string, serviceKey: string, email: string): Promise<{ id: string; email: string } | null> {
-  const res = await fetch(
-    `${sbUrl}/auth/v1/admin/users?filter=${encodeURIComponent(email)}&page=1&per_page=1`,
-    {
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        apikey: serviceKey,
-      },
-    },
-  );
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => ({}));
-  const users = (data?.users ?? []) as Array<{ id: string; email: string }>;
-  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
 Deno.serve(async (req) => {
@@ -57,12 +42,13 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "token is required" }, 400);
     }
 
-    // 1. Verify token in DB
     const sb = sbAdmin();
     const sbAuth = sbAdmin();
     const sbUrl = Deno.env.get("SB_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceKey = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const serviceKey =
+      Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+    // 1. Verify our custom token in DB
     const { data: tokenData, error: tokenError } = await sb
       .from("magic_link_tokens")
       .select("*")
@@ -76,28 +62,47 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "Invalid or expired token" }, 400);
     }
 
-    const email = tokenData.email;
+    const email = tokenData.email as string;
 
-    // 2. Check if user already exists — BUG-09 FIX: O(1) lookup, not listUsers()
-    const existingUser = await findUserByEmail(sbUrl, serviceKey, email);
+    // 2. BUG-09 FIX: use admin SDK getUserByEmail — O(1), no listUsers() enumeration.
+    const { data: existingData } = await sbAuth.auth.admin.getUserByEmail(email);
+    const existingUser = existingData?.user ?? null;
 
     let userId: string;
     let accessToken: string;
-
     let refreshToken = "";
 
     if (existingUser?.id) {
-      // User exists — rotate temp password and sign in (magic-link-only users have no known password)
+      // User exists — BUG-10 FIX: never overwrite the user's password.
+      // Instead, generate a one-time Supabase magic-link OTP and immediately
+      // exchange the hashed_token for a real session. The user's password
+      // (if any) is untouched.
       userId = existingUser.id;
-      const tempPassword = generateRandomPassword(); // BUG-08 FIX: crypto-secure
-      await sbAuth.auth.admin.updateUserById(userId, { password: tempPassword });
-      const signInRes = await sbAuth.auth.signInWithPassword({ email, password: tempPassword });
-      if (signInRes.error) throw new Error(signInRes.error.message);
-      accessToken = signInRes.data.session?.access_token ?? "";
-      refreshToken = signInRes.data.session?.refresh_token ?? "";
+
+      const { data: linkData, error: linkErr } = await sbAuth.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+      });
+
+      if (linkErr || !linkData?.properties?.hashed_token) {
+        throw new Error("Failed to generate auth session for existing user");
+      }
+
+      // Exchange the hashed OTP token for an actual session.
+      const { data: sessionData, error: sessionErr } = await sbAuth.auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: "email",
+      });
+
+      if (sessionErr || !sessionData?.session) {
+        throw new Error(sessionErr?.message ?? "Failed to create session");
+      }
+
+      accessToken = sessionData.session.access_token;
+      refreshToken = sessionData.session.refresh_token ?? "";
     } else {
-      // Create new user
-      const tempPassword = generateRandomPassword(); // BUG-08 FIX: crypto-secure
+      // New user — create with a random temp password, sign in once, then discard.
+      const tempPassword = generateRandomPassword();
       const createRes = await sbAuth.auth.admin.createUser({
         email,
         password: tempPassword,
@@ -107,13 +112,12 @@ Deno.serve(async (req) => {
       if (createRes.error) throw new Error(createRes.error.message);
       userId = createRes.data.user.id;
 
-      // Sign in immediately to get access token
       const signInRes = await sbAuth.auth.signInWithPassword({ email, password: tempPassword });
       if (signInRes.error) throw new Error(signInRes.error.message);
       accessToken = signInRes.data.session?.access_token ?? "";
       refreshToken = signInRes.data.session?.refresh_token ?? "";
 
-      // Create subscription record for trial (7 days)
+      // Provision trial subscription (7 days)
       const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const { error: subError } = await sb.from("subscriptions").insert({
         user_id: userId,
@@ -126,10 +130,10 @@ Deno.serve(async (req) => {
         cancel_at_period_end: false,
       });
 
-      if (subError) log.error(" subscription insert failed:", subError);
+      if (subError) log.error("subscription_insert_failed", { error: subError.message });
     }
 
-    // 3. Mark token as used — BUG-11 FIX: fail hard if this fails (prevents token reuse)
+    // 3. Mark token as used — BUG-11 FIX: fail hard to prevent token reuse on error.
     const { error: updateError } = await sb
       .from("magic_link_tokens")
       .update({ used: true, used_at: new Date().toISOString() })
@@ -137,17 +141,11 @@ Deno.serve(async (req) => {
       .eq("used", false);
 
     if (updateError) {
-      log.error(" token mark-used failed:", updateError);
+      log.error("token_mark_used_failed", { error: updateError.message });
       throw new Error("Token invalidation failed — please try again");
     }
 
-    return json({
-      ok: true,
-      accessToken,
-      refreshToken,
-      email,
-      userId,
-    });
+    return json({ ok: true, accessToken, refreshToken, email, userId });
   } catch (e) {
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }

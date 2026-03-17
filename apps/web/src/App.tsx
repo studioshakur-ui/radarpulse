@@ -101,7 +101,9 @@ function LocaleSwitcher() {
 
 function userRole(user: User | null): string {
   if (!user) return "";
-  const role = (user.app_metadata as any)?.role ?? (user.user_metadata as any)?.role;
+  const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const role = appMeta.role ?? userMeta.role;
   return String(role ?? "").toUpperCase();
 }
 

@@ -7,13 +7,16 @@ returns trigger
 language plpgsql
 as $$
 begin
+  -- completeness_score: fraction of the 4 key fields that are populated.
+  -- Denominator MUST match the number of fields in the sum; update both together
+  -- if fields are added or removed, otherwise the score silently mis-normalises.
   new.completeness_score :=
     (
       (new.region is not null)::int +
       (new.budget_value is not null)::int +
       (new.deadline_at is not null)::int +
       (new.buyer_name is not null)::int
-    ) / 4.0;
+    ) / 4.0; -- 4 fields above → denominator 4.0
 
   new.quality_score :=
     new.completeness_score *
