@@ -8,6 +8,7 @@ import { useDecisions } from "@/features/inbox/useDecisions";
 import { useOpportunityBrief, type OpportunityBrief } from "@/features/inbox/useOpportunityBrief";
 import { useWorkspaceData } from "./useWorkspaceData";
 import { useOpportunityScore } from "./useOpportunityScore";
+import { useOpportunityDocuments } from "./useOpportunityDocuments";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -165,6 +166,7 @@ export default function WorkspacePage() {
 
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
   const { score } = useOpportunityScore(id ?? null);
+  const { documents } = useOpportunityDocuments(id ?? null);
   const { decide, getDecision } = useDecisions();
   const {
     generate,
@@ -352,6 +354,37 @@ export default function WorkspacePage() {
               <p className="text-sm text-subtext/60">{t("workspace.brief.empty")}</p>
             )}
           </div>
+
+        {/* Documents */}
+        {documents.length > 0 ? (
+          <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtext">
+              {t("workspace.documents.label")}
+            </h2>
+            <ul className="space-y-2">
+              {documents.map((doc) => (
+                <li key={doc.id}>
+                  <a
+                    href={doc.doc_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 rounded-lg border border-line/20 bg-bg px-3 py-2 text-sm transition hover:bg-elevated hover:border-line/40"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-subtext group-hover:text-brand" />
+                    <span className="min-w-0 flex-1 truncate text-text">
+                      {doc.doc_title || doc.doc_url}
+                    </span>
+                    {doc.doc_type ? (
+                      <span className="shrink-0 rounded bg-elevated px-1.5 py-0.5 text-[10px] font-bold uppercase text-subtext">
+                        {doc.doc_type}
+                      </span>
+                    ) : null}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         </div>
 
         {/* Sidebar — right */}
