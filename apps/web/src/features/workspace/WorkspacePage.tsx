@@ -212,7 +212,7 @@ export default function WorkspacePage() {
   const daySuffix = t("inbox.deadline.daysSuffix");
 
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
-  const { score, loading: scoreLoading } = useOpportunityScore(id ?? null);
+  const { score, loading: scoreLoading, generating: scoreGenerating, error: scoreError, generate: generateScore } = useOpportunityScore(id ?? null);
   const { documents } = useOpportunityDocuments(id ?? null);
   const { extraction } = useOpportunityExtraction(id ?? null);
   const { versions: briefVersions } = useBriefVersions(id ?? null);
@@ -237,6 +237,13 @@ export default function WorkspacePage() {
     void loadBriefFromDB(opportunity.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunity?.id]);
+
+  // Auto-generate score if none found after DB load completes
+  useEffect(() => {
+    if (!opportunity || scoreLoading || score || scoreGenerating) return;
+    void generateScore(opportunity.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opportunity?.id, scoreLoading]);
 
   function handleGenerateBrief() {
     if (!opportunity) return;
@@ -575,9 +582,38 @@ export default function WorkspacePage() {
 
           {/* Score */}
           <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
-            <SectionLabel>{t("workspace.score.label")}</SectionLabel>
-            {scoreLoading ? (
-              <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
+            <div className="mb-2 flex items-center justify-between">
+              <SectionLabel>{t("workspace.score.label")}</SectionLabel>
+              {!scoreLoading && !scoreGenerating && (
+                <button
+                  type="button"
+                  onClick={() => opportunity && void generateScore(opportunity.id)}
+                  className={cn(
+                    "rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition",
+                    score
+                      ? "border-line/20 bg-bg text-subtext/50 hover:bg-elevated hover:text-subtext"
+                      : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
+                  )}
+                >
+                  {score ? t("workspace.score.refresh") : t("workspace.score.generate")}
+                </button>
+              )}
+            </div>
+            {scoreLoading || scoreGenerating ? (
+              <div className="space-y-2">
+                <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
+                {scoreGenerating ? (
+                  <p className="text-[10px] text-subtext/50">{t("workspace.score.computing")}</p>
+                ) : null}
+              </div>
+            ) : scoreError ? (
+              <button
+                type="button"
+                onClick={() => opportunity && void generateScore(opportunity.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
+              >
+                {t("workspace.score.error")}
+              </button>
             ) : score ? (
               <>
                 <div className="flex items-center gap-2">
