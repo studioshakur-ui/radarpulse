@@ -49,6 +49,14 @@ function getBoolEnv(name: string, def: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(v.toLowerCase());
 }
 
+function getIntEnv(name: string, def: number): number {
+  const v = Deno.env.get(name);
+  if (!v) return def;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.trunc(n);
+}
+
 function ensureTitle(input: OpportunityUpsertInput): string {
   const t = safeStr((input as any)?.title).trim();
   return t ? t : "Untitled opportunity";
@@ -379,6 +387,19 @@ async function upsertAi(rawId: string, args?: { sourceId?: string | null; ingest
   });
 }
 
+function shouldRunAiForItem(args: {
+  aiEnabled: boolean;
+  aiProcessedCount: number;
+  aiMaxPerJob: number;
+  jobStartedAtMs: number;
+  softDeadlineMs: number;
+}): { run: boolean; reason: "disabled" | "ai_limit" | "soft_deadline" | null } {
+  if (!args.aiEnabled) return { run: false, reason: "disabled" };
+  if (args.aiProcessedCount >= args.aiMaxPerJob) return { run: false, reason: "ai_limit" };
+  if (Date.now() - args.jobStartedAtMs >= args.softDeadlineMs) return { run: false, reason: "soft_deadline" };
+  return { run: true, reason: null };
+}
+
 /* -----------------------------
    Job processor
 ----------------------------- */
@@ -393,6 +414,11 @@ async function processJob(job: IngestionJobRow) {
 
   const source = await getSource((job as any).source_id);
   const { runId, cursor: runCursor } = await startIngestionRun(source);
+  const jobStartedAtMs = Date.now();
+  const aiEnabled = Boolean(Deno.env.get("OPENAI_API_KEY"));
+  const aiMaxPerJob = Math.max(0, getIntEnv("WORKER_MAX_AI_PER_JOB", 8));
+  const softDeadlineMs = Math.max(30_000, getIntEnv("WORKER_SOFT_DEADLINE_MS", 240_000));
+  const progressEvery = Math.max(1, getIntEnv("WORKER_PROGRESS_EVERY", 10));
 
   try {
     const result = await runConnector(source);
@@ -400,58 +426,128 @@ async function processJob(job: IngestionJobRow) {
 
     let upsertedRaw = 0;
     let upsertedOpportunities = 0;
+    let failedItems = 0;
+    let aiProcessed = 0;
+    let aiSkippedDisabled = 0;
+    let aiSkippedLimit = 0;
+    let aiSkippedDeadline = 0;
+    let aiFailures = 0;
 
-    for (const opp of result.opportunities as OpportunityUpsertInput[]) {
+    log.info("job_fetch_complete", {
+      source_key: source.key,
+      run_id: runId,
+      fetched_count: fetchedCount,
+      ai_enabled: aiEnabled,
+      ai_max_per_job: aiMaxPerJob,
+      soft_deadline_ms: softDeadlineMs,
+    });
+
+    const opportunities = result.opportunities as OpportunityUpsertInput[];
+    for (let index = 0; index < opportunities.length; index++) {
+      const opp = opportunities[index];
       const normalizedOpp: OpportunityUpsertInput = {
         ...opp,
         country_code: (opp.country_code ?? source.country_code ?? null) as string | null,
       };
 
-      const raw = await upsertRaw(source, normalizedOpp, runId);
-      upsertedRaw += 1;
-
-      await upsertOpportunity(source, normalizedOpp);
-      upsertedOpportunities += 1;
-
-      // AI best-effort
       try {
-        const extractResult = await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
-        if (extractResult?.status === "success" && extractResult.opportunity_id && extractResult.extraction_id) {
-          const { data: currentExtraction, error: extractionError } = await sb()
-            .from("opportunity_extractions")
-            .select("country_code, deadline_at, budget_value, extraction_quality, needs_review, missing_fields, quality_score, completeness_score, sector, summary_10s")
-            .eq("id", extractResult.extraction_id)
-            .maybeSingle();
+        const raw = await upsertRaw(source, normalizedOpp, runId);
+        upsertedRaw += 1;
 
-          if (extractionError) {
-            throw new Error(`failed to load current extraction for scoring: ${extractionError.message}`);
-          }
+        await upsertOpportunity(source, normalizedOpp);
+        upsertedOpportunities += 1;
 
-          if (currentExtraction) {
-            await scoreOpportunityForProfiles(sb(), {
-              opportunityId: extractResult.opportunity_id,
-              extractionId: extractResult.extraction_id,
-              triggerType: "system",
-              scoringPath: "worker.extract.after_persist",
-              extraction: {
-                country_code: currentExtraction.country_code ?? null,
-                deadline_at: currentExtraction.deadline_at ?? null,
-                budget_value: currentExtraction.budget_value ?? null,
-                extraction_quality: currentExtraction.extraction_quality,
-                needs_review: Boolean(currentExtraction.needs_review),
-                missing_fields: Array.isArray(currentExtraction.missing_fields)
-                  ? currentExtraction.missing_fields
-                  : [],
-                quality_score: Number(currentExtraction.quality_score ?? 0),
-                completeness_score: Number(currentExtraction.completeness_score ?? 0),
-                sector: currentExtraction.sector ?? null,
-                summary_10s: String(currentExtraction.summary_10s ?? ""),
-              },
+        const aiDecision = shouldRunAiForItem({
+          aiEnabled,
+          aiProcessedCount: aiProcessed,
+          aiMaxPerJob,
+          jobStartedAtMs,
+          softDeadlineMs,
+        });
+
+        if (!aiDecision.run) {
+          if (aiDecision.reason === "disabled") aiSkippedDisabled += 1;
+          if (aiDecision.reason === "ai_limit") aiSkippedLimit += 1;
+          if (aiDecision.reason === "soft_deadline") aiSkippedDeadline += 1;
+        } else {
+          aiProcessed += 1;
+
+          try {
+            const extractResult = await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
+            if (extractResult?.status === "success" && extractResult.opportunity_id && extractResult.extraction_id) {
+              const { data: currentExtraction, error: extractionError } = await sb()
+                .from("opportunity_extractions")
+                .select("country_code, deadline_at, budget_value, extraction_quality, needs_review, missing_fields, quality_score, completeness_score, sector, summary_10s")
+                .eq("id", extractResult.extraction_id)
+                .maybeSingle();
+
+              if (extractionError) {
+                throw new Error(`failed to load current extraction for scoring: ${extractionError.message}`);
+              }
+
+              if (currentExtraction) {
+                await scoreOpportunityForProfiles(sb(), {
+                  opportunityId: extractResult.opportunity_id,
+                  extractionId: extractResult.extraction_id,
+                  triggerType: "system",
+                  scoringPath: "worker.extract.after_persist",
+                  extraction: {
+                    country_code: currentExtraction.country_code ?? null,
+                    deadline_at: currentExtraction.deadline_at ?? null,
+                    budget_value: currentExtraction.budget_value ?? null,
+                    extraction_quality: currentExtraction.extraction_quality,
+                    needs_review: Boolean(currentExtraction.needs_review),
+                    missing_fields: Array.isArray(currentExtraction.missing_fields)
+                      ? currentExtraction.missing_fields
+                      : [],
+                    quality_score: Number(currentExtraction.quality_score ?? 0),
+                    completeness_score: Number(currentExtraction.completeness_score ?? 0),
+                    sector: currentExtraction.sector ?? null,
+                    summary_10s: String(currentExtraction.summary_10s ?? ""),
+                  },
+                });
+              }
+            }
+          } catch (e) {
+            aiFailures += 1;
+            log.error("ai_extract_failed", {
+              source_key: source.key,
+              run_id: runId,
+              raw_id: raw.id,
+              error: e instanceof Error ? e.message : String(e),
             });
           }
         }
+
+        if ((index + 1) % progressEvery === 0 || index === opportunities.length - 1) {
+          log.info("job_progress", {
+            source_key: source.key,
+            run_id: runId,
+            processed_items: index + 1,
+            fetched_count: fetchedCount,
+            upserted_raw: upsertedRaw,
+            upserted_opportunities: upsertedOpportunities,
+            failed_items: failedItems,
+            ai_processed: aiProcessed,
+            ai_skipped_disabled: aiSkippedDisabled,
+            ai_skipped_limit: aiSkippedLimit,
+            ai_skipped_deadline: aiSkippedDeadline,
+            ai_failures: aiFailures,
+            elapsed_ms: Date.now() - jobStartedAtMs,
+          });
+        }
       } catch (e) {
-        log.error("ai_extract_failed", { raw_id: raw.id, error: e instanceof Error ? e.message : String(e) });
+        failedItems += 1;
+        log.error("opportunity_persist_failed", {
+          source_key: source.key,
+          run_id: runId,
+          index: index + 1,
+          fetched_count: fetchedCount,
+          fingerprint: safeStr((normalizedOpp as any)?.fingerprint).trim() || null,
+          external_id: safeStr((normalizedOpp as any)?.external_id).trim() || null,
+          source_url: safeStr((normalizedOpp as any)?.source_url).trim() || null,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
 
@@ -471,8 +567,15 @@ async function processJob(job: IngestionJobRow) {
       ok: true,
       source: source.key,
       kind: source.kind,
+      fetched_count: fetchedCount,
       upserted_raw: upsertedRaw,
       upserted_opportunities: upsertedOpportunities,
+      failed_items: failedItems,
+      ai_processed: aiProcessed,
+      ai_skipped_disabled: aiSkippedDisabled,
+      ai_skipped_limit: aiSkippedLimit,
+      ai_skipped_deadline: aiSkippedDeadline,
+      ai_failures: aiFailures,
       fetched_at: (result as any)?.fetched_at ?? null,
     };
   } catch (err) {

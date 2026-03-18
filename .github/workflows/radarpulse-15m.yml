@@ -12,7 +12,7 @@ concurrency:
 jobs:
   pulse:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 14
 
     steps:
       - name: Dispatcher + Worker (drain queue)
@@ -20,10 +20,10 @@ jobs:
         env:
           SUPABASE_REF: ${{ secrets.SUPABASE_REF }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          MAX_WORKER_CALLS: "80"
-          CURL_MAX_TIME: "25"
-          CURL_RETRIES: "2"
-          SLEEP_BETWEEN_CALLS_MS: "0"
+          MAX_WORKER_CALLS: "40"
+          CURL_MAX_TIME: "90"
+          CURL_RETRIES: "1"
+          SLEEP_BETWEEN_CALLS_MS: "250"
         run: |
           set -euo pipefail
 
@@ -107,9 +107,12 @@ jobs:
           echo "==> worker drain"
           max_calls="${MAX_WORKER_CALLS}"
 
-          inserted_total=0
-          updated_total=0
-          events_total=0
+          fetched_total=0
+          upserted_raw_total=0
+          upserted_opportunities_total=0
+          failed_items_total=0
+          ai_processed_total=0
+          ai_failures_total=0
           jobs_done=0
 
           for i in $(seq 1 "${max_calls}"); do
@@ -130,11 +133,9 @@ jobs:
 
             ok="$(jq -r '.ok // false' < /tmp/worker.json)"
             msg="$(jq -r '.message // ""' < /tmp/worker.json)"
-            ins="$(jq -r '.inserted // 0' < /tmp/worker.json)"
-            upd="$(jq -r '.updated // 0' < /tmp/worker.json)"
-            evs="$(jq -r '.events // 0' < /tmp/worker.json)"
+            result_count="$(jq -r '(.results // []) | length' < /tmp/worker.json)"
 
-            echo "worker[$i] => ok=${ok} message=${msg} ins=${ins} upd=${upd} evs=${evs}"
+            echo "worker[$i] => ok=${ok} message=${msg} results=${result_count}"
             jq . < /tmp/worker.json
 
             if [ "${ok}" != "true" ]; then
@@ -147,14 +148,41 @@ jobs:
               break
             fi
 
-            inserted_total=$((inserted_total + ins))
-            updated_total=$((updated_total + upd))
-            events_total=$((events_total + evs))
-            jobs_done=$((jobs_done + 1))
+            if [ "${result_count}" = "0" ]; then
+              echo "WORKER_RETURNED_NO_RESULTS"
+              exit 1
+            fi
+
+            while IFS= read -r row; do
+              source="$(jq -r '.source // "unknown"' <<< "${row}")"
+              fetched="$(jq -r '.fetched_count // 0' <<< "${row}")"
+              up_raw="$(jq -r '.upserted_raw // 0' <<< "${row}")"
+              up_opp="$(jq -r '.upserted_opportunities // 0' <<< "${row}")"
+              failed_items="$(jq -r '.failed_items // 0' <<< "${row}")"
+              ai_processed="$(jq -r '.ai_processed // 0' <<< "${row}")"
+              ai_failures="$(jq -r '.ai_failures // 0' <<< "${row}")"
+              row_ok="$(jq -r '.ok // false' <<< "${row}")"
+              row_error="$(jq -r '.error // ""' <<< "${row}")"
+
+              echo "source=${source} ok=${row_ok} fetched=${fetched} raw=${up_raw} opp=${up_opp} failed_items=${failed_items} ai_processed=${ai_processed} ai_failures=${ai_failures}"
+
+              if [ "${row_ok}" != "true" ]; then
+                echo "WORKER_RESULT_FAILED source=${source} error=${row_error}"
+                exit 1
+              fi
+
+              fetched_total=$((fetched_total + fetched))
+              upserted_raw_total=$((upserted_raw_total + up_raw))
+              upserted_opportunities_total=$((upserted_opportunities_total + up_opp))
+              failed_items_total=$((failed_items_total + failed_items))
+              ai_processed_total=$((ai_processed_total + ai_processed))
+              ai_failures_total=$((ai_failures_total + ai_failures))
+              jobs_done=$((jobs_done + 1))
+            done < <(jq -c '.results[]' /tmp/worker.json)
 
             export SLEEP_MS="${SLEEP_BETWEEN_CALLS_MS}"
             sleep_ms "${SLEEP_BETWEEN_CALLS_MS}"
           done
 
           echo "==> Summary"
-          echo "jobs_done=${jobs_done} inserted=${inserted_total} updated=${updated_total} events=${events_total}"
+          echo "jobs_done=${jobs_done} fetched=${fetched_total} upserted_raw=${upserted_raw_total} upserted_opportunities=${upserted_opportunities_total} failed_items=${failed_items_total} ai_processed=${ai_processed_total} ai_failures=${ai_failures_total}"
