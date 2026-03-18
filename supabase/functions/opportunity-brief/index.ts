@@ -7,6 +7,7 @@ const log = createLogger("opportunity-brief");
 type BriefInput = {
   id: string;
   title: string;
+  locale?: "en" | "fr" | "it";
   buyer_name?: string | null;
   status?: string | null;
   deadline_at?: string | null;
@@ -29,6 +30,16 @@ const BRIEF_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — regenerate after
 const PROMPT_VERSION = "v1";
 const BRIEF_AGENT_VERSION = "brief.dualwrite.v1";
 const BRIEF_VERSION = PROMPT_VERSION;
+
+function normalizeLocale(value: unknown): "en" | "fr" | "it" {
+  return value === "fr" || value === "it" ? value : "en";
+}
+
+function localeInstruction(locale: "en" | "fr" | "it"): string {
+  if (locale === "fr") return "Respond in French.";
+  if (locale === "it") return "Respond in Italian.";
+  return "Respond in English.";
+}
 
 class BriefHttpError extends Error {
   status: number;
@@ -178,6 +189,7 @@ Deno.serve(async (req) => {
   if (!body?.id || !body?.title) {
     return json(400, { ok: false, error: "MISSING_FIELDS" });
   }
+  const outputLocale = normalizeLocale(body.locale);
 
   // ─── 1. Read from DB cache (TTL = 7 days) ─────────────────────────────────
   const staleThreshold = new Date(Date.now() - BRIEF_TTL_MS).toISOString();
@@ -185,6 +197,7 @@ Deno.serve(async (req) => {
     .from("opportunity_briefs")
     .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action")
     .eq("opportunity_id", body.id)
+    .eq("output_locale", outputLocale)
     .gt("created_at", staleThreshold)
     .maybeSingle();
 
@@ -221,7 +234,8 @@ Deno.serve(async (req) => {
     "- risk_flags: string[] (up to 5 red flags or complexity factors, each max 15 words)",
     "- required_documents: string[] (up to 7 typical documents or certifications required)",
     "- next_action: string (one concrete immediate next step, max 20 words)",
-    "Be concise and actionable. Respond in the same language as the opportunity title.",
+    "Be concise and actionable.",
+    localeInstruction(outputLocale),
   ].join("\n");
 
   const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
@@ -281,6 +295,7 @@ Deno.serve(async (req) => {
         next_action: brief.next_action,
         model,
         prompt_version: PROMPT_VERSION,
+        output_locale: outputLocale,
         generation_ms,
         updated_at: new Date().toISOString(),
       },
@@ -304,6 +319,7 @@ Deno.serve(async (req) => {
         model,
         prompt_version: PROMPT_VERSION,
         brief_version: BRIEF_VERSION,
+        output_locale: outputLocale,
         executive_summary: brief.executive_summary,
         fit_assessment: brief.fit_assessment,
         risk_flags: brief.risk_flags,

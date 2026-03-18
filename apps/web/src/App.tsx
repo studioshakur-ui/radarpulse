@@ -12,6 +12,11 @@ import ItalyCategoryPage from "@/features/italy/ItalyCategoryPage";
 import ItalyBuyerPage from "@/features/italy/ItalyBuyerPage";
 import GuidesIndexPage from "@/features/italy/GuidesIndexPage";
 import GuidePage from "@/features/italy/GuidePage";
+import GlobalPage from "@/features/geo/GlobalPage";
+import ZonePage from "@/features/geo/ZonePage";
+import CountryPage from "@/features/geo/CountryPage";
+import RegionPage from "@/features/geo/RegionPage";
+import LocalityPage from "@/features/geo/LocalityPage";
 import SubscribePage from "@/features/billing/SubscribePage";
 import SettingsPage from "@/features/settings/SettingsPage";
 import WorkspacePage from "@/features/workspace/WorkspacePage";
@@ -33,8 +38,8 @@ function NavItem({ to, label }: { to: string; label: string }) {
       className={({ isActive }) =>
         cn(
           "rounded-xl px-3 py-2 text-sm transition",
-          "hover:bg-elevated/70",
-          isActive ? "bg-elevated shadow-soft" : "text-muted",
+          "hover:bg-elevated/70 hover:text-text",
+          isActive ? "bg-elevated text-text shadow-soft" : "text-text/75",
         )
       }
     >
@@ -55,7 +60,7 @@ function UserMenu({ user }: { user: User | null }) {
     return (
       <NavLink
         to="/login"
-        className="rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-elevated/70"
+        className="rounded-xl px-3 py-2 text-sm text-text/75 transition hover:bg-elevated/70 hover:text-text"
       >
         {t("nav.login")}
       </NavLink>
@@ -64,13 +69,13 @@ function UserMenu({ user }: { user: User | null }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden max-w-[120px] truncate text-xs text-muted sm:block">
+      <span className="hidden max-w-[120px] truncate text-xs text-text/70 sm:block">
         {user.email?.split("@")[0]}
       </span>
       <button
         type="button"
         onClick={() => void handleSignOut()}
-        className="rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-elevated/70"
+        className="rounded-xl px-3 py-2 text-sm text-text/75 transition hover:bg-elevated/70 hover:text-text"
       >
         {t("nav.logout")}
       </button>
@@ -241,6 +246,7 @@ function AppShell({
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
+            <NavItem to="/global" label={t("geo.nav.global")} />
             <NavItem to="/inbox" label={t("nav.inbox")} />
             <NavItem to="/settings" label={t("nav.settings")} />
           </div>
@@ -249,7 +255,7 @@ function AppShell({
             {canSeeDevApp ? (
               <NavLink
                 to="/inbox"
-                className="inline-flex items-center rounded-xl border border-border/40 bg-surface/75 px-3 py-2 text-xs font-semibold text-muted transition hover:bg-elevated/80"
+                className="inline-flex items-center rounded-xl border border-border/40 bg-surface/75 px-3 py-2 text-xs font-semibold text-text/75 transition hover:bg-elevated/80 hover:text-text"
               >
                 Dev
               </NavLink>
@@ -261,8 +267,8 @@ function AppShell({
               className={({ isActive }) =>
                 cn(
                   "rounded-xl px-3 py-2 text-sm transition",
-                  "hover:bg-elevated/70",
-                  isActive ? "bg-elevated shadow-soft" : "text-muted",
+                  "hover:bg-elevated/70 hover:text-text",
+                  isActive ? "bg-elevated text-text shadow-soft" : "text-text/75",
                 )
               }
             >
@@ -283,7 +289,7 @@ function Shell({ children, canSeeDevApp, user }: { children: React.ReactNode; ca
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return p === "/" || p.startsWith("/login") || p.startsWith("/auth/callback") || p.startsWith("/reset-password") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides");
+    return p === "/" || p.startsWith("/login") || p.startsWith("/auth/callback") || p.startsWith("/reset-password") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides") || p.startsWith("/global") || p.startsWith("/zones/") || p.startsWith("/countries/");
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
@@ -327,6 +333,11 @@ export default function App() {
 
           <Route path="/guides" element={<GuidesIndexPage />} />
           <Route path="/guides/:slug" element={<GuidePage />} />
+          <Route path="/global" element={<GlobalPage />} />
+          <Route path="/zones/:zoneSlug" element={<ZonePage />} />
+          <Route path="/countries/:countryCode" element={<CountryPage />} />
+          <Route path="/countries/:countryCode/regions/:regionSlug" element={<RegionPage />} />
+          <Route path="/countries/:countryCode/regions/:regionSlug/localities/:localitySlug" element={<LocalityPage />} />
 
           <Route
             path="/inbox"

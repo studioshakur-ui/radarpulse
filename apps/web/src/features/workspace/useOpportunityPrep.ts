@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { useLocale } from "@/lib/i18n";
 
 export type ChecklistItem = {
   task: string;
@@ -16,6 +18,7 @@ export type OpportunityPrep = {
 };
 
 export function useOpportunityPrep(opportunityId: string | null) {
+  const { locale } = useLocale();
   const [prep, setPrep] = useState<OpportunityPrep | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -44,6 +47,7 @@ export function useOpportunityPrep(opportunityId: string | null) {
           .eq("opportunity_id", opportunityId)
           .eq("user_id", userId)
           .eq("is_current", true)
+          .eq("output_locale", locale)
           .maybeSingle();
 
         if (!cancelled) setPrep(data ?? null);
@@ -57,7 +61,7 @@ export function useOpportunityPrep(opportunityId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [opportunityId]);
+  }, [locale, opportunityId]);
 
   // Call edge function to generate a prep plan
   const generate = useCallback(async (id: string) => {
@@ -66,9 +70,7 @@ export function useOpportunityPrep(opportunityId: string | null) {
     setError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const jwt = sessionData.session?.access_token;
-      if (!jwt) throw new Error("Not authenticated");
+      const jwt = await getValidAccessToken();
 
       const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-prep`, {
         method: "POST",
@@ -77,7 +79,7 @@ export function useOpportunityPrep(opportunityId: string | null) {
           Authorization: `Bearer ${jwt}`,
           apikey: ENV.SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, locale }),
       });
 
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -85,11 +87,15 @@ export function useOpportunityPrep(opportunityId: string | null) {
 
       setPrep(data.prep as OpportunityPrep);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      if (e instanceof AuthTokenError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : "Error");
+      }
     } finally {
       setGenerating(false);
     }
-  }, [generating]);
+  }, [generating, locale]);
 
   return { prep, loading, generating, error, generate };
 }

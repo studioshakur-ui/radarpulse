@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Mail, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ENV } from "@/lib/env";
+import { Logo } from "@/components/Logo";
 
 type FormState = {
   name: string;
@@ -54,7 +55,6 @@ export default function RequestAccessPage() {
         headers: {
           "Content-Type": "application/json",
           apikey: ENV.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           name: form.name.trim(),
@@ -82,10 +82,10 @@ export default function RequestAccessPage() {
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/20 bg-bg/70 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
+            <Logo size={24} showWordmark={false} />
             <div className="leading-tight">
-              <div className="text-sm font-semibold">RadarPulse</div>
-              <div className="text-[11px] text-muted">Request access</div>
+              <div className="text-sm font-semibold text-text">RadarPulse</div>
+              <div className="text-[11px] text-subtext/80">Request access</div>
             </div>
           </div>
 
@@ -115,52 +115,52 @@ export default function RequestAccessPage() {
       <main className="mx-auto max-w-xl px-4 pt-20">
         <div className="rounded-2xl border border-border/25 bg-surface/70 p-6 shadow-soft">
           <h1 className="text-2xl font-semibold tracking-tight">Request access</h1>
-          <p className="mt-2 text-sm text-muted">Tell us your use case and your operating context.</p>
+          <p className="mt-2 text-sm text-subtext">Tell us your use case and your operating context.</p>
 
           {!done ? (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="request-name" className="text-xs font-medium text-muted">Name</label>
+                <label htmlFor="request-name" className="text-xs font-medium text-subtext">Name</label>
                 <input
                   id="request-name"
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                 />
-                <p className="mt-1 text-xs text-muted">Enter your full name for the access request.</p>
+                <p className="mt-1 text-xs text-subtext">Enter your full name for the access request.</p>
               </div>
 
               <div>
-                <label htmlFor="request-email" className="text-xs font-medium text-muted">Email</label>
+                <label htmlFor="request-email" className="text-xs font-medium text-subtext">Email</label>
                 <input
                   id="request-email"
                   type="email"
                   required
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                 />
-                <p className="mt-1 text-xs text-muted">Use your professional email address.</p>
+                <p className="mt-1 text-xs text-subtext">Use your professional email address.</p>
               </div>
 
               <div>
-                <label htmlFor="request-organization" className="text-xs font-medium text-muted">Organization</label>
+                <label htmlFor="request-organization" className="text-xs font-medium text-subtext">Organization</label>
                 <input
                   id="request-organization"
                   value={form.organization}
                   onChange={(e) => setForm({ ...form, organization: e.target.value })}
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                 />
-                <p className="mt-1 text-xs text-muted">Company, NGO, agency, or public body name.</p>
+                <p className="mt-1 text-xs text-subtext">Company, NGO, agency, or public body name.</p>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted">Primary use case</label>
+                <label className="text-xs font-medium text-subtext">Primary use case</label>
                 <select
                   value={form.useCase}
                   onChange={(e) => setForm({ ...form, useCase: e.target.value })}
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                 >
                   <option>Consulting / Agencies</option>
                   <option>NGO / Grants</option>
@@ -179,7 +179,7 @@ export default function RequestAccessPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {submitting ? (
                     <>
@@ -200,20 +200,20 @@ export default function RequestAccessPage() {
                 </a>
               </div>
 
-              <div className="text-xs text-muted">
+              <div className="text-xs text-subtext">
                 Your request is saved instantly — the team will be notified and reach out within 24h.
               </div>
             </form>
           ) : (
             <div className="mt-6 rounded-2xl border border-good/20 bg-good/10 p-4">
               <div className="text-sm font-semibold text-good">Access link sent ✓</div>
-              <div className="mt-1 text-sm text-muted">
+              <div className="mt-1 text-sm text-subtext">
                 Check <strong>{form.email}</strong> for your access link. Free trial: 7 days.
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link
                   to="/guides"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90"
                 >
                   Read the guides <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -228,9 +228,9 @@ export default function RequestAccessPage() {
           )}
         </div>
 
-        <div className="mt-4 text-center text-xs text-muted">
+        <div className="mt-4 text-center text-xs text-subtext">
           Ready to subscribe directly?{" "}
-          <Link className="text-accent hover:underline" to="/abbonamento">
+          <Link className="text-brand hover:underline" to="/abbonamento">
             Open checkout
           </Link>
           .

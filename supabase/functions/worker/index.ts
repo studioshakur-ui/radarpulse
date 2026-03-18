@@ -4,6 +4,7 @@ import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("worker");
 import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
+import { scoreOpportunityForProfiles } from "../_shared/rp_score_v1.ts";
 import type { IngestionJobRow, OpportunityUpsertInput, SourceRow } from "../_shared/types.ts";
 import { safeStr } from "../_shared/text.ts";
 import { canonicalizeUrl, sha256Hex, normalizeText } from "../_shared/rp_ai_utils.ts";
@@ -365,7 +366,7 @@ async function upsertAi(rawId: string, args?: { sourceId?: string | null; ingest
   const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
   const OPENAI_STORE = getBoolEnv("OPENAI_STORE", false);
 
-  await extractLightForRawId(sb(), rawId, {
+  return await extractLightForRawId(sb(), rawId, {
     openaiApiKey: OPENAI_API_KEY,
     openaiModel: OPENAI_MODEL,
     openaiStore: OPENAI_STORE,
@@ -414,7 +415,41 @@ async function processJob(job: IngestionJobRow) {
 
       // AI best-effort
       try {
-        await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
+        const extractResult = await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
+        if (extractResult?.status === "success" && extractResult.opportunity_id && extractResult.extraction_id) {
+          const { data: currentExtraction, error: extractionError } = await sb()
+            .from("opportunity_extractions")
+            .select("country_code, deadline_at, budget_value, extraction_quality, needs_review, missing_fields, quality_score, completeness_score, sector, summary_10s")
+            .eq("id", extractResult.extraction_id)
+            .maybeSingle();
+
+          if (extractionError) {
+            throw new Error(`failed to load current extraction for scoring: ${extractionError.message}`);
+          }
+
+          if (currentExtraction) {
+            await scoreOpportunityForProfiles(sb(), {
+              opportunityId: extractResult.opportunity_id,
+              extractionId: extractResult.extraction_id,
+              triggerType: "system",
+              scoringPath: "worker.extract.after_persist",
+              extraction: {
+                country_code: currentExtraction.country_code ?? null,
+                deadline_at: currentExtraction.deadline_at ?? null,
+                budget_value: currentExtraction.budget_value ?? null,
+                extraction_quality: currentExtraction.extraction_quality,
+                needs_review: Boolean(currentExtraction.needs_review),
+                missing_fields: Array.isArray(currentExtraction.missing_fields)
+                  ? currentExtraction.missing_fields
+                  : [],
+                quality_score: Number(currentExtraction.quality_score ?? 0),
+                completeness_score: Number(currentExtraction.completeness_score ?? 0),
+                sector: currentExtraction.sector ?? null,
+                summary_10s: String(currentExtraction.summary_10s ?? ""),
+              },
+            });
+          }
+        }
       } catch (e) {
         log.error("ai_extract_failed", { raw_id: raw.id, error: e instanceof Error ? e.message : String(e) });
       }

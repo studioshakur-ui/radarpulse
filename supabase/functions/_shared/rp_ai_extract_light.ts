@@ -10,7 +10,6 @@
 
 import { RP_AI_SCHEMA_NAME_V1_LIGHT, RP_AI_SCHEMA_V1_LIGHT } from "./rp_ai_schema_v1_light.ts";
 import { canonicalizeUrl, extractResponseText, normalizeText, sha256Hex } from "./rp_ai_utils.ts";
-import { scoreOpportunityForProfiles } from "./rp_score_v1.ts";
 
 type SupabaseClientLike = {
   from: (table: string) => any;
@@ -190,6 +189,7 @@ function mapQualityToDb(q: any): { extraction_quality: "high" | "med" | "low"; n
 
 function computeCompatibilityScores(args: {
   region: string | null;
+  locality?: string | null;
   budgetValue: number | null;
   deadlineAt: string | null;
   buyerName: string | null;
@@ -227,6 +227,167 @@ function normalizeCountryCode(v: unknown): string | null {
   const cc = s.toUpperCase();
   if (cc.length !== 2) return cc;
   return cc;
+}
+
+function normalizeGeoText(v: unknown): string | null {
+  const s = normalizeNullableString(v);
+  if (!s) return null;
+
+  const normalized = s
+    .toLowerCase()
+    .replaceAll("’", " ")
+    .replaceAll("'", " ")
+    .replaceAll("-", " ")
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized || null;
+}
+
+function extractConnectorGeoFallback(rawContent: unknown): { region: string | null; locality: string | null } {
+  if (typeof rawContent !== "string" || !rawContent.trim()) {
+    return { region: null, locality: null };
+  }
+
+  try {
+    const parsed = JSON.parse(rawContent) as Record<string, unknown>;
+    return {
+      region: normalizeNullableString(parsed.region),
+      locality: normalizeNullableString(parsed.locality),
+    };
+  } catch {
+    return { region: null, locality: null };
+  }
+}
+
+function inferLocalityFromSourceContext(args: {
+  sourceKey: string | null;
+  buyerName: string | null;
+  region: string | null;
+}): string | null {
+  const sourceKey = normalizeNullableString(args.sourceKey)?.toLowerCase() ?? "";
+  const buyerName = normalizeNullableString(args.buyerName)?.toLowerCase() ?? "";
+  const region = normalizeGeoText(args.region);
+
+  if (
+    sourceKey === "it_milano_bandi_rss"
+    || buyerName.includes("comune di milano")
+    || (region === "lombardia" && buyerName.includes("milano"))
+  ) {
+    return "Milano";
+  }
+
+  if (
+    sourceKey === "it_roma_bandi_rss"
+    || buyerName.includes("comune di roma")
+    || (region === "lazio" && buyerName.includes("roma"))
+  ) {
+    return "Roma";
+  }
+
+  return null;
+}
+
+type GeoResolution = {
+  geo_country_id: string | null;
+  geo_region_id: string | null;
+  geo_locality_id: string | null;
+  geo_resolution_confidence: "exact" | "country_only" | "region_text_match" | "locality_text_match" | "unresolved";
+};
+
+async function resolveGeoScope(
+  supabase: SupabaseClientLike,
+  args: {
+    countryCode: string | null;
+    region: string | null;
+    locality: string | null;
+  },
+): Promise<GeoResolution> {
+  const countryCode = normalizeCountryCode(args.countryCode);
+  const regionNormalized = normalizeGeoText(args.region);
+  const localityNormalized = normalizeGeoText(args.locality);
+
+  let geoCountryId: string | null = null;
+  if (countryCode) {
+    const { data: countryRow, error: countryError } = await supabase
+      .from("geo_countries")
+      .select("id")
+      .eq("country_code", countryCode)
+      .maybeSingle();
+
+    if (countryError) {
+      throw new Error(`failed to resolve geo country: ${countryError.message}`);
+    }
+
+    geoCountryId = countryRow?.id ? String(countryRow.id) : null;
+  }
+
+  let geoRegionId: string | null = null;
+  if (geoCountryId && regionNormalized) {
+    const { data: regionRow, error: regionError } = await supabase
+      .from("geo_regions")
+      .select("id")
+      .eq("country_id", geoCountryId)
+      .eq("normalized_name", regionNormalized)
+      .maybeSingle();
+
+    if (regionError) {
+      throw new Error(`failed to resolve geo region: ${regionError.message}`);
+    }
+
+    geoRegionId = regionRow?.id ? String(regionRow.id) : null;
+  }
+
+  let geoLocalityId: string | null = null;
+  if (geoRegionId && localityNormalized) {
+    const { data: localityRow, error: localityError } = await supabase
+      .from("geo_localities")
+      .select("id")
+      .eq("region_id", geoRegionId)
+      .eq("normalized_name", localityNormalized)
+      .maybeSingle();
+
+    if (localityError) {
+      throw new Error(`failed to resolve geo locality: ${localityError.message}`);
+    }
+
+    geoLocalityId = localityRow?.id ? String(localityRow.id) : null;
+  }
+
+  if (geoLocalityId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: geoRegionId,
+      geo_locality_id: geoLocalityId,
+      geo_resolution_confidence: "locality_text_match",
+    };
+  }
+
+  if (geoRegionId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: geoRegionId,
+      geo_locality_id: null,
+      geo_resolution_confidence: "region_text_match",
+    };
+  }
+
+  if (geoCountryId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: null,
+      geo_locality_id: null,
+      geo_resolution_confidence: "country_only",
+    };
+  }
+
+  return {
+    geo_country_id: null,
+    geo_region_id: null,
+    geo_locality_id: null,
+    geo_resolution_confidence: "unresolved",
+  };
 }
 
 async function findCanonicalOpportunityForRaw(
@@ -488,6 +649,7 @@ export async function extractLightForRawId(
 
     const text = extractResponseText(respJson);
     const parsed = JSON.parse(text);
+    const connectorGeoFallback = extractConnectorGeoFallback(raw.content_raw);
 
     // Normalize + deterministic fingerprint enforcement (we trust but verify)
     const content_type = parsed?.content_type;
@@ -495,7 +657,14 @@ export async function extractLightForRawId(
     const buyer_name = normalizeNullableString(parsed?.buyer_name);
     const sector = parsed?.sector ?? null;
     const country_code_from_ai = normalizeCountryCode(parsed?.geo?.country_code);
-    const region = normalizeNullableString(parsed?.geo?.region);
+    const region = normalizeNullableString(parsed?.geo?.region) ?? connectorGeoFallback.region;
+    const locality = normalizeNullableString(parsed?.geo?.locality)
+      ?? connectorGeoFallback.locality
+      ?? inferLocalityFromSourceContext({
+        sourceKey: normalizeNullableString(raw.source_key),
+        buyerName: buyer_name,
+        region,
+      });
     const language = normalizeNullableString(parsed?.language) ?? parsed?.language ?? null;
 
     const deadline_at = parsed?.deadline?.deadline_at ?? null;
@@ -511,6 +680,7 @@ export async function extractLightForRawId(
     const q = mapQualityToDb(parsed?.quality);
     const compatibilityScores = computeCompatibilityScores({
       region,
+      locality,
       budgetValue: null,
       deadlineAt: deadline_at,
       buyerName: buyer_name,
@@ -541,6 +711,11 @@ export async function extractLightForRawId(
     if (!sourceId) {
       throw new Error(`Missing source_id for raw_id=${raw.id}`);
     }
+    const geoResolution = await resolveGeoScope(supabase, {
+      countryCode: country_code,
+      region,
+      locality,
+    });
 
     // Normalize snapshot to match canonical DB columns (audit-proof)
     const snapshotNormalized = (() => {
@@ -555,6 +730,11 @@ export async function extractLightForRawId(
         geo: {
           country_code,
           region,
+          locality,
+          geo_country_id: geoResolution.geo_country_id,
+          geo_region_id: geoResolution.geo_region_id,
+          geo_locality_id: geoResolution.geo_locality_id,
+          geo_resolution_confidence: geoResolution.geo_resolution_confidence,
         },
         language,
         deadline: {
@@ -593,6 +773,7 @@ export async function extractLightForRawId(
           sector,
           country_code,
           region,
+          locality,
           language,
 
           deadline_at,
@@ -647,6 +828,11 @@ export async function extractLightForRawId(
         sector,
         country_code,
         region,
+        locality,
+        geo_country_id: geoResolution.geo_country_id,
+        geo_region_id: geoResolution.geo_region_id,
+        geo_locality_id: geoResolution.geo_locality_id,
+        geo_resolution_confidence: geoResolution.geo_resolution_confidence,
         language,
         deadline_at,
         deadline_tz,
@@ -693,30 +879,6 @@ export async function extractLightForRawId(
       }));
 
       await supabase.from("opportunity_ai_evidence").insert(rows);
-    }
-
-    try {
-      await scoreOpportunityForProfiles(supabase, {
-        opportunityId,
-        extractionId,
-        extraction: {
-          country_code,
-          deadline_at,
-          budget_value: null,
-          extraction_quality: q.extraction_quality,
-          needs_review: q.needs_review,
-          missing_fields: q.missing_fields,
-          quality_score: compatibilityScores.quality_score,
-          completeness_score: compatibilityScores.completeness_score,
-          sector,
-          summary_10s,
-        },
-      });
-    } catch (scoreErr) {
-      console.error(
-        "[rp_ai_extract_light] score step failed:",
-        scoreErr instanceof Error ? scoreErr.message : String(scoreErr),
-      );
     }
 
     // Finish run log

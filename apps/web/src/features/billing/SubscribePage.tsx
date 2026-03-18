@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
 
 const PLAN_PRICE = (import.meta.env.VITE_STRIPE_PLAN_PRICE as string) || "49 EUR / month";
 const PLAN_NAME = (import.meta.env.VITE_STRIPE_PLAN_NAME as string) || "Plan Italia";
@@ -23,15 +23,14 @@ export default function SubscribePage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = await getValidAccessToken();
 
       const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/stripe-create-checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: ENV.SUPABASE_ANON_KEY,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(checkoutPayload),
       });
@@ -43,7 +42,11 @@ export default function SubscribePage() {
 
       window.location.href = String(data.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (e instanceof AuthTokenError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
       setLoading(false);
     }
   }

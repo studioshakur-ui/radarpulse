@@ -4,6 +4,49 @@
 Write-Host "RadarPulse - Full Deployment" -ForegroundColor Cyan
 Write-Host ""
 
+$publicFunctions = @(
+    "create-magic-link",
+    "verify-magic-link",
+    "submit-access-request",
+    "notify-email"
+)
+
+$manualAuthFunctions = @(
+    "opportunities-search",
+    "opportunity-brief",
+    "opportunity-score",
+    "opportunity-prep",
+    "opportunity-decision",
+    "opportunity-workflow",
+    "stripe-create-checkout"
+)
+
+$gatewayProtectedFunctions = @(
+    "notify-telegram",
+    "notify-whatsapp"
+)
+
+function Deploy-Functions {
+    param(
+        [string[]]$Names,
+        [switch]$NoVerifyJwt
+    )
+
+    foreach ($name in $Names) {
+        Write-Host ("Deploying {0}..." -f $name) -ForegroundColor DarkYellow
+        if ($NoVerifyJwt) {
+            supabase functions deploy $name --no-verify-jwt
+        } else {
+            supabase functions deploy $name
+        }
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ("Deployment failed for {0}!" -f $name) -ForegroundColor Red
+            exit 1
+        }
+    }
+}
+
 # Step 1: Upload Edge Function secrets from .env
 # FIX: SB_URL + SERVICE_ROLE_KEY must be uploaded or the functions fail with "Invalid API key"
 Write-Host "Step 1: Uploading Edge Function secrets..." -ForegroundColor Yellow
@@ -27,25 +70,24 @@ Write-Host ""
 
 # Step 3: Deploy public Edge Functions (no JWT required - callers have no session yet)
 Write-Host "Step 3: Deploying public Edge Functions..." -ForegroundColor Yellow
-supabase functions deploy create-magic-link --no-verify-jwt
-supabase functions deploy verify-magic-link --no-verify-jwt
-supabase functions deploy submit-access-request --no-verify-jwt
-supabase functions deploy notify-email --no-verify-jwt
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Function deployment failed!" -ForegroundColor Red
-    exit 1
-}
+Deploy-Functions -Names $publicFunctions -NoVerifyJwt
 Write-Host "Public functions deployed" -ForegroundColor Green
 Write-Host ""
 
-# Step 4: Deploy authenticated Edge Functions
-Write-Host "Step 4: Deploying authenticated Edge Functions..." -ForegroundColor Yellow
-supabase functions deploy opportunities-search
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Function deployment failed!" -ForegroundColor Red
-    exit 1
-}
-Write-Host "Authenticated functions deployed" -ForegroundColor Green
+# Step 4: Deploy manually authenticated Edge Functions (verify_jwt disabled, auth enforced in code)
+Write-Host "Step 4: Deploying manually authenticated Edge Functions..." -ForegroundColor Yellow
+Deploy-Functions -Names $manualAuthFunctions -NoVerifyJwt
+Write-Host "Manually authenticated functions deployed" -ForegroundColor Green
+Write-Host ""
+
+# Step 5: Deploy gateway-protected Edge Functions (still rely on platform JWT verification)
+Write-Host "Step 5: Deploying gateway-protected Edge Functions..." -ForegroundColor Yellow
+Deploy-Functions -Names $gatewayProtectedFunctions
+Write-Host "Gateway-protected functions deployed" -ForegroundColor Green
+Write-Host ""
+
+Write-Host "Dashboard note: repo config and this script are the source of truth for verify_jwt." -ForegroundColor Yellow
+Write-Host "If the Supabase dashboard shows a conflicting JWT toggle, reset it by redeploying instead of keeping a manual override." -ForegroundColor Yellow
 Write-Host ""
 
 Write-Host "======================================" -ForegroundColor Cyan

@@ -3,11 +3,12 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock, History, ChevronDown, ChevronUp, Zap, Activity } from "lucide-react";
 import { cn, daysLeft, fmtRelative, fmtDateTime } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
-import type { Decision } from "@/lib/types";
+import type { Decision, WorkflowStatus } from "@/lib/types";
 import { useDecisions } from "@/features/inbox/useDecisions";
 import { useOpportunityBrief, type OpportunityBrief } from "@/features/inbox/useOpportunityBrief";
 import { useWorkspaceData } from "./useWorkspaceData";
-import { useOpportunityScore } from "./useOpportunityScore";
+import { useOpportunityWorkflow } from "./useOpportunityWorkflow";
+import { useOpportunityScore, type OpportunityScore } from "./useOpportunityScore";
 import { useOpportunityDocuments } from "./useOpportunityDocuments";
 import { useOpportunityExtraction } from "./useOpportunityExtraction";
 import { useBriefVersions } from "./useBriefVersions";
@@ -20,11 +21,40 @@ const LOCALE_MAP: Record<string, string> = {
   it: "it-IT",
 };
 
+const WORKFLOW_OPTIONS: WorkflowStatus[] = [
+  "NEW",
+  "REVIEWED",
+  "GO",
+  "PREPARATION",
+  "READY",
+  "SUBMITTED",
+  "EXPIRED",
+];
+
+function formatDecisionLabel(decision: Decision | null, t: (k: string) => string) {
+  if (!decision) return t("workspace.status.undecided");
+  if (decision === "NO_GO") return t("workspace.decision.noGo");
+  return t(`workspace.decision.${decision.toLowerCase()}`);
+}
+
+function formatRecommendationLabel(
+  recommendation: OpportunityScore["recommendation"],
+  t: (k: string) => string,
+) {
+  if (!recommendation) return null;
+  if (recommendation === "NO_GO") return t("workspace.recommendation.noGo");
+  return t(`workspace.recommendation.${recommendation.toLowerCase()}`);
+}
+
+function formatWorkflowLabel(status: WorkflowStatus, t: (k: string) => string) {
+  return t(`workspace.workflow.status.${status.toLowerCase()}`);
+}
+
 // --- Micro-components ---
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtext">
+    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtext/85">
       {children}
     </div>
   );
@@ -66,6 +96,71 @@ function DeadlineBadge({
       {dl}
       {daySuffix}
     </span>
+  );
+}
+
+function RecommendationBadge({
+  recommendation,
+  t,
+}: {
+  recommendation: OpportunityScore["recommendation"];
+  t: (k: string) => string;
+}) {
+  if (!recommendation) return null;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        recommendation === "GO" && "border border-good/40 bg-good/12 text-good",
+        recommendation === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
+        recommendation === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
+      )}
+    >
+      {formatRecommendationLabel(recommendation, t)}
+    </span>
+  );
+}
+
+function WorkflowBadge({
+  workflowStatus,
+  t,
+}: {
+  workflowStatus: WorkflowStatus | null;
+  t: (k: string) => string;
+}) {
+  if (!workflowStatus) return null;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        workflowStatus === "NEW" && "border border-line/25 bg-bg text-subtext",
+        workflowStatus === "REVIEWED" && "border border-brand/30 bg-brand/8 text-brand",
+        workflowStatus === "GO" && "border border-good/40 bg-good/12 text-good",
+        workflowStatus === "PREPARATION" && "border border-warn/40 bg-warn/12 text-warn",
+        workflowStatus === "READY" && "border border-brand/40 bg-brand/12 text-brand",
+        workflowStatus === "SUBMITTED" && "border border-good/30 bg-good/10 text-good",
+        workflowStatus === "EXPIRED" && "border border-bad/40 bg-bad/12 text-bad",
+      )}
+    >
+      {formatWorkflowLabel(workflowStatus, t)}
+    </span>
+  );
+}
+
+function StatusPill({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-line/15 bg-bg/70 px-2.5 py-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+        {label}
+      </span>
+      {children}
+    </div>
   );
 }
 
@@ -194,11 +289,11 @@ function RationaleBreakdown({
   if (entries.length === 0) return null;
   return (
     <div className="mt-3 space-y-1.5 border-t border-line/15 pt-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-subtext/50">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">{label}</p>
       {entries.map((e) => (
         <div key={e.label} className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-semibold capitalize text-subtext/60">{e.label}</span>
-          <span className="text-[11px] leading-relaxed text-subtext/80">{e.text}</span>
+          <span className="text-[11px] font-semibold capitalize text-subtext/75">{e.label}</span>
+          <span className="text-[12px] leading-relaxed text-subtext">{e.text}</span>
         </div>
       ))}
     </div>
@@ -214,7 +309,14 @@ export default function WorkspacePage() {
   const daySuffix = t("inbox.deadline.daysSuffix");
 
   const { opportunity, loading, error } = useWorkspaceData(id ?? "");
-  const { score, loading: scoreLoading, generating: scoreGenerating, error: scoreError, generate: generateScore } = useOpportunityScore(id ?? null);
+  const {
+    workflow,
+    loading: workflowLoading,
+    saving: workflowSaving,
+    error: workflowError,
+    saveWorkflow,
+  } = useOpportunityWorkflow(id ?? null);
+  const { score, loading: scoreLoading, generating: scoreGenerating, error: scoreError, generate: generateScore } = useOpportunityScore(id ?? null, opportunity?.deadline_at ?? null);
   const { documents } = useOpportunityDocuments(id ?? null);
   const { extraction } = useOpportunityExtraction(id ?? null);
   const { versions: briefVersions } = useBriefVersions(id ?? null);
@@ -234,6 +336,8 @@ export default function WorkspacePage() {
   } = useOpportunityBrief();
 
   const decision = opportunity ? getDecision(opportunity.id) : null;
+  const workflowStatus = workflow?.workflow_status ?? null;
+  const displayWorkflowStatus = workflowStatus ?? "NEW";
   const brief = opportunity ? getBrief(opportunity.id) : null;
   const briefLoading = opportunity ? isBriefLoading(opportunity.id) : false;
   const briefError = opportunity ? getBriefError(opportunity.id) : null;
@@ -242,28 +346,14 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!opportunity || brief || briefLoading) return;
     void loadBriefFromDB(opportunity.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunity?.id]);
-
-  // Auto-generate score if none found after DB load completes
-  useEffect(() => {
-    if (!opportunity || scoreLoading || score || scoreGenerating) return;
-    void generateScore(opportunity.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunity?.id, scoreLoading]);
-
-  // Trigger 11: decision GO → auto-generate prep plan if none exists
-  useEffect(() => {
-    if (!opportunity || decision !== "GO" || prepLoading || prep || prepGenerating) return;
-    void generatePrep(opportunity.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunity?.id, decision, prepLoading]);
+  }, [brief, briefLoading, loadBriefFromDB, locale, opportunity]);
 
   function handleGenerateBrief() {
     if (!opportunity) return;
     const input = {
       id: opportunity.id,
       title: opportunity.title,
+      locale,
       buyer_name: opportunity.buyer_name,
       status: opportunity.status,
       deadline_at: opportunity.deadline_at,
@@ -275,7 +365,7 @@ export default function WorkspacePage() {
 
   if (!id) {
     return (
-      <div className="py-12 text-center text-sm text-muted">{t("workspace.notFound")}</div>
+      <div className="py-12 text-center text-sm text-subtext">{t("workspace.notFound")}</div>
     );
   }
 
@@ -313,6 +403,80 @@ export default function WorkspacePage() {
   }
 
   const dl = daysLeft(opportunity.deadline_at);
+  const recommendation = score?.recommendation ?? null;
+  const isExpired = dl !== null && dl < 0;
+  const prepBlocked = isExpired || recommendation === "NO_GO";
+
+  const nextBestAction = (() => {
+    if (isExpired) {
+      return {
+        tone: "bad" as const,
+        title: t("workspace.nextActions.expired.title"),
+        body: t("workspace.nextActions.expired.body"),
+      };
+    }
+    if (!brief) {
+      return {
+        tone: "neutral" as const,
+        title: t("workspace.nextActions.generateBrief.title"),
+        body: t("workspace.nextActions.generateBrief.body"),
+      };
+    }
+    if (recommendation === "NO_GO") {
+      return {
+        tone: "bad" as const,
+        title: t("workspace.nextActions.noGo.title"),
+        body: t("workspace.nextActions.noGo.body"),
+      };
+    }
+    if (!decision) {
+      return {
+        tone: "warn" as const,
+        title: t("workspace.nextActions.takeDecision.title"),
+        body: t("workspace.nextActions.takeDecision.body"),
+      };
+    }
+    if (recommendation === "GO" && workflowStatus !== "GO" && workflowStatus !== "PREPARATION" && workflowStatus !== "READY" && workflowStatus !== "SUBMITTED") {
+      return {
+        tone: "good" as const,
+        title: t("workspace.nextActions.alignWorkflow.title"),
+        body: t("workspace.nextActions.alignWorkflow.body"),
+      };
+    }
+    if (score?.score_band === "low") {
+      return {
+        tone: "bad" as const,
+        title: t("workspace.nextActions.lowScore.title"),
+        body: t("workspace.nextActions.lowScore.body"),
+      };
+    }
+    if (decision === "GO" && !prep && !prepBlocked) {
+      return {
+        tone: "brand" as const,
+        title: t("workspace.nextActions.generatePrep.title"),
+        body: t("workspace.nextActions.generatePrep.body"),
+      };
+    }
+    if (workflowStatus === "PREPARATION" && prep && brief?.next_action) {
+      return {
+        tone: "brand" as const,
+        title: t("workspace.nextActions.prepFocus.title"),
+        body: brief.next_action,
+      };
+    }
+    if (brief?.next_action) {
+      return {
+        tone: "brand" as const,
+        title: t("workspace.nextActions.brief.title"),
+        body: brief.next_action,
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      title: t("workspace.nextActions.monitor.title"),
+      body: t("workspace.nextActions.monitor.body"),
+    };
+  })();
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-5">
@@ -329,7 +493,7 @@ export default function WorkspacePage() {
           href={opportunity.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface px-3 py-1.5 text-xs font-semibold text-subtext transition hover:bg-elevated"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface/95 px-3 py-1.5 text-xs font-semibold text-text/75 transition hover:bg-elevated"
         >
           {t("workspace.source")}
           <ExternalLink className="h-3.5 w-3.5" />
@@ -337,7 +501,7 @@ export default function WorkspacePage() {
       </div>
 
       {/* Opportunity header */}
-      <section className="rounded-2xl border border-line/25 bg-surface px-5 py-4 shadow-soft">
+      <section className="rounded-2xl border border-line/30 bg-surface/95 px-5 py-4 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-snug text-text">{opportunity.title}</h1>
@@ -394,41 +558,63 @@ export default function WorkspacePage() {
       </section>
 
       {/* Dossier status strip */}
-      <section className="flex flex-wrap items-center gap-3 rounded-xl border border-line/20 bg-surface px-4 py-2.5 shadow-soft">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+      <section className="flex flex-wrap items-center gap-3 rounded-xl border border-line/25 bg-surface/92 px-4 py-2.5 shadow-soft">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
           {t("workspace.status.title")}
         </span>
-        {/* Decision */}
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-            decision === "GO" && "border border-good/40 bg-good/12 text-good",
-            decision === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
-            decision === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
-            !decision && "border border-line/25 bg-bg text-subtext",
-          )}
-        >
-          {decision === "NO_GO" ? "NO-GO" : decision ?? t("workspace.status.undecided")}
-        </span>
-        {/* Score */}
-        {!scoreLoading && score ? (
+        <StatusPill label={t("workspace.status.workflow")}>
+          <WorkflowBadge workflowStatus={displayWorkflowStatus} t={t} />
+        </StatusPill>
+        <StatusPill label={t("workspace.status.decision")}>
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums",
-              score.score_band === "high" && "border border-good/30 bg-good/8 text-good",
-              score.score_band === "med" && "border border-warn/30 bg-warn/8 text-warn",
-              score.score_band === "low" && "border border-bad/30 bg-bad/8 text-bad",
+              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+              decision === "GO" && "border border-good/40 bg-good/12 text-good",
+              decision === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
+              decision === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
+              !decision && "border border-line/25 bg-bg text-subtext",
             )}
           >
-            {t(`workspace.score.${score.score_band}`)} · {Math.round(score.score_value * 100)}%
+            {formatDecisionLabel(decision, t)}
           </span>
-        ) : !scoreLoading ? (
-          <span className="rounded-full border border-line/20 bg-bg px-2.5 py-0.5 text-[11px] text-muted">
-            {t("workspace.score.pending")}
-          </span>
-        ) : null}
+        </StatusPill>
+        <StatusPill label={t("workspace.status.recommendation")}>
+          {!scoreLoading && recommendation ? (
+            <RecommendationBadge recommendation={recommendation} t={t} />
+          ) : (
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+              {t("workspace.recommendation.pending")}
+            </span>
+          )}
+        </StatusPill>
+        <StatusPill label={t("workspace.status.score")}>
+          {!scoreLoading && score ? (
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                score.score_band === "high" && "border border-good/30 bg-good/8 text-good",
+                score.score_band === "med" && "border border-warn/30 bg-warn/8 text-warn",
+                score.score_band === "low" && "border border-bad/30 bg-bad/8 text-bad",
+              )}
+            >
+              {t(`workspace.score.${score.score_band}`)} · {Math.round(score.score_value * 100)}%
+            </span>
+          ) : !scoreLoading ? (
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+              {t("workspace.score.pending")}
+            </span>
+          ) : null}
+        </StatusPill>
         {/* Deadline */}
-        <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+        <StatusPill label={t("workspace.status.urgency")}>
+          {opportunity.deadline_at ? (
+            <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+          ) : (
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+              {t("workspace.deadline.none")}
+            </span>
+          )}
+        </StatusPill>
         {/* Deadline vs effort intelligence */}
         {prep?.effort_days && dl !== null && dl >= 0 ? (
           <span
@@ -446,7 +632,7 @@ export default function WorkspacePage() {
         ) : null}
         {/* Brief freshness */}
         {brief ? (
-          <span className="ml-auto text-[10px] text-subtext/50">
+          <span className="ml-auto text-[11px] text-subtext/70">
             {t("workspace.status.briefFresh")} {fmtRelative(brief.generatedAt, fmtLocale)}
           </span>
         ) : null}
@@ -456,7 +642,7 @@ export default function WorkspacePage() {
       <div className="grid gap-5 lg:grid-cols-12">
         {/* Brief + Documents — left, larger */}
         <div className="space-y-5 lg:col-span-7">
-          <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">Brief</h2>
               <button
@@ -467,7 +653,7 @@ export default function WorkspacePage() {
                   "rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition",
                   brief
                     ? "border-brand/50 bg-brand/15 text-brand"
-                    : "border-line/25 bg-bg text-subtext hover:bg-elevated",
+                    : "border-line/25 bg-bg/85 text-subtext/85 hover:bg-elevated hover:text-text",
                   briefLoading && "cursor-wait opacity-70",
                 )}
               >
@@ -495,7 +681,7 @@ export default function WorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setBriefHistoryOpen((v) => !v)}
-                      className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-subtext/50 hover:text-subtext transition"
+                      className="flex w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtext/75 transition hover:text-text"
                     >
                       <History className="h-3 w-3" />
                       {t("workspace.brief.history.label")} ({briefVersions.length})
@@ -515,14 +701,14 @@ export default function WorkspacePage() {
                             <span className="text-[11px] text-text">
                               {fmtDateTime(v.created_at, fmtLocale)}
                             </span>
-                            <span className="text-[10px] font-mono text-subtext/60">{v.model}</span>
+                            <span className="text-[10px] font-mono text-subtext/75">{v.model}</span>
                             {v.is_current ? (
                               <span className="rounded-full border border-brand/30 bg-brand/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-brand">
                                 {t("workspace.brief.history.current")}
                               </span>
                             ) : null}
                             {v.generation_ms ? (
-                              <span className="ml-auto text-[10px] tabular-nums text-subtext/40">
+                              <span className="ml-auto text-[10px] tabular-nums text-subtext/65">
                                 {v.generation_ms}ms
                               </span>
                             ) : null}
@@ -545,53 +731,66 @@ export default function WorkspacePage() {
               </div>
             ) : extraction?.summary_10s ? (
               <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-subtext/50">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
                   {t("workspace.extraction.quickSnapshot")}
                 </p>
-                <p className="text-sm leading-relaxed text-subtext/80">
+                <p className="text-sm leading-relaxed text-subtext">
                   {extraction.summary_10s}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-subtext/60">{t("workspace.brief.empty")}</p>
+              <p className="text-sm text-subtext">{t("workspace.brief.empty")}</p>
             )}
           </div>
 
         {/* Next Actions */}
-        {(brief?.next_action || !decision || (score?.score_band === "low")) ? (
-          <div className="rounded-2xl border border-brand/25 bg-brand/5 p-5 shadow-soft">
+        {nextBestAction ? (
+          <div className="rounded-2xl border border-brand/30 bg-brand/8 p-5 shadow-soft">
             <div className="mb-3 flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-brand/70" />
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-brand/70">
+              <Zap className="h-3.5 w-3.5 text-brand/85" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-brand/85">
                 {t("workspace.nextActions.label")}
               </h2>
             </div>
-            <ul className="space-y-2.5">
-              {brief?.next_action ? (
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-brand/50 text-sm">→</span>
-                  <span className="text-sm text-text">{brief.next_action}</span>
-                </li>
-              ) : null}
-              {!decision ? (
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-warn/60 text-sm">→</span>
-                  <span className="text-sm text-subtext">{t("workspace.nextActions.takeDecision")}</span>
-                </li>
-              ) : null}
-              {score?.score_band === "low" ? (
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-bad/50 text-sm">→</span>
-                  <span className="text-sm text-subtext">{t("workspace.nextActions.lowScore")}</span>
-                </li>
-              ) : null}
-            </ul>
+            <div className="space-y-3">
+              <div
+                className={cn(
+                  "rounded-xl border px-4 py-3",
+                  nextBestAction.tone === "good" && "border-good/30 bg-good/10",
+                  nextBestAction.tone === "warn" && "border-warn/30 bg-warn/10",
+                  nextBestAction.tone === "bad" && "border-bad/30 bg-bad/10",
+                  nextBestAction.tone === "brand" && "border-brand/30 bg-brand/10",
+                  nextBestAction.tone === "neutral" && "border-line/20 bg-bg/80",
+                )}
+              >
+                <p className="text-sm font-semibold text-text">{nextBestAction.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-subtext">{nextBestAction.body}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px] text-subtext/85">
+                {!brief ? <span>{t("workspace.nextActions.signal.briefMissing")}</span> : null}
+                {!decision ? <span>{t("workspace.nextActions.signal.decisionMissing")}</span> : null}
+                {recommendation ? (
+                  <span>
+                    {t("workspace.status.recommendation")}: {formatRecommendationLabel(recommendation, t)}
+                  </span>
+                ) : null}
+                {workflowStatus ? (
+                  <span>
+                    {t("workspace.status.workflow")}: {formatWorkflowLabel(workflowStatus, t)}
+                  </span>
+                ) : (
+                  <span>
+                    {t("workspace.status.workflow")}: {formatWorkflowLabel("NEW", t)}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         ) : null}
 
         {/* Documents */}
         {documents.length > 0 ? (
-          <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtext">
               {t("workspace.documents.label")}
             </h2>
@@ -621,25 +820,25 @@ export default function WorkspacePage() {
         ) : null}
         {/* Preparation Plan */}
         {(decision === "GO" || prep || prepGenerating) ? (
-          <div className="rounded-2xl border border-line/25 bg-surface p-5 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
                 {t("workspace.prep.label")}
               </h2>
               <div className="flex items-center gap-2">
                 {prep?.effort_days ? (
-                  <span className="text-[10px] font-semibold text-subtext/50">
+                  <span className="text-[11px] font-semibold text-subtext/70">
                     ~{prep.effort_days}d
                   </span>
                 ) : null}
-                {!prepLoading && !prepGenerating ? (
+                {!prepLoading && !prepGenerating && !prepBlocked ? (
                   <button
                     type="button"
                     onClick={() => opportunity && void generatePrep(opportunity.id)}
                     className={cn(
-                      "rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition",
+                      "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
                       prep
-                        ? "border-line/20 bg-bg text-subtext/50 hover:bg-elevated hover:text-subtext"
+                        ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
                         : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
                     )}
                   >
@@ -659,7 +858,7 @@ export default function WorkspacePage() {
                   />
                 ))}
                 {prepGenerating ? (
-                  <p className="text-[10px] text-subtext/50">{t("workspace.prep.computing")}</p>
+                  <p className="text-[11px] text-subtext/70">{t("workspace.prep.computing")}</p>
                 ) : null}
               </div>
             ) : prepError ? (
@@ -692,7 +891,7 @@ export default function WorkspacePage() {
                               "mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-bold uppercase",
                               item.priority === "high" && "bg-bad/15 text-bad",
                               item.priority === "med" && "bg-warn/15 text-warn",
-                              item.priority === "low" && "bg-subtext/10 text-subtext/60",
+                              item.priority === "low" && "bg-subtext/10 text-subtext/80",
                             )}
                           >
                             {t(`workspace.prep.priority.${item.priority}`)}
@@ -735,7 +934,13 @@ export default function WorkspacePage() {
                 ) : null}
               </div>
             ) : (
-              <p className="text-sm text-subtext/60">{t("workspace.prep.empty")}</p>
+              <p className="text-sm text-subtext">
+                {isExpired
+                  ? t("workspace.prep.blocked.expired")
+                  : recommendation === "NO_GO"
+                    ? t("workspace.prep.blocked.noGo")
+                    : t("workspace.prep.empty")}
+              </p>
             )}
           </div>
         ) : null}
@@ -743,9 +948,49 @@ export default function WorkspacePage() {
 
         {/* Sidebar — right */}
         <div className="space-y-4 lg:col-span-5">
+          {/* Workflow */}
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
+            <SectionLabel>{t("workspace.workflow.label")}</SectionLabel>
+            <p className="mb-3 text-sm leading-relaxed text-subtext">
+              {!workflowStatus
+                ? t("workspace.workflow.defaultHint")
+                : t("workspace.workflow.savedHint")}
+            </p>
+            <select
+              value={displayWorkflowStatus}
+              onChange={(event) => void saveWorkflow(event.target.value as WorkflowStatus)}
+              disabled={workflowSaving}
+              className="w-full rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm font-semibold text-text outline-none transition hover:bg-elevated disabled:cursor-wait disabled:opacity-70"
+            >
+              {WORKFLOW_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {formatWorkflowLabel(option, t)}
+                </option>
+              ))}
+            </select>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <WorkflowBadge workflowStatus={displayWorkflowStatus} t={t} />
+              {workflowSaving ? (
+                <span className="text-[11px] text-subtext/70">{t("workspace.workflow.saving")}</span>
+              ) : workflow?.updated_at ? (
+                <span className="text-[11px] text-subtext/70">
+                  {fmtRelative(workflow.updated_at, fmtLocale)}
+                </span>
+              ) : (
+                <span className="text-[11px] text-subtext/70">{t("workspace.workflow.notSavedYet")}</span>
+              )}
+            </div>
+            {workflowError ? (
+              <p className="mt-2 text-[11px] text-bad">{workflowError}</p>
+            ) : null}
+          </div>
+
           {/* Decision */}
-          <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
-            <SectionLabel>{t("workspace.decision")}</SectionLabel>
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
+            <SectionLabel>{t("workspace.decision.label")}</SectionLabel>
+            <p className="mb-3 text-sm leading-relaxed text-subtext">
+              {t("workspace.decision.helper")}
+            </p>
             <DecisionButtons id={opportunity.id} current={decision} onDecide={decide} />
             {decision ? (
               <p
@@ -756,13 +1001,13 @@ export default function WorkspacePage() {
                   decision === "NO_GO" && "text-bad",
                 )}
               >
-                {decision === "NO_GO" ? "NO-GO" : decision}
+                {formatDecisionLabel(decision, t)}
               </p>
             ) : null}
           </div>
 
           {/* Score */}
-          <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <div className="mb-2 flex items-center justify-between">
               <SectionLabel>{t("workspace.score.label")}</SectionLabel>
               {!scoreLoading && !scoreGenerating && (
@@ -770,9 +1015,9 @@ export default function WorkspacePage() {
                   type="button"
                   onClick={() => opportunity && void generateScore(opportunity.id)}
                   className={cn(
-                    "rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition",
+                    "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
                     score
-                      ? "border-line/20 bg-bg text-subtext/50 hover:bg-elevated hover:text-subtext"
+                      ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
                       : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
                   )}
                 >
@@ -784,7 +1029,7 @@ export default function WorkspacePage() {
               <div className="space-y-2">
                 <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
                 {scoreGenerating ? (
-                  <p className="text-[10px] text-subtext/50">{t("workspace.score.computing")}</p>
+                  <p className="text-[11px] text-subtext/70">{t("workspace.score.computing")}</p>
                 ) : null}
               </div>
             ) : scoreError ? (
@@ -812,8 +1057,16 @@ export default function WorkspacePage() {
                     {Math.round(score.score_value * 100)}%
                   </span>
                 </div>
+                {score.recommendation ? (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+                      {t("workspace.recommendation.label")}
+                    </p>
+                    <RecommendationBadge recommendation={score.recommendation} t={t} />
+                  </div>
+                ) : null}
                 {score.rationale_summary ? (
-                  <p className="mt-2 text-[11px] leading-relaxed text-subtext/70">
+                  <p className="mt-2 text-[12px] leading-relaxed text-subtext">
                     {score.rationale_summary}
                   </p>
                 ) : null}
@@ -822,12 +1075,12 @@ export default function WorkspacePage() {
                 ) : null}
               </>
             ) : (
-              <p className="text-xs text-muted">{t("workspace.score.pending")}</p>
+              <p className="text-sm text-subtext">{t("workspace.score.pending")}</p>
             )}
           </div>
 
           {/* Deadline */}
-          <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <SectionLabel>{t("workspace.deadline.label")}</SectionLabel>
             {opportunity.deadline_at ? (
               <div className="space-y-2">
@@ -853,7 +1106,7 @@ export default function WorkspacePage() {
           </div>
 
           {/* Metadata */}
-          <div className="rounded-2xl border border-line/25 bg-surface p-4 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <div className="space-y-3">
               <div>
                 <SectionLabel>{t("workspace.type.label")}</SectionLabel>
@@ -900,15 +1153,15 @@ export default function WorkspacePage() {
       </div>
 
       {/* Timeline */}
-      <section className="rounded-2xl border border-line/20 bg-surface p-5 shadow-soft">
+      <section className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
-          <Activity className="h-3.5 w-3.5 text-subtext/40" />
+          <Activity className="h-3.5 w-3.5 text-subtext/65" />
           <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
             {t("workspace.timeline.label")}
           </h2>
         </div>
         {timelineEvents.length === 0 ? (
-          <p className="text-xs text-muted">{t("workspace.timeline.empty")}</p>
+          <p className="text-sm text-subtext">{t("workspace.timeline.empty")}</p>
         ) : (
           <ol className="space-y-0">
             {timelineEvents.map((ev, idx) => (
@@ -941,7 +1194,7 @@ export default function WorkspacePage() {
                       ? ` → ${ev.decisionValue === "NO_GO" ? "NO-GO" : ev.decisionValue}`
                       : null}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-subtext/40">
+                  <p className="mt-0.5 text-[11px] text-subtext/70">
                     {fmtRelative(ev.ts, fmtLocale)}
                     {ev.durationMs ? ` · ${ev.durationMs}ms` : null}
                   </p>

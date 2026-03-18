@@ -30,6 +30,19 @@ export type UseInboxDataResult = {
 
 const PAGE_SIZE = 20;
 
+function dedupeItemsById(items: OpportunitiesSearchItem[]): OpportunitiesSearchItem[] {
+  const seen = new Set<string>();
+  const deduped: OpportunitiesSearchItem[] = [];
+
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    deduped.push(item);
+  }
+
+  return deduped;
+}
+
 type JwtForensicPayload = {
   sub?: string;
   iss?: string;
@@ -177,7 +190,11 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
         setSubscriptionRequired(false);
         setNextCursor(result.nextCursor);
         setHasMore(result.nextCursor !== null);
-        setItems((prev) => (append ? [...prev, ...result.items] : result.items));
+        setItems((prev) => (
+          append
+            ? dedupeItemsById([...prev, ...result.items])
+            : dedupeItemsById(result.items)
+        ));
       } catch (unknownError) {
         if (requestVersion !== requestVersionRef.current) return;
 

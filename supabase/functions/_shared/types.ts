@@ -43,6 +43,8 @@ export type OpportunityUpsertInput = {
   status?: OpportunityStatus;
   is_public?: boolean;
   country_code?: string | null;
+  region?: string | null;
+  locality?: string | null;
   buyer_name?: string | null;
   title: string;
   summary?: string | null;

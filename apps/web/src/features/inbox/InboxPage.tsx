@@ -392,7 +392,6 @@ export default function InboxPage() {
     isLoading: isBriefLoading,
     getError: getBriefError,
   } = useOpportunityBrief();
-  const { score: selectedScore } = useOpportunityScore(selectedId);
 
   const filteredItems = useMemo(() => {
     if (decisionFilter === "all") return items;
@@ -416,12 +415,14 @@ export default function InboxPage() {
     () => filteredItems.find((item) => item.id === selectedId) ?? null,
     [filteredItems, selectedId],
   );
+  const { score: selectedScore } = useOpportunityScore(selectedId, selectedItem?.deadline_at ?? null);
 
   const selectedBriefInput = useMemo((): BriefInput | null => {
     if (!selectedItem) return null;
     return {
       id: selectedItem.id,
       title: selectedItem.title,
+      locale,
       buyer_name: selectedItem.buyer_name,
       status: selectedItem.status,
       deadline_at: selectedItem.deadline_at,
@@ -431,15 +432,14 @@ export default function InboxPage() {
       origin_type: selectedItem.origin_type,
       region: selectedItem.region,
     };
-  }, [selectedItem]);
+  }, [locale, selectedItem]);
 
   // Auto-generate brief when selected item changes
   useEffect(() => {
     if (!selectedBriefInput) return;
     if (getBrief(selectedBriefInput.id) || isBriefLoading(selectedBriefInput.id)) return;
     void generate(selectedBriefInput);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBriefInput?.id]);
+  }, [generate, getBrief, isBriefLoading, selectedBriefInput]);
 
   const statusLabel: Record<string, string> = {
     active: t("inbox.filter.status.active"),
@@ -721,6 +721,7 @@ export default function InboxPage() {
             const briefInput: BriefInput = {
               id: item.id,
               title: item.title,
+              locale,
               buyer_name: item.buyer_name,
               status: item.status,
               deadline_at: item.deadline_at,

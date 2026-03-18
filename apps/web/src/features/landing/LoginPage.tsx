@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -64,10 +65,10 @@ export default function LoginPage() {
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/20 bg-bg/70 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <div className="h-7 w-7 rounded-xl bg-elevated shadow-glow" />
+            <Logo size={24} showWordmark={false} />
             <div className="leading-tight">
-              <div className="text-sm font-semibold">RadarPulse</div>
-              <div className="text-[11px] text-muted">Sign in</div>
+              <div className="text-sm font-semibold text-text">RadarPulse</div>
+              <div className="text-[11px] text-subtext/80">Sign in</div>
             </div>
           </div>
           <Link
@@ -87,7 +88,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {forgotMode ? "Reset password" : "Sign in"}
           </h1>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-sm text-subtext">
             {forgotMode
               ? "Enter your email to receive a reset link."
               : "Enter your email and password."}
@@ -104,7 +105,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => { setForgotMode(false); setResetSent(false); setError(null); }}
-                  className="mt-3 text-xs text-accent hover:underline"
+                  className="mt-3 text-xs text-brand hover:underline"
                 >
                   ← Back to sign in
                 </button>
@@ -112,7 +113,7 @@ export default function LoginPage() {
             ) : (
               <form className="mt-6 space-y-4" onSubmit={(e) => void handleForgot(e)}>
                 <div>
-                  <label htmlFor="reset-email" className="text-xs font-medium text-muted">
+                  <label htmlFor="reset-email" className="text-xs font-medium text-subtext">
                     Email
                   </label>
                   <input
@@ -122,7 +123,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@company.com"
-                    className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                    className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                   />
                 </div>
 
@@ -135,7 +136,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {submitting ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
@@ -144,20 +145,20 @@ export default function LoginPage() {
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => { setForgotMode(false); setError(null); }}
-                  className="w-full text-center text-xs text-muted hover:text-text"
-                >
-                  ← Back to sign in
-                </button>
+              <button
+                type="button"
+                onClick={() => { setForgotMode(false); setError(null); }}
+                className="w-full text-center text-xs text-subtext hover:text-text"
+              >
+                ← Back to sign in
+              </button>
               </form>
             )
           ) : (
             /* ── Sign in mode ── */
             <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
               <div>
-                <label htmlFor="login-email" className="text-xs font-medium text-muted">
+                <label htmlFor="login-email" className="text-xs font-medium text-subtext">
                   Email
                 </label>
                 <input
@@ -167,19 +168,19 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="login-password" className="text-xs font-medium text-muted">
+                  <label htmlFor="login-password" className="text-xs font-medium text-subtext">
                     Password
                   </label>
                   <button
                     type="button"
                     onClick={() => { setForgotMode(true); setError(null); }}
-                    className="text-xs text-accent hover:underline"
+                    className="text-xs text-brand hover:underline"
                   >
                     Forgot password?
                   </button>
@@ -191,7 +192,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/50"
+                  className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                 />
               </div>
 
@@ -204,7 +205,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Signing in…</>
@@ -215,9 +216,9 @@ export default function LoginPage() {
             </form>
           )}
 
-          <div className="mt-5 text-xs text-muted">
+          <div className="mt-5 text-xs text-subtext">
             No account yet?{" "}
-            <Link className="text-accent hover:underline" to="/request-access">
+            <Link className="text-brand hover:underline" to="/request-access">
               Request access
             </Link>
           </div>

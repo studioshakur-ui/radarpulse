@@ -11,7 +11,18 @@ const PROMPT_VERSION = "v1";
 
 type ScoreInput = {
   id: string; // opportunity_id
+  locale?: "en" | "fr" | "it";
 };
+
+function normalizeLocale(value: unknown): "en" | "fr" | "it" {
+  return value === "fr" || value === "it" ? value : "en";
+}
+
+function localeName(locale: "en" | "fr" | "it"): string {
+  if (locale === "fr") return "French";
+  if (locale === "it") return "Italian";
+  return "English";
+}
 
 type ScoreDimension = {
   key: string;
@@ -23,6 +34,7 @@ type ScoreDimension = {
 type ScoreResult = {
   score_value: number; // 0-1 weighted average
   score_band: "high" | "med" | "low";
+  recommendation: "GO" | "HOLD" | "NO_GO";
   rationale_summary: string;
   rationale_json: { dimensions: ScoreDimension[] };
 };
@@ -56,6 +68,123 @@ function toScoreBand(v: number): "high" | "med" | "low" {
   if (v >= 0.65) return "high";
   if (v >= 0.4) return "med";
   return "low";
+}
+
+function getDimensionScore(dimensions: ScoreDimension[], key: string): number | null {
+  const dim = dimensions.find((item) => item.key === key);
+  return typeof dim?.score === "number" ? dim.score : null;
+}
+
+function daysUntilDeadline(deadlineAt: string | null | undefined): number | null {
+  if (!deadlineAt) return null;
+  const ts = new Date(deadlineAt).getTime();
+  if (!Number.isFinite(ts)) return null;
+  return (ts - Date.now()) / (1000 * 60 * 60 * 24);
+}
+
+function roundScore(value: number): number {
+  return Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
+}
+
+function deadlineScoreMultiplier(daysLeft: number | null): number {
+  if (daysLeft === null) return 1;
+  if (daysLeft < 0) return 0;
+  if (daysLeft <= 1) return 0.15;
+  if (daysLeft <= 3) return 0.35;
+  if (daysLeft <= 7) return 0.55;
+  if (daysLeft <= 14) return 0.75;
+  if (daysLeft <= 30) return 0.9;
+  return 1;
+}
+
+function applyDeadlineAdjustment(scoreValue: number, deadlineAt: string | null | undefined): number {
+  const daysLeft = daysUntilDeadline(deadlineAt);
+  return roundScore(scoreValue * deadlineScoreMultiplier(daysLeft));
+}
+
+function deadlineStatusSummary(
+  locale: "en" | "fr" | "it",
+  daysLeft: number | null,
+  fallback: string,
+): string {
+  if (daysLeft === null) return fallback;
+  if (daysLeft < 0) {
+    if (locale === "fr") return "La date limite est dépassée. Cette opportunité devient automatiquement NO-GO.";
+    if (locale === "it") return "La scadenza è superata. Questa opportunità diventa automaticamente NO-GO.";
+    return "The deadline has passed. This opportunity is automatically NO-GO.";
+  }
+  if (daysLeft <= 3) {
+    if (locale === "fr") return `Échéance imminente (${Math.max(0, Math.ceil(daysLeft))} j). Le score est abaissé pour refléter la pression temporelle.`;
+    if (locale === "it") return `Scadenza imminente (${Math.max(0, Math.ceil(daysLeft))} g). Lo score è ridotto per riflettere la pressione temporale.`;
+    return `Deadline is imminent (${Math.max(0, Math.ceil(daysLeft))}d). The score is reduced to reflect time pressure.`;
+  }
+  return fallback;
+}
+
+function withDeadlineAdjustedScore<T extends {
+  score_value: number;
+  score_band: "high" | "med" | "low";
+  recommendation: "GO" | "HOLD" | "NO_GO";
+}>(
+  score: T,
+  deadlineAt: string | null | undefined,
+): T {
+  const adjustedScoreValue = applyDeadlineAdjustment(score.score_value, deadlineAt);
+  const adjustedScoreBand = toScoreBand(adjustedScoreValue);
+  return {
+    ...score,
+    score_value: adjustedScoreValue,
+    score_band: adjustedScoreBand,
+    recommendation: deadlineAt && daysUntilDeadline(deadlineAt) !== null
+      ? deriveRecommendation({
+          scoreValue: adjustedScoreValue,
+          scoreBand: adjustedScoreBand,
+          dimensions: "rationale_json" in score && score.rationale_json && typeof score.rationale_json === "object" && Array.isArray((score.rationale_json as { dimensions?: unknown }).dimensions)
+            ? ((score.rationale_json as { dimensions: ScoreDimension[] }).dimensions ?? [])
+            : [],
+          deadlineAt,
+          needsReview: false,
+        })
+      : score.recommendation,
+  };
+}
+
+function deriveRecommendation(args: {
+  scoreValue: number;
+  scoreBand: "high" | "med" | "low";
+  dimensions: ScoreDimension[];
+  deadlineAt: string | null | undefined;
+  needsReview: boolean;
+}): "GO" | "HOLD" | "NO_GO" {
+  const fit = getDimensionScore(args.dimensions, "fit");
+  const effort = getDimensionScore(args.dimensions, "effort");
+  const urgency = getDimensionScore(args.dimensions, "urgency");
+  const strategic = getDimensionScore(args.dimensions, "strategic");
+  const daysLeft = daysUntilDeadline(args.deadlineAt);
+
+  if (daysLeft !== null && daysLeft < 0) return "NO_GO";
+  if (args.scoreValue < 0.35) return "NO_GO";
+  if (args.scoreBand === "low" && args.scoreValue < 0.45) return "NO_GO";
+  if (fit !== null && strategic !== null && fit < 0.3 && strategic < 0.35) return "NO_GO";
+
+  if (args.needsReview && args.scoreValue < 0.6) return "HOLD";
+  if (daysLeft !== null && daysLeft <= 3 && ((urgency !== null && urgency < 0.45) || args.scoreValue < 0.6)) {
+    return "HOLD";
+  }
+
+  if (
+    args.scoreValue >= 0.68 &&
+    (fit === null || fit >= 0.6) &&
+    (effort === null || effort >= 0.5) &&
+    (urgency === null || urgency >= 0.4) &&
+    (strategic === null || strategic >= 0.5) &&
+    !args.needsReview
+  ) {
+    return "GO";
+  }
+
+  if (args.scoreBand === "high" && args.scoreValue >= 0.62 && !args.needsReview) return "GO";
+  return "HOLD";
 }
 
 async function insertAgentRun(
@@ -154,23 +283,9 @@ Deno.serve(async (req) => {
     return json(400, { ok: false, error: "INVALID_BODY" });
   }
   if (!body?.id) return json(400, { ok: false, error: "MISSING_FIELDS" });
+  const outputLocale = normalizeLocale(body.locale);
 
-  // ─── 1. DB cache check (TTL 7 days, per user) ─────────────────────────────
-  const staleThreshold = new Date(Date.now() - SCORE_TTL_MS).toISOString();
-  const { data: cached } = await sb
-    .from("opportunity_scores")
-    .select("score_value, score_band, rationale_summary, rationale_json")
-    .eq("opportunity_id", body.id)
-    .eq("user_id", userId)
-    .eq("is_current", true)
-    .gt("created_at", staleThreshold)
-    .maybeSingle();
-
-  if (cached) {
-    return json(200, { ok: true, score: cached, cached: true });
-  }
-
-  // ─── 2. Load context ───────────────────────────────────────────────────────
+  // ─── 1. Load context ───────────────────────────────────────────────────────
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) return json(500, { ok: false, error: "SERVER_CONFIG_ERROR" });
 
@@ -183,11 +298,33 @@ Deno.serve(async (req) => {
 
   if (oppErr || !opp) return json(404, { ok: false, error: "OPPORTUNITY_NOT_FOUND" });
 
+  // ─── 2. DB cache check (TTL 7 days, per user) ─────────────────────────────
+  const staleThreshold = new Date(Date.now() - SCORE_TTL_MS).toISOString();
+  const { data: cached } = await sb
+    .from("opportunity_scores")
+    .select("score_value, score_band, recommendation, rationale_summary, rationale_json")
+    .eq("opportunity_id", body.id)
+    .eq("user_id", userId)
+    .eq("is_current", true)
+    .eq("output_locale", outputLocale)
+    .gt("created_at", staleThreshold)
+    .maybeSingle();
+
+  if (cached) {
+    const cachedScore = withDeadlineAdjustedScore(
+      cached as ScoreResult,
+      typeof (opp as Record<string, unknown>).deadline_at === "string"
+        ? (opp as Record<string, unknown>).deadline_at as string
+        : null,
+    );
+    return json(200, { ok: true, score: cachedScore, cached: true });
+  }
+
   // Latest extraction (optional enrichment)
   const { data: extraction } = await sb
     .from("opportunity_extractions")
     .select(
-      "id, sector, budget_value, budget_currency, summary_10s, eligibility, risks, extraction_quality",
+      "id, sector, budget_value, budget_currency, summary_10s, eligibility, risks, extraction_quality, needs_review",
     )
     .eq("opportunity_id", body.id)
     .eq("is_current", true)
@@ -252,7 +389,8 @@ Deno.serve(async (req) => {
     "}",
     "For fit: 1.0 = perfect match. For effort: 1.0 = low effort (easy to respond). For urgency: 1.0 = plenty of time.",
     "For strategic: 1.0 = highly strategic. If profile context is missing, score based on the opportunity alone.",
-    "Respond in English regardless of opportunity language.",
+    `Respond in ${localeName(outputLocale)} regardless of opportunity language.`,
+    `All user-visible strings, including dimension labels, comments, and rationale_summary, must be in ${localeName(outputLocale)}.`,
   ].join("\n");
 
   const userMessage = `Opportunity data:\n${oppLines.join("\n")}${profileContext}`;
@@ -276,7 +414,7 @@ Deno.serve(async (req) => {
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
+          { role: "user", content: `Current timestamp: ${nowIso()}\n${userMessage}` },
         ],
         max_tokens: 600,
         temperature: 0.2,
@@ -310,17 +448,35 @@ Deno.serve(async (req) => {
 
     // Use OpenAI-computed score_value, fallback to weighted average
     const rawScoreValue = Number(raw.score_value);
-    const score_value = Number.isFinite(rawScoreValue)
+    const baseScoreValue = Number.isFinite(rawScoreValue)
       ? Math.min(1, Math.max(0, rawScoreValue))
       : (() => {
           const get = (key: string) => dimensions.find((d) => d.key === key)?.score ?? 0.5;
           return get("fit") * 0.35 + get("effort") * 0.25 + get("urgency") * 0.2 + get("strategic") * 0.2;
         })();
 
+    const deadlineAt = typeof (opp as Record<string, unknown>).deadline_at === "string"
+      ? (opp as Record<string, unknown>).deadline_at as string
+      : null;
+    const adjustedScoreValue = applyDeadlineAdjustment(baseScoreValue, deadlineAt);
+    const adjustedScoreBand = toScoreBand(adjustedScoreValue);
+
+    const deadlineDaysLeft = daysUntilDeadline(deadlineAt);
     const score: ScoreResult = {
-      score_value: Math.round(score_value * 1000) / 1000,
-      score_band: toScoreBand(score_value),
-      rationale_summary: String(raw.rationale_summary ?? ""),
+      score_value: adjustedScoreValue,
+      score_band: adjustedScoreBand,
+      recommendation: deriveRecommendation({
+        scoreValue: adjustedScoreValue,
+        scoreBand: adjustedScoreBand,
+        dimensions,
+        deadlineAt,
+        needsReview: Boolean(ext?.needs_review),
+      }),
+      rationale_summary: deadlineStatusSummary(
+        outputLocale,
+        deadlineDaysLeft,
+        String(raw.rationale_summary ?? ""),
+      ),
       rationale_json: { dimensions },
     };
 
@@ -343,8 +499,10 @@ Deno.serve(async (req) => {
           model,
           score_value: score.score_value,
           score_band: score.score_band,
+          recommendation: score.recommendation,
           rationale_summary: score.rationale_summary,
           rationale_json: score.rationale_json,
+          output_locale: outputLocale,
           input_profile_snapshot: prof ?? null,
           input_extraction_id: ext?.id ?? null,
         })
@@ -380,6 +538,7 @@ Deno.serve(async (req) => {
       model,
       score_value: score.score_value,
       score_band: score.score_band,
+      recommendation: score.recommendation,
       generation_ms,
     });
 

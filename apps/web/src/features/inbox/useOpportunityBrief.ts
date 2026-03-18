@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { useLocale, type Locale } from "@/lib/i18n";
 
 const STORAGE_KEY = "radarpulse:briefs";
 // Must match server-side BRIEF_TTL_MS in opportunity-brief edge function
@@ -18,6 +20,7 @@ export type OpportunityBrief = {
 export type BriefInput = {
   id: string;
   title: string;
+  locale: Locale;
   buyer_name?: string | null;
   status?: string | null;
   deadline_at?: string | null;
@@ -27,6 +30,10 @@ export type BriefInput = {
   origin_type?: string | null;
   region?: string | null;
 };
+
+function cacheKey(id: string, locale: Locale): string {
+  return `${id}:${locale}`;
+}
 
 function loadCache(): Record<string, OpportunityBrief> {
   try {
@@ -52,6 +59,7 @@ function persistCache(next: Record<string, OpportunityBrief>) {
 }
 
 export function useOpportunityBrief() {
+  const { locale } = useLocale();
   const [cache, setCache] = useState<Record<string, OpportunityBrief>>(loadCache);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -67,6 +75,7 @@ export function useOpportunityBrief() {
         .from("opportunity_briefs")
         .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action, updated_at")
         .eq("opportunity_id", id)
+        .eq("output_locale", locale)
         .single();
 
       if (!data) return false;
@@ -84,7 +93,7 @@ export function useOpportunityBrief() {
       };
 
       setCache((prev) => {
-        const next = { ...prev, [id]: brief };
+        const next = { ...prev, [cacheKey(id, locale)]: brief };
         persistCache(next);
         return next;
       });
@@ -92,7 +101,7 @@ export function useOpportunityBrief() {
     } catch {
       return false;
     }
-  }, []);
+  }, [locale]);
 
   /**
    * Generate (or force-refresh) a brief via edge function.
@@ -102,16 +111,17 @@ export function useOpportunityBrief() {
     async (input: BriefInput, options?: { force?: boolean }) => {
       const { id } = input;
       const force = options?.force ?? false;
+      const scopedKey = cacheKey(id, locale);
 
       // Prevent concurrent loads; respect cache unless forced
       if (loadingId === id) return;
-      if (!force && cache[id]) return;
+      if (!force && cache[scopedKey]) return;
 
       // Evict stale local cache entry before forced regeneration
       if (force) {
         setCache((prev) => {
           const next = { ...prev };
-          delete next[id];
+          delete next[scopedKey];
           persistCache(next);
           return next;
         });
@@ -125,9 +135,7 @@ export function useOpportunityBrief() {
       });
 
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const jwt = sessionData.session?.access_token;
-        if (!jwt) throw new Error("Not authenticated");
+        const jwt = await getValidAccessToken();
 
         const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-brief`, {
           method: "POST",
@@ -148,20 +156,25 @@ export function useOpportunityBrief() {
         };
 
         setCache((prev) => {
-          const next = { ...prev, [id]: brief };
+          const next = { ...prev, [scopedKey]: brief };
           persistCache(next);
           return next;
         });
       } catch (e) {
-        setErrors((prev) => ({ ...prev, [id]: e instanceof Error ? e.message : "Error" }));
+        const message = e instanceof AuthTokenError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Error";
+        setErrors((prev) => ({ ...prev, [id]: message }));
       } finally {
         setLoadingId(null);
       }
     },
-    [cache, loadingId],
+    [cache, loadingId, locale],
   );
 
-  const getBrief = useCallback((id: string): OpportunityBrief | null => cache[id] ?? null, [cache]);
+  const getBrief = useCallback((id: string): OpportunityBrief | null => cache[cacheKey(id, locale)] ?? null, [cache, locale]);
   const isLoading = useCallback((id: string): boolean => loadingId === id, [loadingId]);
   const getError = useCallback((id: string): string | null => errors[id] ?? null, [errors]);
 

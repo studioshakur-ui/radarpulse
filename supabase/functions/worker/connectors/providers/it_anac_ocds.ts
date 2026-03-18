@@ -144,7 +144,8 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
         : null;
 
     const address = (entity?.address ?? null) as JsonObj | null;
-    const region = safeStr(address?.region) || safeStr(address?.locality) || null;
+    const region = safeStr(address?.region) || null;
+    const locality = safeStr(address?.locality) || null;
 
     const value = (tender.value ?? tender.estimatedValue ?? null) as JsonObj | null;
     const fingerprintBasis = externalId
@@ -173,6 +174,7 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
         ocid,
         cig,
         region,
+        locality,
         tender_value: value,
         source_cursor: cursor,
         release,

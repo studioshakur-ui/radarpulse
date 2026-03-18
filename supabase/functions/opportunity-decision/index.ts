@@ -1,6 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { generateOpportunityPrep } from "../_shared/opportunity_prep_runner.ts";
 
 const log = createLogger("opportunity-decision");
 
@@ -12,7 +13,12 @@ type DecisionRequest = {
   action?: DecisionAction;
   decision_value?: DecisionValue;
   note?: string | null;
+  locale?: "en" | "fr" | "it";
 };
+
+function normalizeLocale(value: unknown): "en" | "fr" | "it" {
+  return value === "fr" || value === "it" ? value : "en";
+}
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -32,6 +38,44 @@ function normalizeString(value: unknown): string | null {
 
 function isDecisionValue(value: unknown): value is DecisionValue {
   return value === "GO" || value === "HOLD" || value === "NO_GO";
+}
+
+async function triggerServerPrep(
+  sb: ReturnType<typeof sbAdmin>,
+  args: { opportunityId: string; userId: string; decisionId: string; outputLocale: "en" | "fr" | "it" },
+) {
+  try {
+    const { data: currentPrep } = await sb
+      .from("opportunity_preps")
+      .select("id, created_at")
+      .eq("opportunity_id", args.opportunityId)
+      .eq("user_id", args.userId)
+      .eq("is_current", true)
+      .maybeSingle();
+
+    const freshThreshold = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    if (currentPrep?.created_at) {
+      const createdAt = new Date(currentPrep.created_at).getTime();
+      if (Number.isFinite(createdAt) && createdAt >= freshThreshold) {
+        return;
+      }
+    }
+
+    await generateOpportunityPrep(sb, {
+      opportunityId: args.opportunityId,
+      userId: args.userId,
+      triggerType: "system",
+      decisionId: args.decisionId,
+      outputLocale: args.outputLocale,
+    });
+  } catch (error) {
+    log.error("server_prep_failed", {
+      opportunity_id: args.opportunityId,
+      user_id: args.userId,
+      decision_id: args.decisionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -65,6 +109,7 @@ Deno.serve(async (req) => {
   const opportunityId = normalizeString(body?.opportunity_id);
   const action = body?.action;
   const note = normalizeString(body?.note);
+  const outputLocale = normalizeLocale(body?.locale);
 
   if (!opportunityId || (action !== "set" && action !== "clear")) {
     return json(400, { ok: false, error: "INVALID_BODY" });
@@ -102,14 +147,21 @@ Deno.serve(async (req) => {
         .eq("id", existingRow.id);
 
       if (deleteError) {
-        log.error("delete_decision_failed", { error: deleteError.message });
+        log.error("delete_decision_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_id: existingRow.id,
+          error: deleteError.message,
+        });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
       const { error: historyError } = await sb.from("decision_history").insert({
         opportunity_id: opportunityId,
         user_id: userId,
-        opportunity_decision_id: existingRow.id,
+        // The decision row has already been deleted above, so a clear event
+        // cannot keep a live FK reference to the removed current-state row.
+        opportunity_decision_id: null,
         event_type: "clear",
         decision_value: null,
         previous_decision_value: previousDecisionValue,
@@ -132,9 +184,19 @@ Deno.serve(async (req) => {
           });
 
         if (restoreError) {
-          log.error("restore_decision_failed", { error: restoreError.message });
+          log.error("restore_decision_failed", {
+            opportunity_id: opportunityId,
+            user_id: userId,
+            decision_id: existingRow.id,
+            error: restoreError.message,
+          });
         }
-        log.error("history_clear_insert_failed", { error: historyError.message });
+        log.error("history_clear_insert_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_id: existingRow.id,
+          error: historyError.message,
+        });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -163,7 +225,12 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertError || !insertedRow?.id) {
-        log.error("insert_decision_failed", { error: insertError?.message });
+        log.error("insert_decision_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_value: decisionValue,
+          error: insertError?.message,
+        });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
       }
 
@@ -186,10 +253,29 @@ Deno.serve(async (req) => {
           .eq("id", insertedRow.id);
 
         if (rollbackError) {
-          log.error("rollback_decision_failed", { error: rollbackError.message });
+          log.error("rollback_decision_failed", {
+            opportunity_id: opportunityId,
+            user_id: userId,
+            decision_id: insertedRow.id,
+            error: rollbackError.message,
+          });
         }
-        log.error("history_set_insert_failed", { error: historyError.message });
+        log.error("history_set_insert_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_id: insertedRow.id,
+          error: historyError.message,
+        });
         return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      }
+
+      if (decisionValue === "GO") {
+        await triggerServerPrep(sb, {
+          opportunityId,
+          userId,
+          decisionId: String(insertedRow.id),
+          outputLocale,
+        });
       }
 
       return json(200, {
@@ -226,7 +312,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (updateError || !updatedRow?.id) {
-      log.error("update_decision_failed", { error: updateError?.message });
+      log.error("update_decision_failed", {
+        opportunity_id: opportunityId,
+        user_id: userId,
+        decision_id: existingRow.id,
+        decision_value: decisionValue,
+        error: updateError?.message,
+      });
       return json(500, { ok: false, error: "INTERNAL_ERROR" });
     }
 
@@ -255,10 +347,29 @@ Deno.serve(async (req) => {
         .eq("id", existingRow.id);
 
       if (restoreError) {
-        log.error("restore_changed_decision_failed", { error: restoreError.message });
+        log.error("restore_changed_decision_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_id: existingRow.id,
+          error: restoreError.message,
+        });
       }
-      log.error("history_change_insert_failed", { error: historyError.message });
+      log.error("history_change_insert_failed", {
+        opportunity_id: opportunityId,
+        user_id: userId,
+        decision_id: updatedRow.id,
+        error: historyError.message,
+      });
       return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    }
+
+    if (decisionValue === "GO" && previousDecisionValue !== "GO") {
+      await triggerServerPrep(sb, {
+        opportunityId,
+        userId,
+        decisionId: String(updatedRow.id),
+        outputLocale,
+      });
     }
 
     return json(200, {
@@ -268,7 +379,10 @@ Deno.serve(async (req) => {
       decision: decisionValue,
     });
   } catch (error) {
-    log.error("handler_error", { error: error instanceof Error ? error.message : String(error) });
+    log.error("handler_error", {
+      user_id: userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return json(500, { ok: false, error: "INTERNAL_ERROR" });
   }
 });

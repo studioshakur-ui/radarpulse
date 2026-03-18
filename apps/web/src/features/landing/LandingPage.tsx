@@ -11,16 +11,17 @@ import type { Locale } from "@/lib/i18n";
 // ─── Announcement bar ─────────────────────────────────────────────────────────
 
 function AnnouncementBar() {
+  const { t } = useT();
   return (
     <div className="border-b border-brand/70 bg-brand px-4 py-2 text-center text-xs">
       <span className="inline-flex items-center gap-2 text-white/85">
         <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-        UK FindTender + SAM.gov now live —&nbsp;
+        {t("landing.announcement.body")} —&nbsp;
         <Link
           to="/request-access"
           className="font-bold text-white underline-offset-2 hover:underline"
         >
-          Request early access →
+          {t("landing.announcement.link")}
         </Link>
       </span>
     </div>
@@ -140,11 +141,38 @@ function HeroBackground() {
 // ─── Hero browser mockup ──────────────────────────────────────────────────────
 
 function HeroBrowserMockup() {
-  const { lang } = useT();
-  const MOCKUP_LABELS: Record<string, { allStatuses: string; results: string; loadMore: string; highRelevance: string }> = {
-    en: { allStatuses: "All statuses", results: "3 results", loadMore: "Load more →", highRelevance: "High relevance" },
-    fr: { allStatuses: "Tous les statuts", results: "3 résultats", loadMore: "Charger plus →", highRelevance: "Haute pertinence" },
-    it: { allStatuses: "Tutti gli stati", results: "3 risultati", loadMore: "Carica altro →", highRelevance: "Alta pertinenza" },
+  const { t, lang } = useT();
+  const MOCKUP_LABELS: Record<
+    string,
+    {
+      allStatuses: string;
+      results: string;
+      loadMore: string;
+      highRelevance: string;
+      minutesAgo: string;
+    }
+  > = {
+    en: {
+      allStatuses: "All statuses",
+      results: "3 results",
+      loadMore: "Load more →",
+      highRelevance: "High relevance",
+      minutesAgo: "3 min ago",
+    },
+    fr: {
+      allStatuses: "Tous les statuts",
+      results: "3 résultats",
+      loadMore: "Charger plus →",
+      highRelevance: "Haute pertinence",
+      minutesAgo: "il y a 3 min",
+    },
+    it: {
+      allStatuses: "Tutti gli stati",
+      results: "3 risultati",
+      loadMore: "Carica altro →",
+      highRelevance: "Alta pertinenza",
+      minutesAgo: "3 min fa",
+    },
   };
   const ml = MOCKUP_LABELS[lang] ?? MOCKUP_LABELS.en;
   const [tick, setTick] = useState(0);
@@ -209,11 +237,11 @@ function HeroBrowserMockup() {
             {ml.allStatuses}
           </span>
           <span className="rounded-lg border border-border/20 px-3 py-1 text-xs text-subtext/60">
-            Score IA ↑
+            {t("landing.mockup.sort")}
           </span>
           <span className="ml-auto flex items-center gap-1.5 text-xs text-subtext/40">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            3 min
+            {ml.minutesAgo}
           </span>
         </div>
         {/* Cards */}
@@ -254,12 +282,12 @@ function HeroBrowserMockup() {
       {/* Live badge */}
       <div className="absolute -right-4 -top-3 flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 shadow-lg backdrop-blur">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-        LIVE
+        {t("landing.mockup.live")}
       </div>
       {/* AI Score floating badge */}
       <div className="absolute -left-6 bottom-12 rounded-2xl border border-brand/20 bg-bg/90 px-4 py-2.5 shadow-xl backdrop-blur">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-subtext/50">
-          Score IA
+          {t("landing.mockup.aiScore")}
         </p>
         <p className="mt-0.5 text-2xl font-bold text-text">
           88 <span className="text-sm font-normal text-subtext/40">/ 100</span>
@@ -373,35 +401,91 @@ type SignalEntry =
   | { kind: "signal"; text: string; flag: string; country: string }
   | { kind: "metric"; text: string };
 
-const SIGNALS: SignalEntry[] = [
-  { kind: "signal", text: "Nouveau marché énergie", flag: "🇪🇸", country: "Espagne" },
-  { kind: "metric", text: "142 nouveaux signaux indexés aujourd'hui" },
-  { kind: "signal", text: "Hausse demande santé", flag: "🇷🇴", country: "Roumanie" },
-  { kind: "signal", text: "Mise à jour financement transport", flag: "🇵🇹", country: "Portugal" },
-  { kind: "metric", text: "23 pays surveillés en temps réel" },
-  { kind: "signal", text: "Nouveaux avis TED détectés", flag: "🇪🇺", country: "EU" },
-  { kind: "signal", text: "Activité marchés infrastructure", flag: "🇵🇱", country: "Pologne" },
-  { kind: "signal", text: "Signal modernisation IT", flag: "🇫🇷", country: "France" },
-  { kind: "metric", text: "47 mises à jour marchés cette heure" },
-  { kind: "signal", text: "Opportunité transformation digitale", flag: "🇩🇪", country: "Allemagne" },
-  { kind: "signal", text: "Cadre santé publique", flag: "🇮🇹", country: "Italie" },
-  { kind: "signal", text: "Activité marchés défense", flag: "🇸🇪", country: "Suède" },
-  { kind: "signal", text: "Nouvelles opportunités SAM.gov", flag: "🇺🇸", country: "USA" },
-  { kind: "signal", text: "Signal infrastructure ferroviaire", flag: "🇬🇧", country: "UK" },
-  { kind: "metric", text: "Énergie, transport, santé — live" },
-  { kind: "signal", text: "Marchés eau & utilities", flag: "🇳🇱", country: "Pays-Bas" },
-  { kind: "signal", text: "Opportunité edtech", flag: "🇧🇪", country: "Belgique" },
-  { kind: "signal", text: "Marché ville intelligente", flag: "🇳🇴", country: "Norvège" },
-  { kind: "signal", text: "Signal services environnementaux", flag: "🇨🇿", country: "Tchéquie" },
-  { kind: "signal", text: "Renouvellement IT secteur public", flag: "🇦🇹", country: "Autriche" },
-  { kind: "metric", text: "Intelligence marché fraîche — live" },
-  { kind: "signal", text: "Signal logistique & supply chain", flag: "🇩🇰", country: "Danemark" },
-  { kind: "signal", text: "Appel d'offres énergie renouvelable", flag: "🇫🇮", country: "Finlande" },
-  { kind: "signal", text: "Mise à jour infrastructure santé", flag: "🇬🇷", country: "Grèce" },
-];
+const SIGNALS: Record<Locale, SignalEntry[]> = {
+  en: [
+    { kind: "signal", text: "New energy procurement", flag: "🇪🇸", country: "Spain" },
+    { kind: "metric", text: "142 new signals indexed today" },
+    { kind: "signal", text: "Healthcare demand rising", flag: "🇷🇴", country: "Romania" },
+    { kind: "signal", text: "Transport funding updated", flag: "🇵🇹", country: "Portugal" },
+    { kind: "metric", text: "23 countries monitored live" },
+    { kind: "signal", text: "New TED notices detected", flag: "🇪🇺", country: "EU" },
+    { kind: "signal", text: "Infrastructure market activity", flag: "🇵🇱", country: "Poland" },
+    { kind: "signal", text: "IT modernization signal", flag: "🇫🇷", country: "France" },
+    { kind: "metric", text: "47 market updates this hour" },
+    { kind: "signal", text: "Digital transformation opportunity", flag: "🇩🇪", country: "Germany" },
+    { kind: "signal", text: "Public health framework", flag: "🇮🇹", country: "Italy" },
+    { kind: "signal", text: "Defense market activity", flag: "🇸🇪", country: "Sweden" },
+    { kind: "signal", text: "New SAM.gov opportunities", flag: "🇺🇸", country: "USA" },
+    { kind: "signal", text: "Rail infrastructure signal", flag: "🇬🇧", country: "UK" },
+    { kind: "metric", text: "Energy, transport, healthcare — live" },
+    { kind: "signal", text: "Water & utilities market", flag: "🇳🇱", country: "Netherlands" },
+    { kind: "signal", text: "Edtech opportunity", flag: "🇧🇪", country: "Belgium" },
+    { kind: "signal", text: "Smart city market", flag: "🇳🇴", country: "Norway" },
+    { kind: "signal", text: "Environmental services signal", flag: "🇨🇿", country: "Czechia" },
+    { kind: "signal", text: "Public-sector IT renewal", flag: "🇦🇹", country: "Austria" },
+    { kind: "metric", text: "Fresh market intelligence — live" },
+    { kind: "signal", text: "Logistics & supply chain signal", flag: "🇩🇰", country: "Denmark" },
+    { kind: "signal", text: "Renewable energy tender", flag: "🇫🇮", country: "Finland" },
+    { kind: "signal", text: "Healthcare infrastructure update", flag: "🇬🇷", country: "Greece" },
+  ],
+  fr: [
+    { kind: "signal", text: "Nouveau marché énergie", flag: "🇪🇸", country: "Espagne" },
+    { kind: "metric", text: "142 nouveaux signaux indexés aujourd'hui" },
+    { kind: "signal", text: "Hausse demande santé", flag: "🇷🇴", country: "Roumanie" },
+    { kind: "signal", text: "Mise à jour financement transport", flag: "🇵🇹", country: "Portugal" },
+    { kind: "metric", text: "23 pays surveillés en temps réel" },
+    { kind: "signal", text: "Nouveaux avis TED détectés", flag: "🇪🇺", country: "UE" },
+    { kind: "signal", text: "Activité marchés infrastructure", flag: "🇵🇱", country: "Pologne" },
+    { kind: "signal", text: "Signal modernisation IT", flag: "🇫🇷", country: "France" },
+    { kind: "metric", text: "47 mises à jour marchés cette heure" },
+    { kind: "signal", text: "Opportunité transformation digitale", flag: "🇩🇪", country: "Allemagne" },
+    { kind: "signal", text: "Cadre santé publique", flag: "🇮🇹", country: "Italie" },
+    { kind: "signal", text: "Activité marchés défense", flag: "🇸🇪", country: "Suède" },
+    { kind: "signal", text: "Nouvelles opportunités SAM.gov", flag: "🇺🇸", country: "USA" },
+    { kind: "signal", text: "Signal infrastructure ferroviaire", flag: "🇬🇧", country: "Royaume-Uni" },
+    { kind: "metric", text: "Énergie, transport, santé — live" },
+    { kind: "signal", text: "Marchés eau & utilities", flag: "🇳🇱", country: "Pays-Bas" },
+    { kind: "signal", text: "Opportunité edtech", flag: "🇧🇪", country: "Belgique" },
+    { kind: "signal", text: "Marché ville intelligente", flag: "🇳🇴", country: "Norvège" },
+    { kind: "signal", text: "Signal services environnementaux", flag: "🇨🇿", country: "Tchéquie" },
+    { kind: "signal", text: "Renouvellement IT secteur public", flag: "🇦🇹", country: "Autriche" },
+    { kind: "metric", text: "Intelligence marché fraîche — live" },
+    { kind: "signal", text: "Signal logistique & supply chain", flag: "🇩🇰", country: "Danemark" },
+    { kind: "signal", text: "Appel d'offres énergie renouvelable", flag: "🇫🇮", country: "Finlande" },
+    { kind: "signal", text: "Mise à jour infrastructure santé", flag: "🇬🇷", country: "Grèce" },
+  ],
+  it: [
+    { kind: "signal", text: "Nuova gara energia", flag: "🇪🇸", country: "Spagna" },
+    { kind: "metric", text: "142 nuovi segnali indicizzati oggi" },
+    { kind: "signal", text: "Crescita domanda sanità", flag: "🇷🇴", country: "Romania" },
+    { kind: "signal", text: "Aggiornamento fondi trasporti", flag: "🇵🇹", country: "Portogallo" },
+    { kind: "metric", text: "23 paesi monitorati live" },
+    { kind: "signal", text: "Nuovi avvisi TED rilevati", flag: "🇪🇺", country: "UE" },
+    { kind: "signal", text: "Attività mercato infrastrutture", flag: "🇵🇱", country: "Polonia" },
+    { kind: "signal", text: "Segnale modernizzazione IT", flag: "🇫🇷", country: "Francia" },
+    { kind: "metric", text: "47 aggiornamenti mercato in quest'ora" },
+    { kind: "signal", text: "Opportunità trasformazione digitale", flag: "🇩🇪", country: "Germania" },
+    { kind: "signal", text: "Framework sanità pubblica", flag: "🇮🇹", country: "Italia" },
+    { kind: "signal", text: "Attività mercato difesa", flag: "🇸🇪", country: "Svezia" },
+    { kind: "signal", text: "Nuove opportunità SAM.gov", flag: "🇺🇸", country: "USA" },
+    { kind: "signal", text: "Segnale infrastruttura ferroviaria", flag: "🇬🇧", country: "Regno Unito" },
+    { kind: "metric", text: "Energia, trasporti, sanità — live" },
+    { kind: "signal", text: "Mercato acqua & utilities", flag: "🇳🇱", country: "Paesi Bassi" },
+    { kind: "signal", text: "Opportunità edtech", flag: "🇧🇪", country: "Belgio" },
+    { kind: "signal", text: "Mercato smart city", flag: "🇳🇴", country: "Norvegia" },
+    { kind: "signal", text: "Segnale servizi ambientali", flag: "🇨🇿", country: "Cechia" },
+    { kind: "signal", text: "Rinnovo IT settore pubblico", flag: "🇦🇹", country: "Austria" },
+    { kind: "metric", text: "Market intelligence fresca — live" },
+    { kind: "signal", text: "Segnale logistica & supply chain", flag: "🇩🇰", country: "Danimarca" },
+    { kind: "signal", text: "Bando energia rinnovabile", flag: "🇫🇮", country: "Finlandia" },
+    { kind: "signal", text: "Aggiornamento infrastruttura sanitaria", flag: "🇬🇷", country: "Grecia" },
+  ],
+};
 
 function SignalRail() {
-  const doubled = [...SIGNALS, ...SIGNALS];
+  const { lang } = useT();
+  const signals = SIGNALS[lang] ?? SIGNALS.en;
+  const doubled = [...signals, ...signals];
   return (
     <div className="signal-rail-wrap overflow-hidden border-b border-border/15 bg-surface/40 py-2.5">
       <div
@@ -413,7 +497,7 @@ function SignalRail() {
             <span
               key={i}
               className="flex items-center gap-1.5 px-5 text-xs"
-              aria-hidden={i >= SIGNALS.length ? "true" : undefined}
+              aria-hidden={i >= signals.length ? "true" : undefined}
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand/50" />
               <span className="text-subtext">{s.text}</span>
@@ -426,7 +510,7 @@ function SignalRail() {
             <span
               key={i}
               className="flex items-center gap-1.5 px-5 text-xs"
-              aria-hidden={i >= SIGNALS.length ? "true" : undefined}
+              aria-hidden={i >= signals.length ? "true" : undefined}
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60" />
               <span className="font-semibold text-text/50">{s.text}</span>
@@ -579,6 +663,7 @@ function PricingCard({
   cta,
   ctaHref,
   highlight,
+  badgeText,
 }: {
   name: string;
   price: string;
@@ -588,6 +673,7 @@ function PricingCard({
   cta: string;
   ctaHref: string;
   highlight?: boolean;
+  badgeText?: string;
 }) {
   return (
     <CoreCard
@@ -597,7 +683,7 @@ function PricingCard({
       {highlight && (
         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
           <span className="rounded-full bg-brand px-4 py-1 text-xs font-bold text-white shadow-glow">
-            Populaire
+            {badgeText}
           </span>
         </div>
       )}
@@ -635,6 +721,7 @@ function PricingCard({
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 function Footer() {
+  const { t } = useT();
   return (
     <footer className="border-t border-border/20 bg-bg">
       <div className="mx-auto max-w-6xl px-4 py-12">
@@ -642,45 +729,45 @@ function Footer() {
           <div className="col-span-2 md:col-span-1">
             <p className="text-base font-bold text-text">RadarPulse</p>
             <p className="mt-1.5 text-xs leading-relaxed text-subtext/60">
-              Intelligence marché public.
+              {t("landing.footer.tagline.line1")}
               <br />
-              Propulsé par l'IA.
+              {t("landing.footer.tagline.line2")}
             </p>
             <div className="mt-4 flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              <span className="text-xs text-subtext/50">Pipeline actif · 20+ pays</span>
+              <span className="text-xs text-subtext/50">{t("landing.footer.status")}</span>
             </div>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              Produit
+              {t("landing.footer.product")}
             </p>
             <ul className="space-y-2 text-sm text-subtext/70">
               <li>
-                <Link to="/inbox" className="transition-colors hover:text-text">
-                  Inbox
+                <Link to="/login" className="transition-colors hover:text-text">
+                  {t("landing.footer.product.inbox")}
                 </Link>
               </li>
               <li>
                 <Link to="/request-access" className="transition-colors hover:text-text">
-                  Accès anticipé
+                  {t("landing.footer.product.access")}
                 </Link>
               </li>
               <li>
-                <Link to="/settings" className="transition-colors hover:text-text">
-                  Paramètres
+                <Link to="/login" className="transition-colors hover:text-text">
+                  {t("landing.footer.product.signin")}
                 </Link>
               </li>
             </ul>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              Ressources
+              {t("landing.footer.resources")}
             </p>
             <ul className="space-y-2 text-sm text-subtext/70">
               <li>
                 <Link to="/guides" className="transition-colors hover:text-text">
-                  Guides
+                  {t("landing.footer.resources.guides")}
                 </Link>
               </li>
               <li>
@@ -707,24 +794,26 @@ function Footer() {
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              Légal
+              {t("landing.footer.legal")}
             </p>
             <ul className="space-y-2 text-sm text-subtext/70">
               <li>
                 <Link to="/privacy" className="transition-colors hover:text-text">
-                  Confidentialité
+                  {t("landing.footer.legal.privacy")}
                 </Link>
               </li>
               <li>
                 <Link to="/terms" className="transition-colors hover:text-text">
-                  CGU
+                  {t("landing.footer.legal.terms")}
                 </Link>
               </li>
             </ul>
           </div>
         </div>
         <div className="mt-10 flex items-center justify-between border-t border-border/10 pt-6">
-          <p className="text-xs text-subtext/40">© 2026 RadarPulse · Made in Europe 🇪🇺</p>
+          <p className="text-xs text-subtext/40">
+            © 2026 RadarPulse · {t("landing.footer.madeInEurope")} 🇪🇺
+          </p>
           <p className="text-xs text-subtext/30">v2.0</p>
         </div>
       </div>
@@ -907,6 +996,23 @@ export function LandingPage() {
     fr: "Sans carte bancaire · Annulez à tout moment",
     it: "Nessuna carta richiesta · Cancella in qualsiasi momento",
   };
+  const TIMELINE_ROWS: Record<Locale, Array<{ time: string; label: string; active: boolean }>> = {
+    en: [
+      { time: "09:00", label: "TED scan", active: false },
+      { time: "09:15", label: "12 new tenders", active: true },
+      { time: "09:30", label: "AI scores ready", active: false },
+    ],
+    fr: [
+      { time: "09:00", label: "Scan TED", active: false },
+      { time: "09:15", label: "12 nouvelles offres", active: true },
+      { time: "09:30", label: "Scores IA calculés", active: false },
+    ],
+    it: [
+      { time: "09:00", label: "Scansione TED", active: false },
+      { time: "09:15", label: "12 nuovi bandi", active: true },
+      { time: "09:30", label: "Score IA calcolati", active: false },
+    ],
+  };
 
   const fade = (inView: boolean, delay = 0): React.CSSProperties => ({
     transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
@@ -964,7 +1070,7 @@ export function LandingPage() {
                     {t("landing.hero.primaryCta")} <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
-                    to="/inbox"
+                    to="/login"
                     className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-5 py-3 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
                   >
                     {t("landing.hero.secondaryCta")}
@@ -1013,33 +1119,7 @@ export function LandingPage() {
                 className="h-full"
               >
                 <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
-                  {[
-                    {
-                      time: "09:00",
-                      label: lang === "fr" ? "Scan TED" : "TED scan",
-                      active: false,
-                    },
-                    {
-                      time: "09:15",
-                      label:
-                        lang === "fr"
-                          ? "12 nouvelles offres"
-                          : lang === "it"
-                            ? "12 nuovi bandi"
-                            : "12 new tenders",
-                      active: true,
-                    },
-                    {
-                      time: "09:30",
-                      label:
-                        lang === "fr"
-                          ? "Scores IA calculés"
-                          : lang === "it"
-                            ? "Score IA calcolati"
-                            : "AI scores ready",
-                      active: false,
-                    },
-                  ].map((r) => (
+                  {(TIMELINE_ROWS[lang] ?? TIMELINE_ROWS.en).map((r) => (
                     <div key={r.time} className="flex items-center gap-3">
                       <span className="w-10 shrink-0 font-mono text-[10px] text-subtext/50">
                         {r.time}
@@ -1097,7 +1177,7 @@ export function LandingPage() {
                     </svg>
                     <span className="absolute text-xl font-bold text-text">88</span>
                   </div>
-                  <p className="mt-2 text-xs font-semibold text-brand">Score IA</p>
+                  <p className="mt-2 text-xs font-semibold text-brand">{t("landing.mockup.aiScore")}</p>
                   <div className="mt-2 flex gap-2">
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                       GO
@@ -1216,7 +1296,7 @@ export function LandingPage() {
                 <PricingCard {...pricing.free} />
               </div>
               <div style={fade(pricingInView, 120)}>
-                <PricingCard {...pricing.pro} highlight />
+                <PricingCard {...pricing.pro} highlight badgeText={t("landing.pricing.popular")} />
               </div>
             </div>
           </div>

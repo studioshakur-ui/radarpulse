@@ -89,6 +89,15 @@ export type IngestionJobRow = {
 
 export type Decision = "GO" | "NO_GO" | "HOLD";
 
+export type WorkflowStatus =
+  | "NEW"
+  | "REVIEWED"
+  | "GO"
+  | "PREPARATION"
+  | "READY"
+  | "SUBMITTED"
+  | "EXPIRED";
+
 export type DecisionRecord = {
   opportunityId: Uuid;
   decision: Decision;

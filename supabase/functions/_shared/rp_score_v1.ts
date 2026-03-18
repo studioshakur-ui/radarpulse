@@ -30,6 +30,7 @@ export type ScoreExtractionInput = {
 type HeuristicResult = {
   value: number;
   band: "high" | "med" | "low";
+  recommendation: "GO" | "HOLD" | "NO_GO";
   rationale: string;
   breakdown: Record<string, unknown>;
 };
@@ -42,6 +43,46 @@ type UserProfile = {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function daysUntilDeadline(deadlineAt: string | null | undefined): number | null {
+  if (!deadlineAt) return null;
+  const ts = new Date(deadlineAt).getTime();
+  if (!Number.isFinite(ts)) return null;
+  return (ts - Date.now()) / (1000 * 60 * 60 * 24);
+}
+
+function deadlineScoreMultiplier(daysLeft: number | null): number {
+  if (daysLeft === null) return 1;
+  if (daysLeft < 0) return 0;
+  if (daysLeft <= 1) return 0.15;
+  if (daysLeft <= 3) return 0.35;
+  if (daysLeft <= 7) return 0.55;
+  if (daysLeft <= 14) return 0.75;
+  if (daysLeft <= 30) return 0.9;
+  return 1;
+}
+
+function deriveRecommendation(args: {
+  scoreValue: number;
+  scoreBand: "high" | "med" | "low";
+  deadlineAt: string | null;
+  needsReview: boolean;
+  countryMatch: boolean | null;
+}): "GO" | "HOLD" | "NO_GO" {
+  const daysLeft = daysUntilDeadline(args.deadlineAt);
+
+  if (daysLeft !== null && daysLeft < 0) return "NO_GO";
+  if (args.scoreValue < 0.35) return "NO_GO";
+  if (args.scoreBand === "low" && args.scoreValue < 0.45) return "NO_GO";
+  if (args.countryMatch === false && args.scoreValue < 0.5) return "NO_GO";
+
+  if (args.needsReview && args.scoreValue < 0.6) return "HOLD";
+  if (daysLeft !== null && daysLeft <= 3 && args.scoreValue < 0.6) return "HOLD";
+
+  if (args.scoreValue >= 0.68 && args.scoreBand === "high" && !args.needsReview) return "GO";
+  if (args.scoreValue >= 0.62 && args.countryMatch !== false && !args.needsReview) return "GO";
+  return "HOLD";
 }
 
 function computeHeuristicScore(
@@ -79,11 +120,13 @@ function computeHeuristicScore(
 
   // 3. Deadline bonus (up to +0.15): urgency signal
   let deadlineBonus = 0;
+  let deadlineDays: number | null = null;
   if (extraction.deadline_at) {
     try {
       const daysUntil =
         (new Date(extraction.deadline_at).getTime() - Date.now()) /
         (1000 * 60 * 60 * 24);
+      deadlineDays = daysUntil;
       if (daysUntil > 0 && daysUntil <= 90) {
         deadlineBonus =
           daysUntil <= 14 ? 0.15
@@ -102,10 +145,21 @@ function computeHeuristicScore(
   breakdown.review_penalty = reviewPenalty;
 
   const raw = qualityBase * countryFactor + deadlineBonus - reviewPenalty;
-  const value = Math.min(1.0, Math.max(0.0, raw));
+  const rawValue = Math.min(1.0, Math.max(0.0, raw));
+  const deadlineMultiplier = deadlineScoreMultiplier(deadlineDays);
+  breakdown.deadline_multiplier = deadlineMultiplier;
+  const value = Math.min(1.0, Math.max(0.0, rawValue * deadlineMultiplier));
 
   const band: "high" | "med" | "low" =
     value >= 0.65 ? "high" : value >= 0.35 ? "med" : "low";
+  const countryMatch = focus && oppCountry ? focus === oppCountry : null;
+  const recommendation = deriveRecommendation({
+    scoreValue: value,
+    scoreBand: band,
+    deadlineAt: extraction.deadline_at,
+    needsReview: extraction.needs_review,
+    countryMatch,
+  });
 
   const countryLabel =
     !focus || focus === "GLOBAL" ? "global"
@@ -119,9 +173,10 @@ function computeHeuristicScore(
       ? `Deadline bonus: +${(deadlineBonus * 100).toFixed(0)}%`
       : "No deadline",
     `Score: ${(value * 100).toFixed(0)}% → ${band}`,
+    `Recommendation: ${recommendation === "NO_GO" ? "NO-GO" : recommendation}`,
   ].join(" | ");
 
-  return { value, band, rationale, breakdown };
+  return { value, band, recommendation, rationale, breakdown };
 }
 
 async function insertScoreAgentRun(
@@ -130,6 +185,8 @@ async function insertScoreAgentRun(
     opportunityId: string;
     userId: string;
     extractionId: string;
+    triggerType: string;
+    scoringPath: string;
   },
 ): Promise<string | null> {
   const { data, error } = await supabase
@@ -137,13 +194,17 @@ async function insertScoreAgentRun(
     .insert({
       agent_type: "score",
       status: "running",
-      trigger_type: "worker",
+      trigger_type: args.triggerType,
       opportunity_id: args.opportunityId,
       user_id: args.userId,
       agent_version: SCORE_AGENT_VERSION,
       started_at: nowIso(),
       input_ref: { extraction_id: args.extractionId },
-      meta: { score_version: SCORE_VERSION },
+      meta: {
+        score_version: SCORE_VERSION,
+        extraction_id: args.extractionId,
+        scoring_path: args.scoringPath,
+      },
     })
     .select("id")
     .single();
@@ -165,9 +226,13 @@ export async function scoreOpportunityForProfiles(
     opportunityId: string;
     extractionId: string;
     extraction: ScoreExtractionInput;
+    triggerType?: string;
+    scoringPath?: string;
   },
 ): Promise<void> {
   const { opportunityId, extractionId, extraction } = args;
+  const triggerType = args.triggerType ?? "system";
+  const scoringPath = args.scoringPath ?? "rp_score_v1";
 
   // Only score for users who have completed onboarding
   const { data: profiles, error: profilesErr } = await supabase
@@ -187,6 +252,8 @@ export async function scoreOpportunityForProfiles(
       opportunityId,
       userId: profile.user_id,
       extractionId,
+      triggerType,
+      scoringPath,
     });
 
     if (!agentRunId) continue;
@@ -218,6 +285,7 @@ export async function scoreOpportunityForProfiles(
           model: null,
           score_value: score.value,
           score_band: score.band,
+          recommendation: score.recommendation,
           rationale_summary: score.rationale,
           rationale_json: score.breakdown,
           input_profile_snapshot: {
@@ -238,7 +306,13 @@ export async function scoreOpportunityForProfiles(
           output_ref: {
             score_value: score.value,
             score_band: score.band,
+            recommendation: score.recommendation,
             opportunity_id: opportunityId,
+          },
+          meta: {
+            score_version: SCORE_VERSION,
+            extraction_id: extractionId,
+            scoring_path: scoringPath,
           },
         })
         .eq("id", agentRunId);
@@ -252,6 +326,11 @@ export async function scoreOpportunityForProfiles(
           finished_at: nowIso(),
           duration_ms: Date.now() - started,
           error_message: msg.slice(0, 2000),
+          meta: {
+            score_version: SCORE_VERSION,
+            extraction_id: extractionId,
+            scoring_path: scoringPath,
+          },
         })
         .eq("id", agentRunId);
     }

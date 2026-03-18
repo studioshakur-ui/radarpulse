@@ -36,6 +36,29 @@ const STALE_JOB_TIMEOUT_MS =
 const MAX_QUEUED_JOBS =
   Math.max(1, parseInt(Deno.env.get("DISPATCHER_MAX_QUEUED") || "20", 10));
 
+type ActiveSourceRow = {
+  id: string;
+  key: string;
+  kind: string;
+  is_active: boolean;
+  schedule_minutes: number;
+  last_run_at: string | null;
+  country_code: string | null;
+  created_at: string | null;
+};
+
+function sortSourcesForDispatch(a: ActiveSourceRow, b: ActiveSourceRow): number {
+  const aLast = a.last_run_at ? new Date(a.last_run_at).getTime() : Number.NEGATIVE_INFINITY;
+  const bLast = b.last_run_at ? new Date(b.last_run_at).getTime() : Number.NEGATIVE_INFINITY;
+  if (aLast !== bLast) return aLast - bLast;
+
+  const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+  const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+  if (aCreated !== bCreated) return aCreated - bCreated;
+
+  return a.key.localeCompare(b.key);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -64,7 +87,7 @@ Deno.serve(async (req) => {
     // Safety valve: if a worker crashed mid-flight, jobs can remain "running" forever.
     // Mark them as error so the scheduler can enqueue a new job.
     // (The unique open-job constraint we add in SQL relies on this to avoid deadlocks.)
-    await sb
+    const { data: staleJobs, error: staleJobsError } = await sb
       .from("ingestion_jobs")
       .update({
         status: "error",
@@ -73,14 +96,30 @@ Deno.serve(async (req) => {
       })
       .eq("status", "running")
       .lt("started_at", new Date(now.getTime() - STALE_JOB_TIMEOUT_MS).toISOString())
-      .is("finished_at", null);
+      .is("finished_at", null)
+      .select("id");
+    if (staleJobsError) throw staleJobsError;
+
+    const { data: staleRuns, error: staleRunsError } = await sb
+      .from("ingestion_runs")
+      .update({
+        status: "FAILED",
+        finished_at: now.toISOString(),
+        error: "Stale ingestion run (auto cleanup)",
+      })
+      .eq("status", "RUNNING")
+      .lt("started_at", new Date(now.getTime() - STALE_JOB_TIMEOUT_MS).toISOString())
+      .is("finished_at", null)
+      .select("id, source_key");
+    if (staleRunsError) throw staleRunsError;
 
     const { data: sources, error } = await sb
       .from("sources")
-      .select("id, key, kind, is_active, schedule_minutes, last_run_at, country_code")
+      .select("id, key, kind, is_active, schedule_minutes, last_run_at, country_code, created_at")
       .eq("is_active", true);
 
     if (error) throw error;
+    const orderedSources = ((sources ?? []) as ActiveSourceRow[]).sort(sortSourcesForDispatch);
 
     // Cap: count jobs already queued; stop inserting once the limit is reached.
     const { count: queuedCount, error: countErr } = await sb
@@ -95,12 +134,12 @@ Deno.serve(async (req) => {
     let skippedQueueFull = 0;
     const selectedByKind: Record<string, number> = {};
 
-    for (const s of sources ?? []) {
+    for (const s of orderedSources) {
       const k = String((s as { kind?: unknown }).kind ?? "unknown");
       selectedByKind[k] = (selectedByKind[k] ?? 0) + 1;
     }
 
-    for (const s of sources ?? []) {
+    for (const s of orderedSources) {
       // Stop creating new jobs once the queue is already at capacity.
       if (created + (queuedCount ?? 0) >= MAX_QUEUED_JOBS) {
         skippedQueueFull++;
@@ -142,7 +181,7 @@ Deno.serve(async (req) => {
     }
 
     log.info("dispatch_summary", {
-      selected_sources_total: (sources ?? []).length,
+      selected_sources_total: orderedSources.length,
       selected_sources_by_kind: selectedByKind,
       scheduled_jobs_count: created,
       skipped_already_pending_count: skippedAlreadyPending,
@@ -150,6 +189,8 @@ Deno.serve(async (req) => {
       queued_before_run: queuedCount ?? 0,
       max_queued_jobs: MAX_QUEUED_JOBS,
       stale_timeout_minutes: STALE_JOB_TIMEOUT_MS / 60_000,
+      stale_jobs_cleaned_count: staleJobs?.length ?? 0,
+      stale_runs_cleaned_count: staleRuns?.length ?? 0,
     });
 
     return new Response(JSON.stringify({ ok: true, created, skippedQueueFull }), {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Decision, DecisionRecord } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { useLocale } from "@/lib/i18n";
 
 const STORAGE_KEY = "radarpulse:decisions";
 
@@ -21,6 +22,7 @@ function saveLocal(store: Record<string, DecisionRecord>) {
 }
 
 export function useDecisions() {
+  const { locale } = useLocale();
   const [store, setStore] = useState<Record<string, DecisionRecord>>(loadLocal);
 
   // On mount: load server state and merge (server wins over stale localStorage)
@@ -98,11 +100,13 @@ export function useDecisions() {
             ? {
               opportunity_id: opportunityId,
               action: "clear",
+              locale,
             }
             : {
               opportunity_id: opportunityId,
               action: "set",
               decision_value: decision,
+              locale,
             },
         })
         .then(({ error }) => {
@@ -118,7 +122,7 @@ export function useDecisions() {
 
       return next;
     });
-  }, []);
+  }, [locale]);
 
   const getDecision = useCallback(
     (opportunityId: string): Decision | null => store[opportunityId]?.decision ?? null,
