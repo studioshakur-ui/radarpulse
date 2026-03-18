@@ -47,6 +47,13 @@ function defaultWhere(source: SourceRow, fetchedAt: string): string {
   return `dateparution >= date'${fromDate}' and dateparution <= date'${toDate}'`;
 }
 
+function effectiveWhere(source: SourceRow, fetchedAt: string, rawWhere: string | undefined): string {
+  const incremental = defaultWhere(source, fetchedAt);
+  const scoped = safeStr(rawWhere ?? "").trim();
+  if (!scoped) return incremental;
+  return `(${scoped}) and (${incremental})`;
+}
+
 function recordField(record: BoampRecord, key: string): string {
   return safeStr(record[key]).trim();
 }
@@ -79,7 +86,7 @@ export async function apiBoampFetch(source: SourceRow): Promise<ConnectorResult>
     url.searchParams.set("offset", String(offset));
     url.searchParams.set("order_by", String(meta.order_by));
     url.searchParams.set("select", String(meta.select));
-    url.searchParams.set("where", meta.where || defaultWhere(source, fetched_at));
+    url.searchParams.set("where", effectiveWhere(source, fetched_at, meta.where));
 
     const { data } = await safeJsonFetch<BoampRecordsResponse>(url.toString(), {
       method: "GET",

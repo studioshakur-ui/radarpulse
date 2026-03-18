@@ -41,6 +41,8 @@ type UserProfile = {
   organization: string | null;
 };
 
+type Recommendation = "GO" | "HOLD" | "NO_GO";
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -69,7 +71,7 @@ function deriveRecommendation(args: {
   deadlineAt: string | null;
   needsReview: boolean;
   countryMatch: boolean | null;
-}): "GO" | "HOLD" | "NO_GO" {
+}): Recommendation {
   const daysLeft = daysUntilDeadline(args.deadlineAt);
 
   if (daysLeft !== null && daysLeft < 0) return "NO_GO";
@@ -83,6 +85,10 @@ function deriveRecommendation(args: {
   if (args.scoreValue >= 0.68 && args.scoreBand === "high" && !args.needsReview) return "GO";
   if (args.scoreValue >= 0.62 && args.countryMatch !== false && !args.needsReview) return "GO";
   return "HOLD";
+}
+
+function isRecommendation(value: unknown): value is Recommendation {
+  return value === "GO" || value === "HOLD" || value === "NO_GO";
 }
 
 function computeHeuristicScore(
@@ -262,6 +268,27 @@ export async function scoreOpportunityForProfiles(
 
     try {
       const score = computeHeuristicScore(extraction, profile);
+      const countryMatch = profile.country_focus?.trim().toUpperCase() && extraction.country_code?.trim().toUpperCase()
+        ? profile.country_focus.trim().toUpperCase() === extraction.country_code.trim().toUpperCase()
+        : null;
+      const recommendation = isRecommendation(score.recommendation)
+        ? score.recommendation
+        : deriveRecommendation({
+            scoreValue: score.value,
+            scoreBand: score.band,
+            deadlineAt: extraction.deadline_at,
+            needsReview: extraction.needs_review,
+            countryMatch,
+          });
+
+      if (!isRecommendation(score.recommendation)) {
+        console.error("[rp_score_v1] invalid heuristic recommendation, falling back", {
+          user_id: profile.user_id,
+          opportunity_id: opportunityId,
+          raw_recommendation: score.recommendation ?? null,
+          derived_recommendation: recommendation,
+        });
+      }
 
       // Mark previous current score as not current
       await supabase
@@ -272,7 +299,7 @@ export async function scoreOpportunityForProfiles(
         .eq("is_current", true);
 
       // Insert new current score
-      const { error: insertErr } = await supabase
+      const { data: insertedScore, error: insertErr } = await supabase
         .from("opportunity_scores")
         .insert({
           opportunity_id: opportunityId,
@@ -285,7 +312,7 @@ export async function scoreOpportunityForProfiles(
           model: null,
           score_value: score.value,
           score_band: score.band,
-          recommendation: score.recommendation,
+          recommendation,
           rationale_summary: score.rationale,
           rationale_json: score.breakdown,
           input_profile_snapshot: {
@@ -293,9 +320,14 @@ export async function scoreOpportunityForProfiles(
             organization: profile.organization,
           },
           input_extraction_id: extractionId,
-        });
+        })
+        .select("id, recommendation")
+        .single();
 
       if (insertErr) throw new Error(insertErr.message);
+      if (!isRecommendation(insertedScore?.recommendation)) {
+        throw new Error("heuristic recommendation persisted as null/invalid");
+      }
 
       await supabase
         .from("agent_runs")
@@ -306,8 +338,9 @@ export async function scoreOpportunityForProfiles(
           output_ref: {
             score_value: score.value,
             score_band: score.band,
-            recommendation: score.recommendation,
+            recommendation,
             opportunity_id: opportunityId,
+            score_id: insertedScore.id,
           },
           meta: {
             score_version: SCORE_VERSION,

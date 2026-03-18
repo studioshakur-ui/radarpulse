@@ -112,6 +112,7 @@ export type CountryGeoPageData = {
   country: GeoCountry;
   zone: GeoZone;
   regions: GeoRegion[];
+  regionOpportunityCounts: Record<string, number>;
   feed: GeoFeed;
 };
 
@@ -292,6 +293,25 @@ async function listScopedOpportunities(scope: {
   };
 }
 
+async function listCountryRegionCounts(countryCode: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("opportunities_geo_scope_v1")
+    .select("geo_region_slug,region")
+    .eq("is_public", true)
+    .eq("country_code", countryCode)
+    .limit(5000);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const slug = typeof row.geo_region_slug === "string" ? row.geo_region_slug.trim().toLowerCase() : "";
+    if (!slug) continue;
+    counts[slug] = (counts[slug] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function loadGlobalGeoPage(): Promise<GlobalGeoPageData> {
   const [zonesRes, countriesRes, feed] = await Promise.all([
     supabase
@@ -359,7 +379,7 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
   if (countryError) throw countryError;
   if (!country) return null;
 
-  const [zoneRes, regionsRes, feed] = await Promise.all([
+  const [zoneRes, regionsRes, feed, regionOpportunityCounts] = await Promise.all([
     supabase
       .from("geo_zones")
       .select("id,parent_zone_id,slug,name,kind,description,sort_order")
@@ -372,6 +392,7 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     listScopedOpportunities({ countryCode }),
+    listCountryRegionCounts(countryCode),
   ]);
 
   if (zoneRes.error) throw zoneRes.error;
@@ -381,6 +402,7 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
     country: country as GeoCountry,
     zone: zoneRes.data as GeoZone,
     regions: (regionsRes.data ?? []) as GeoRegion[],
+    regionOpportunityCounts,
     feed,
   };
 }

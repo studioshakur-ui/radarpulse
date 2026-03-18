@@ -24,6 +24,46 @@ type GeoTheme = {
   cardAccentClass: string;
 };
 
+function CountryFlagMark({ countryCode, label }: { countryCode?: string | null; label?: string | null }) {
+  const code = (countryCode ?? "").toUpperCase();
+  const shared = "inline-flex h-5 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/70 shadow-soft";
+
+  if (code === "FR") {
+    return (
+      <span aria-label={label ?? "France"} className={shared}>
+        <span className="h-full w-1/3 bg-[#1d4ed8]" />
+        <span className="h-full w-1/3 bg-white" />
+        <span className="h-full w-1/3 bg-[#dc2626]" />
+      </span>
+    );
+  }
+
+  if (code === "IT") {
+    return (
+      <span aria-label={label ?? "Italy"} className={shared}>
+        <span className="h-full w-1/3 bg-[#16a34a]" />
+        <span className="h-full w-1/3 bg-white" />
+        <span className="h-full w-1/3 bg-[#dc2626]" />
+      </span>
+    );
+  }
+
+  if (code === "GB") {
+    return (
+      <span
+        aria-label={label ?? "United Kingdom"}
+        className={cn(shared, "bg-[linear-gradient(135deg,#1d4ed8_0%,#1d4ed8_42%,white_42%,white_48%,#dc2626_48%,#dc2626_56%,white_56%,white_62%,#1d4ed8_62%,#1d4ed8_100%)]")}
+      />
+    );
+  }
+
+  return (
+    <span className={cn(shared, "bg-surface/80 px-1 text-[10px] font-semibold text-subtext")}>
+      {code || "GL"}
+    </span>
+  );
+}
+
 function geoTheme(countryCode?: string | null): GeoTheme {
   switch ((countryCode ?? "").toUpperCase()) {
     case "FR":
@@ -98,7 +138,7 @@ export function GeoShell({
   const { t } = useLocale();
   const theme = geoTheme(themeCountryCode);
   const marketLabel = themeCountryCode
-    ? `${themeCountryFlag ?? ""} ${themeCountryName ?? themeCountryCode}`.trim()
+    ? `${themeCountryName ?? themeCountryCode}`.trim()
     : t("geo.nav.global");
 
   return (
@@ -113,9 +153,9 @@ export function GeoShell({
 
           <div className="hidden items-center gap-2 md:flex">
             <GeoNavItem to="/global" label={t("geo.nav.global")} end />
-            <GeoNavItem to="/countries/FR" label={`🇫🇷 ${t("geo.nav.france")}`} />
-            <GeoNavItem to="/countries/IT" label={`🇮🇹 ${t("geo.nav.italy")}`} />
-            <GeoNavItem to="/countries/GB" label={`🇬🇧 ${t("geo.nav.uk")}`} />
+            <GeoNavItem to="/countries/FR" label={`FR ${t("geo.nav.france")}`} />
+            <GeoNavItem to="/countries/IT" label={`IT ${t("geo.nav.italy")}`} />
+            <GeoNavItem to="/countries/GB" label={`GB ${t("geo.nav.uk")}`} />
           </div>
 
           <Link
@@ -138,11 +178,15 @@ export function GeoShell({
                     RadarPulse Geography
                   </div>
                   <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide", theme.chipClass)}>
-                    {marketLabel}
+                    <span className="inline-flex items-center gap-2">
+                      {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
+                      {themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}
+                    </span>
                   </span>
                 </div>
                 <div className={cn("mt-3 inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold shadow-soft", theme.cardAccentClass)}>
-                  <span className={theme.accentTextClass}>{marketLabel}</span>
+                  {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
+                  <span className={theme.accentTextClass}>{themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}</span>
                   <span className="text-subtext">{themeCountryCode ? t("geo.hero.countryMode") : t("geo.hero.globalMode")}</span>
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
