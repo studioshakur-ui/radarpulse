@@ -10,7 +10,9 @@ const g = globalThis as G;
 if (!g.__rpSupabase) {
   g.__rpSupabase = createClient(ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY, {
     // detectSessionInUrl: true required for password-reset recovery tokens in URL hash
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    // We refresh on demand in app code. Disabling background auto-refresh avoids
+    // retry storms and navigator lock churn when the Supabase host is unreachable.
+    auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: true },
   });
 }
 

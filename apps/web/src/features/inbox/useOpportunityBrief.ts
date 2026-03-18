@@ -76,7 +76,7 @@ export function useOpportunityBrief() {
         .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action, updated_at")
         .eq("opportunity_id", id)
         .eq("output_locale", locale)
-        .single();
+        .maybeSingle();
 
       if (!data) return false;
 

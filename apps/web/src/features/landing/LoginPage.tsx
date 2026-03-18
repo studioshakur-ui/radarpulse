@@ -5,6 +5,13 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/Logo";
 
+function friendlyAuthError(error: unknown): string {
+  if (error instanceof Error && /Failed to fetch|NetworkError|ERR_NAME_NOT_RESOLVED/i.test(error.message)) {
+    return "RadarPulse cannot reach the authentication service right now. Check your connection or Supabase configuration.";
+  }
+  return error instanceof Error ? error.message : "An error occurred. Please try again.";
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -36,7 +43,7 @@ export default function LoginPage() {
       if (signInError) throw signInError;
       navigate("/inbox", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
+      setError(friendlyAuthError(err));
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +61,7 @@ export default function LoginPage() {
       if (resetError) throw resetError;
       setResetSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
+      setError(friendlyAuthError(err));
     } finally {
       setSubmitting(false);
     }

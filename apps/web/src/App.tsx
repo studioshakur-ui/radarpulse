@@ -31,6 +31,11 @@ import OnboardingModal from "@/features/onboarding/OnboardingModal";
 import { useOnboarding } from "@/features/onboarding/useOnboarding";
 import type { User } from "@supabase/supabase-js";
 
+function isNetworkIssue(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /Failed to fetch|NetworkError|ERR_NAME_NOT_RESOLVED/i.test(error.message);
+}
+
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
@@ -115,6 +120,7 @@ function userRole(user: User | null): string {
 function useAuthUser() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<"network" | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -128,26 +134,45 @@ function useAuthUser() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (event === "INITIAL_SESSION") return; // handled by init() — avoids stale-JWT race
+      setError(null);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     async function init() {
-      // Server-side JWT validation — authoritative check before rendering protected UI.
-      // Keeps loading=true until we know whether the stored session is genuinely valid.
-      const { data, error } = await supabase.auth.getUser();
-      if (!mounted) return;
+      try {
+        // Server-side JWT validation — authoritative check before rendering protected UI.
+        // Keeps loading=true until we know whether the stored session is genuinely valid.
+        const { data, error } = await supabase.auth.getUser();
+        if (!mounted) return;
 
-      if (error || !data.user) {
-        // Stale/revoked JWT — wipe it so the UI shows logged-out state immediately.
-        await supabase.auth.signOut({ scope: "local" });
+        if (error && isNetworkIssue(error)) {
+          setError("network");
+          setLoading(false);
+          return;
+        }
+
+        if (error || !data.user) {
+          // Stale/revoked JWT — wipe it so the UI shows logged-out state immediately.
+          await supabase.auth.signOut({ scope: "local" });
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        setError(null);
+        setUser(data.user);
+        setLoading(false);
+      } catch (error) {
+        if (!mounted) return;
+        if (isNetworkIssue(error)) {
+          setError("network");
+          setLoading(false);
+          return;
+        }
         setUser(null);
         setLoading(false);
-        return;
       }
-
-      setUser(data.user);
-      setLoading(false);
     }
 
     init();
@@ -157,7 +182,7 @@ function useAuthUser() {
     };
   }, []);
 
-  return { loading, user, isAdmin: userRole(user) === "ADMIN" };
+  return { loading, user, isAdmin: userRole(user) === "ADMIN", error };
 }
 
 function InboxAccessGate({
@@ -298,7 +323,7 @@ function Shell({ children, canSeeDevApp, user }: { children: React.ReactNode; ca
 }
 
 export default function App() {
-  const { loading: authLoading, user, isAdmin } = useAuthUser();
+  const { loading: authLoading, user, isAdmin, error: authError } = useAuthUser();
   const localeCtx = useLocaleProvider();
   const { t } = localeCtx;
   const canSeeDevApp = ENV.DEV || isAdmin;
@@ -311,6 +336,26 @@ export default function App() {
           <div className="text-sm text-muted">{t("app.loading")}</div>
         </div>
       </div>
+    );
+  }
+
+  if (authError === "network") {
+    return (
+      <LocaleContext.Provider value={localeCtx}>
+        <div className="min-h-screen bg-bg px-4 py-8 text-text">
+          <div className="mx-auto max-w-3xl rounded-3xl border border-warn/30 bg-surface p-6 shadow-soft">
+            <div className="text-lg font-semibold text-text">{t("app.serviceUnavailable")}</div>
+            <div className="mt-2 text-sm text-subtext">{t("app.serviceUnavailableHint")}</div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-5 inline-flex rounded-xl border border-line/25 bg-bg px-4 py-2 text-sm font-semibold text-text transition hover:bg-elevated"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </LocaleContext.Provider>
     );
   }
 
