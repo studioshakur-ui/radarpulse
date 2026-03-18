@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cC6qa2UyTcVlGcWgx7btcfFeE68Ft8718q5WLU8ZlV9bhafDdIfhZfLTWx22Fbx
+\restrict hbCjeKZ1NNjvavfNTHmhLa2hOLeFXyiv4glUXIR0AEboEe0NxBKtJixFHG3pdb1
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -47,7 +47,9 @@ CREATE TYPE public.agent_run_type AS ENUM (
     'source',
     'extract',
     'score',
-    'brief'
+    'brief',
+    'prep',
+    'deadline'
 );
 
 
@@ -344,6 +346,39 @@ $$;
 
 
 --
+-- Name: rp_normalize_geo_text(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rp_normalize_geo_text(input text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  select nullif(
+    trim(
+      regexp_replace(
+        replace(
+          replace(
+            replace(
+              replace(lower(coalesce(input, '')), '’', ' '),
+              '''',
+              ' '
+            ),
+            '-',
+            ' '
+          ),
+          '_',
+          ' '
+        ),
+        '\s+',
+        ' ',
+        'g'
+      )
+    ),
+    ''
+  );
+$$;
+
+
+--
 -- Name: rp_set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -455,6 +490,20 @@ $$;
 
 
 --
+-- Name: set_updated_at_opportunity_workflows(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at_opportunity_workflows() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
 -- Name: access_requests; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -519,7 +568,9 @@ CREATE TABLE public.brief_versions (
     next_action text NOT NULL,
     input_snapshot jsonb,
     generation_ms integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    output_locale text DEFAULT 'en'::text,
+    CONSTRAINT brief_versions_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
 
@@ -557,6 +608,78 @@ CREATE TABLE public.decision_history (
     CONSTRAINT decision_history_event_type_check CHECK ((event_type = ANY (ARRAY['set'::text, 'change'::text, 'clear'::text, 'backfill'::text]))),
     CONSTRAINT decision_history_previous_decision_value_check CHECK (((previous_decision_value IS NULL) OR (previous_decision_value = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
     CONSTRAINT decision_history_source_check CHECK ((source = ANY (ARRAY['web'::text, 'backfill'::text, 'system'::text])))
+);
+
+
+--
+-- Name: geo_countries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.geo_countries (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    zone_id uuid NOT NULL,
+    country_code text NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    territory_kind text DEFAULT 'country'::text NOT NULL,
+    flag_emoji text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT geo_countries_country_code_upper CHECK ((country_code = upper(country_code))),
+    CONSTRAINT geo_countries_territory_kind_check CHECK ((territory_kind = ANY (ARRAY['country'::text, 'territory'::text, 'union'::text])))
+);
+
+
+--
+-- Name: geo_localities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.geo_localities (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    region_id uuid NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    normalized_name text NOT NULL,
+    code text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: geo_regions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.geo_regions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_id uuid NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    normalized_name text NOT NULL,
+    code text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: geo_zones; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.geo_zones (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    parent_zone_id uuid,
+    slug text NOT NULL,
+    name text NOT NULL,
+    kind text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT geo_zones_kind_check CHECK ((kind = ANY (ARRAY['continent'::text, 'subcontinent'::text, 'market_zone'::text])))
 );
 
 
@@ -712,6 +835,123 @@ CREATE TABLE public.opportunities (
 
 
 --
+-- Name: opportunity_extractions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_extractions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    raw_id uuid NOT NULL,
+    agent_run_id uuid NOT NULL,
+    source_id uuid NOT NULL,
+    fingerprint text NOT NULL,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    is_current boolean DEFAULT false NOT NULL,
+    extract_version text NOT NULL,
+    model text NOT NULL,
+    content_type public.rp_content_type NOT NULL,
+    buyer_type public.rp_buyer_type NOT NULL,
+    buyer_name text,
+    sector text,
+    country_code text,
+    region text,
+    language text,
+    deadline_at timestamp with time zone,
+    deadline_tz text,
+    deadline_confidence public.rp_deadline_confidence NOT NULL,
+    eligibility jsonb,
+    required_docs jsonb,
+    submission jsonb,
+    budget_value numeric,
+    budget_currency text,
+    budget_confidence public.rp_evidence_confidence,
+    risks jsonb,
+    summary_10s text NOT NULL,
+    extraction_quality public.rp_extraction_quality NOT NULL,
+    needs_review boolean NOT NULL,
+    missing_fields jsonb NOT NULL,
+    signals jsonb NOT NULL,
+    raw_snapshot jsonb,
+    quality_score numeric,
+    completeness_score numeric,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    geo_country_id uuid,
+    geo_region_id uuid,
+    geo_locality_id uuid,
+    geo_resolution_confidence text,
+    locality text,
+    CONSTRAINT opportunity_extractions_geo_resolution_confidence_check CHECK (((geo_resolution_confidence IS NULL) OR (geo_resolution_confidence = ANY (ARRAY['exact'::text, 'country_only'::text, 'region_text_match'::text, 'locality_text_match'::text, 'unresolved'::text]))))
+);
+
+
+--
+-- Name: sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    key text NOT NULL,
+    name text NOT NULL,
+    kind public.source_kind DEFAULT 'rss'::public.source_kind NOT NULL,
+    url text NOT NULL,
+    country_code text,
+    is_active boolean DEFAULT true NOT NULL,
+    schedule_minutes integer DEFAULT 60 NOT NULL,
+    last_run_at timestamp with time zone,
+    last_success_at timestamp with time zone,
+    last_error text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    origin_type text DEFAULT 'EU'::text,
+    CONSTRAINT sources_origin_type_check CHECK ((origin_type = ANY (ARRAY['IT_NATIVE'::text, 'EU'::text, 'OTHER'::text])))
+);
+
+
+--
+-- Name: opportunities_geo_scope_v1; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.opportunities_geo_scope_v1 AS
+ SELECT o.id,
+    o.title,
+    COALESCE(b.name, NULLIF(o.buyer_name, ''::text)) AS buyer_name,
+    COALESCE(gr_linked.name, oe.region) AS region,
+    COALESCE(gl_linked.name, oe.locality) AS locality,
+    oe.budget_value AS budget_amount,
+    oe.budget_currency,
+    o.deadline_at,
+    o.published_at,
+    COALESCE(s.key, (o.raw ->> 'source_key'::text), (o.source_id)::text) AS source_key,
+    o.status,
+    o.is_public,
+    COALESCE(gc_linked.country_code, gc_fallback.country_code, oe.country_code, o.country_code) AS country_code,
+    oe.quality_score,
+    oe.completeness_score,
+    s.origin_type,
+    gz.slug AS geo_zone_slug,
+    gz.name AS geo_zone_name,
+    COALESCE(gc_linked.slug, gc_fallback.slug) AS geo_country_slug,
+    COALESCE(gc_linked.country_code, gc_fallback.country_code) AS geo_country_code,
+    COALESCE(gc_linked.name, gc_fallback.name) AS geo_country_name,
+    gr_linked.slug AS geo_region_slug,
+    gr_linked.name AS geo_region_name,
+    gl_linked.slug AS geo_locality_slug,
+    gl_linked.name AS geo_locality_name,
+    oe.geo_resolution_confidence
+   FROM ((((((((public.opportunities o
+     LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
+     LEFT JOIN public.sources s ON ((s.id = o.source_id)))
+     LEFT JOIN public.opportunity_extractions oe ON (((oe.opportunity_id = o.id) AND (oe.is_current = true))))
+     LEFT JOIN public.geo_countries gc_linked ON ((gc_linked.id = oe.geo_country_id)))
+     LEFT JOIN public.geo_countries gc_fallback ON ((gc_fallback.country_code = upper(COALESCE(oe.country_code, o.country_code, ''::text)))))
+     LEFT JOIN public.geo_regions gr_linked ON ((gr_linked.id = oe.geo_region_id)))
+     LEFT JOIN public.geo_localities gl_linked ON ((gl_linked.id = oe.geo_locality_id)))
+     LEFT JOIN public.geo_zones gz ON ((gz.id = COALESCE(gc_linked.zone_id, gc_fallback.zone_id))))
+  WHERE (COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false);
+
+
+--
 -- Name: opportunity_ai; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -748,31 +988,8 @@ CREATE TABLE public.opportunity_ai (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     quality_score numeric DEFAULT 0,
-    completeness_score numeric DEFAULT 0
-);
-
-
---
--- Name: sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sources (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    key text NOT NULL,
-    name text NOT NULL,
-    kind public.source_kind DEFAULT 'rss'::public.source_kind NOT NULL,
-    url text NOT NULL,
-    country_code text,
-    is_active boolean DEFAULT true NOT NULL,
-    schedule_minutes integer DEFAULT 60 NOT NULL,
-    last_run_at timestamp with time zone,
-    last_success_at timestamp with time zone,
-    last_error text,
-    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    origin_type text DEFAULT 'EU'::text,
-    CONSTRAINT sources_origin_type_check CHECK ((origin_type = ANY (ARRAY['IT_NATIVE'::text, 'EU'::text, 'OTHER'::text])))
+    completeness_score numeric DEFAULT 0,
+    locality text
 );
 
 
@@ -922,7 +1139,9 @@ CREATE TABLE public.opportunity_briefs (
     prompt_version text DEFAULT 'v1'::text NOT NULL,
     generation_ms integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    output_locale text DEFAULT 'en'::text,
+    CONSTRAINT opportunity_briefs_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
 
@@ -973,46 +1192,28 @@ CREATE TABLE public.opportunity_events (
 
 
 --
--- Name: opportunity_extractions; Type: TABLE; Schema: public; Owner: -
+-- Name: opportunity_preps; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.opportunity_extractions (
+CREATE TABLE public.opportunity_preps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     opportunity_id uuid NOT NULL,
-    raw_id uuid NOT NULL,
     agent_run_id uuid NOT NULL,
-    source_id uuid NOT NULL,
-    fingerprint text NOT NULL,
+    user_id uuid NOT NULL,
     is_backfilled boolean DEFAULT false NOT NULL,
     is_current boolean DEFAULT false NOT NULL,
-    extract_version text NOT NULL,
-    model text NOT NULL,
-    content_type public.rp_content_type NOT NULL,
-    buyer_type public.rp_buyer_type NOT NULL,
-    buyer_name text,
-    sector text,
-    country_code text,
-    region text,
-    language text,
-    deadline_at timestamp with time zone,
-    deadline_tz text,
-    deadline_confidence public.rp_deadline_confidence NOT NULL,
-    eligibility jsonb,
-    required_docs jsonb,
-    submission jsonb,
-    budget_value numeric,
-    budget_currency text,
-    budget_confidence public.rp_evidence_confidence,
-    risks jsonb,
-    summary_10s text NOT NULL,
-    extraction_quality public.rp_extraction_quality NOT NULL,
-    needs_review boolean NOT NULL,
-    missing_fields jsonb NOT NULL,
-    signals jsonb NOT NULL,
-    raw_snapshot jsonb,
-    quality_score numeric,
-    completeness_score numeric,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    prep_version text NOT NULL,
+    model text,
+    generation_ms integer,
+    checklist jsonb DEFAULT '[]'::jsonb NOT NULL,
+    missing_docs text[] DEFAULT '{}'::text[] NOT NULL,
+    effort_days numeric,
+    blockers text[] DEFAULT '{}'::text[] NOT NULL,
+    response_plan text NOT NULL,
+    input_snapshot jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    output_locale text DEFAULT 'en'::text,
+    CONSTRAINT opportunity_preps_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
 
@@ -1037,7 +1238,26 @@ CREATE TABLE public.opportunity_scores (
     input_profile_snapshot jsonb,
     input_extraction_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    recommendation text,
+    output_locale text DEFAULT 'en'::text,
+    CONSTRAINT opportunity_scores_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text]))),
+    CONSTRAINT opportunity_scores_recommendation_check CHECK (((recommendation IS NULL) OR (recommendation = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
     CONSTRAINT opportunity_scores_subject_type_check CHECK ((subject_type = 'user'::text))
+);
+
+
+--
+-- Name: opportunity_workflows; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_workflows (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    workflow_status text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunity_workflows_workflow_status_check CHECK ((workflow_status = ANY (ARRAY['NEW'::text, 'REVIEWED'::text, 'GO'::text, 'PREPARATION'::text, 'READY'::text, 'SUBMITTED'::text, 'EXPIRED'::text])))
 );
 
 
@@ -1189,6 +1409,94 @@ ALTER TABLE ONLY public.buyers
 
 ALTER TABLE ONLY public.decision_history
     ADD CONSTRAINT decision_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geo_countries geo_countries_country_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_countries
+    ADD CONSTRAINT geo_countries_country_code_key UNIQUE (country_code);
+
+
+--
+-- Name: geo_countries geo_countries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_countries
+    ADD CONSTRAINT geo_countries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geo_countries geo_countries_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_countries
+    ADD CONSTRAINT geo_countries_slug_key UNIQUE (slug);
+
+
+--
+-- Name: geo_localities geo_localities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_localities
+    ADD CONSTRAINT geo_localities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geo_localities geo_localities_region_normalized_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_localities
+    ADD CONSTRAINT geo_localities_region_normalized_name_unique UNIQUE (region_id, normalized_name);
+
+
+--
+-- Name: geo_localities geo_localities_region_slug_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_localities
+    ADD CONSTRAINT geo_localities_region_slug_unique UNIQUE (region_id, slug);
+
+
+--
+-- Name: geo_regions geo_regions_country_normalized_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_regions
+    ADD CONSTRAINT geo_regions_country_normalized_name_unique UNIQUE (country_id, normalized_name);
+
+
+--
+-- Name: geo_regions geo_regions_country_slug_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_regions
+    ADD CONSTRAINT geo_regions_country_slug_unique UNIQUE (country_id, slug);
+
+
+--
+-- Name: geo_regions geo_regions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_regions
+    ADD CONSTRAINT geo_regions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geo_zones geo_zones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_zones
+    ADD CONSTRAINT geo_zones_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geo_zones geo_zones_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_zones
+    ADD CONSTRAINT geo_zones_slug_key UNIQUE (slug);
 
 
 --
@@ -1360,6 +1668,22 @@ ALTER TABLE ONLY public.opportunity_extractions
 
 
 --
+-- Name: opportunity_preps opportunity_preps_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_agent_run_id_key UNIQUE (agent_run_id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: opportunity_scores opportunity_scores_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1373,6 +1697,22 @@ ALTER TABLE ONLY public.opportunity_scores
 
 ALTER TABLE ONLY public.opportunity_scores
     ADD CONSTRAINT opportunity_scores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_opportunity_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_opportunity_id_user_id_key UNIQUE (opportunity_id, user_id);
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_pkey PRIMARY KEY (id);
 
 
 --
@@ -1499,6 +1839,34 @@ CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision
 --
 
 CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: geo_countries_zone_sort_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX geo_countries_zone_sort_idx ON public.geo_countries USING btree (zone_id, sort_order, name);
+
+
+--
+-- Name: geo_localities_region_sort_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX geo_localities_region_sort_idx ON public.geo_localities USING btree (region_id, sort_order, name);
+
+
+--
+-- Name: geo_regions_country_sort_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX geo_regions_country_sort_idx ON public.geo_regions USING btree (country_id, sort_order, name);
+
+
+--
+-- Name: geo_zones_parent_sort_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX geo_zones_parent_sort_idx ON public.geo_zones USING btree (parent_zone_id, sort_order, name);
 
 
 --
@@ -1740,6 +2108,27 @@ CREATE INDEX opportunity_extractions_fingerprint_idx ON public.opportunity_extra
 
 
 --
+-- Name: opportunity_extractions_geo_country_current_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_geo_country_current_idx ON public.opportunity_extractions USING btree (geo_country_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_extractions_geo_locality_current_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_geo_locality_current_idx ON public.opportunity_extractions USING btree (geo_locality_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_extractions_geo_region_current_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_extractions_geo_region_current_idx ON public.opportunity_extractions USING btree (geo_region_id) WHERE (is_current = true);
+
+
+--
 -- Name: opportunity_extractions_one_current_per_opportunity_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1761,6 +2150,27 @@ CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_ex
 
 
 --
+-- Name: opportunity_preps_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_idx ON public.opportunity_preps USING btree (opportunity_id, user_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_preps_opportunity_user_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_preps_opportunity_user_created_at_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, created_at DESC);
+
+
+--
+-- Name: opportunity_preps_user_current_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_preps_user_current_created_at_idx ON public.opportunity_preps USING btree (user_id, is_current, created_at DESC);
+
+
+--
 -- Name: opportunity_scores_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1779,6 +2189,20 @@ CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opport
 --
 
 CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC);
+
+
+--
+-- Name: opportunity_workflows_opportunity_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_workflows_opportunity_id_idx ON public.opportunity_workflows USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_workflows_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_workflows_user_id_idx ON public.opportunity_workflows USING btree (user_id);
 
 
 --
@@ -1863,6 +2287,13 @@ CREATE TRIGGER trg_opportunity_briefs_updated_at BEFORE UPDATE ON public.opportu
 --
 
 CREATE TRIGGER trg_opportunity_decisions_updated_at BEFORE UPDATE ON public.opportunity_decisions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_decisions();
+
+
+--
+-- Name: opportunity_workflows trg_opportunity_workflows_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_opportunity_workflows_updated_at BEFORE UPDATE ON public.opportunity_workflows FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_workflows();
 
 
 --
@@ -2005,6 +2436,38 @@ ALTER TABLE ONLY public.decision_history
 
 
 --
+-- Name: geo_countries geo_countries_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_countries
+    ADD CONSTRAINT geo_countries_zone_id_fkey FOREIGN KEY (zone_id) REFERENCES public.geo_zones(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: geo_localities geo_localities_region_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_localities
+    ADD CONSTRAINT geo_localities_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.geo_regions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: geo_regions geo_regions_country_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_regions
+    ADD CONSTRAINT geo_regions_country_id_fkey FOREIGN KEY (country_id) REFERENCES public.geo_countries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: geo_zones geo_zones_parent_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geo_zones
+    ADD CONSTRAINT geo_zones_parent_zone_id_fkey FOREIGN KEY (parent_zone_id) REFERENCES public.geo_zones(id) ON DELETE SET NULL;
+
+
+--
 -- Name: ingestion_jobs ingestion_jobs_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2117,6 +2580,30 @@ ALTER TABLE ONLY public.opportunity_extractions
 
 
 --
+-- Name: opportunity_extractions opportunity_extractions_geo_country_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_geo_country_id_fkey FOREIGN KEY (geo_country_id) REFERENCES public.geo_countries(id) ON DELETE SET NULL;
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_geo_locality_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_geo_locality_id_fkey FOREIGN KEY (geo_locality_id) REFERENCES public.geo_localities(id) ON DELETE SET NULL;
+
+
+--
+-- Name: opportunity_extractions opportunity_extractions_geo_region_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_extractions
+    ADD CONSTRAINT opportunity_extractions_geo_region_id_fkey FOREIGN KEY (geo_region_id) REFERENCES public.geo_regions(id) ON DELETE SET NULL;
+
+
+--
 -- Name: opportunity_extractions opportunity_extractions_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2138,6 +2625,30 @@ ALTER TABLE ONLY public.opportunity_extractions
 
 ALTER TABLE ONLY public.opportunity_extractions
     ADD CONSTRAINT opportunity_extractions_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.sources(id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
 
 
 --
@@ -2173,6 +2684,22 @@ ALTER TABLE ONLY public.opportunity_scores
 
 
 --
+-- Name: opportunity_workflows opportunity_workflows_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: rp_ai_runs rp_ai_runs_ai_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2197,10 +2724,37 @@ ALTER TABLE ONLY public.user_profiles
 
 
 --
+-- Name: brief_versions Authenticated can read brief versions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated can read brief versions" ON public.brief_versions FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.opportunities o
+  WHERE ((o.id = brief_versions.opportunity_id) AND (o.is_public = true) AND (COALESCE(o.is_deleted, false) = false)))));
+
+
+--
 -- Name: opportunity_briefs Authenticated can read opportunity briefs; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Authenticated can read opportunity briefs" ON public.opportunity_briefs FOR SELECT TO authenticated USING (true);
+
+
+--
+-- Name: opportunity_extractions Authenticated can read opportunity extractions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated can read opportunity extractions" ON public.opportunity_extractions FOR SELECT TO authenticated USING (((is_current = true) AND (EXISTS ( SELECT 1
+   FROM public.opportunities o
+  WHERE ((o.id = opportunity_extractions.opportunity_id) AND (o.is_public = true) AND (COALESCE(o.is_deleted, false) = false))))));
+
+
+--
+-- Name: agent_runs Authenticated read workspace timeline agent runs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Authenticated read workspace timeline agent runs" ON public.agent_runs FOR SELECT TO authenticated USING (((auth.uid() = user_id) OR ((user_id IS NULL) AND (agent_type = 'extract'::public.agent_run_type) AND (opportunity_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM public.opportunities o
+  WHERE ((o.id = agent_runs.opportunity_id) AND (o.is_public = true) AND (COALESCE(o.is_deleted, false) = false)))))));
 
 
 --
@@ -2218,10 +2772,24 @@ CREATE POLICY "Service role manages opportunity briefs" ON public.opportunity_br
 
 
 --
+-- Name: opportunity_preps Service role manages preps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages preps" ON public.opportunity_preps TO service_role USING (true) WITH CHECK (true);
+
+
+--
 -- Name: opportunity_decisions Service role reads all decisions; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Service role reads all decisions" ON public.opportunity_decisions FOR SELECT TO service_role USING (true);
+
+
+--
+-- Name: opportunity_workflows Service role reads all workflows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role reads all workflows" ON public.opportunity_workflows FOR SELECT TO service_role USING (true);
 
 
 --
@@ -2232,10 +2800,31 @@ CREATE POLICY "Users manage own decisions" ON public.opportunity_decisions TO au
 
 
 --
+-- Name: opportunity_workflows Users manage own workflows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users manage own workflows" ON public.opportunity_workflows TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: decision_history Users read own decision history; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users read own decision history" ON public.decision_history FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+
+
+--
+-- Name: opportunity_scores Users read own opportunity scores; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own opportunity scores" ON public.opportunity_scores FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+
+
+--
+-- Name: opportunity_preps Users read own preps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own preps" ON public.opportunity_preps FOR SELECT TO authenticated USING ((auth.uid() = user_id));
 
 
 --
@@ -2245,11 +2834,23 @@ CREATE POLICY "Users read own decision history" ON public.decision_history FOR S
 ALTER TABLE public.access_requests ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: agent_runs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.agent_runs ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: access_requests anon can insert access_requests; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "anon can insert access_requests" ON public.access_requests FOR INSERT TO authenticated, anon WITH CHECK (true);
 
+
+--
+-- Name: brief_versions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.brief_versions ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: buyers; Type: ROW SECURITY; Schema: public; Owner: -
@@ -2269,6 +2870,58 @@ CREATE POLICY buyers_public_read ON public.buyers FOR SELECT TO anon USING (true
 --
 
 ALTER TABLE public.decision_history ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: geo_countries; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.geo_countries ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: geo_countries geo_countries_public_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY geo_countries_public_read ON public.geo_countries FOR SELECT USING ((is_active = true));
+
+
+--
+-- Name: geo_localities; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.geo_localities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: geo_localities geo_localities_public_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY geo_localities_public_read ON public.geo_localities FOR SELECT USING ((is_active = true));
+
+
+--
+-- Name: geo_regions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.geo_regions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: geo_regions geo_regions_public_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY geo_regions_public_read ON public.geo_regions FOR SELECT USING ((is_active = true));
+
+
+--
+-- Name: geo_zones; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.geo_zones ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: geo_zones geo_zones_public_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY geo_zones_public_read ON public.geo_zones FOR SELECT USING ((is_active = true));
+
 
 --
 -- Name: ingestion_jobs; Type: ROW SECURITY; Schema: public; Owner: -
@@ -2354,6 +3007,30 @@ CREATE POLICY opportunity_events_public_read ON public.opportunity_events FOR SE
    FROM public.opportunities o
   WHERE ((o.id = opportunity_events.opportunity_id) AND (o.is_public = true)))));
 
+
+--
+-- Name: opportunity_extractions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_extractions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_preps; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_preps ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_scores; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_scores ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_workflows; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_workflows ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: notification_preferences owner_rw; Type: POLICY; Schema: public; Owner: -
@@ -2491,5 +3168,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cC6qa2UyTcVlGcWgx7btcfFeE68Ft8718q5WLU8ZlV9bhafDdIfhZfLTWx22Fbx
+\unrestrict hbCjeKZ1NNjvavfNTHmhLa2hOLeFXyiv4glUXIR0AEboEe0NxBKtJixFHG3pdb1
 
