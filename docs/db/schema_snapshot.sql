@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict HjVDWtm9WzEGWNUyg9vTvqraqCBIEis0H8sQTWuBldwFMaaNkrbriPTluEg0ysN
+\restrict 6lFwtkkA98jNDf7jJbMaTnYfqcbHrHB2WbPRIOOeqWnzzL68t8txlZiDIVL1dYP
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -913,10 +913,22 @@ CREATE TABLE public.sources (
 --
 
 CREATE VIEW public.opportunities_geo_scope_v1 AS
+ WITH fr_department_regions AS (
+         SELECT v.code_departement,
+            v.region_slug,
+            v.region_name
+           FROM ( VALUES ('01'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('03'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('07'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('15'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('26'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('38'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('42'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('43'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('63'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('69'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('73'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('74'::text,'auvergne-rhone-alpes'::text,'Auvergne-Rhone-Alpes'::text), ('21'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('25'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('39'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('58'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('70'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('71'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('89'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('90'::text,'bourgogne-franche-comte'::text,'Bourgogne-Franche-Comte'::text), ('22'::text,'bretagne'::text,'Bretagne'::text), ('29'::text,'bretagne'::text,'Bretagne'::text), ('35'::text,'bretagne'::text,'Bretagne'::text), ('56'::text,'bretagne'::text,'Bretagne'::text), ('18'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('28'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('36'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('37'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('41'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('45'::text,'centre-val-de-loire'::text,'Centre-Val de Loire'::text), ('2A'::text,'corse'::text,'Corse'::text), ('2B'::text,'corse'::text,'Corse'::text), ('08'::text,'grand-est'::text,'Grand Est'::text), ('10'::text,'grand-est'::text,'Grand Est'::text), ('51'::text,'grand-est'::text,'Grand Est'::text), ('52'::text,'grand-est'::text,'Grand Est'::text), ('54'::text,'grand-est'::text,'Grand Est'::text), ('55'::text,'grand-est'::text,'Grand Est'::text), ('57'::text,'grand-est'::text,'Grand Est'::text), ('67'::text,'grand-est'::text,'Grand Est'::text), ('68'::text,'grand-est'::text,'Grand Est'::text), ('88'::text,'grand-est'::text,'Grand Est'::text), ('02'::text,'hauts-de-france'::text,'Hauts-de-France'::text), ('59'::text,'hauts-de-france'::text,'Hauts-de-France'::text), ('60'::text,'hauts-de-france'::text,'Hauts-de-France'::text), ('62'::text,'hauts-de-france'::text,'Hauts-de-France'::text), ('80'::text,'hauts-de-france'::text,'Hauts-de-France'::text), ('75'::text,'ile-de-france'::text,'Ile-de-France'::text), ('77'::text,'ile-de-france'::text,'Ile-de-France'::text), ('78'::text,'ile-de-france'::text,'Ile-de-France'::text), ('91'::text,'ile-de-france'::text,'Ile-de-France'::text), ('92'::text,'ile-de-france'::text,'Ile-de-France'::text), ('93'::text,'ile-de-france'::text,'Ile-de-France'::text), ('94'::text,'ile-de-france'::text,'Ile-de-France'::text), ('95'::text,'ile-de-france'::text,'Ile-de-France'::text), ('14'::text,'normandie'::text,'Normandie'::text), ('27'::text,'normandie'::text,'Normandie'::text), ('50'::text,'normandie'::text,'Normandie'::text), ('61'::text,'normandie'::text,'Normandie'::text), ('76'::text,'normandie'::text,'Normandie'::text), ('16'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('17'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('19'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('23'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('24'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('33'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('40'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('47'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('64'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('79'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('86'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('87'::text,'nouvelle-aquitaine'::text,'Nouvelle-Aquitaine'::text), ('09'::text,'occitanie'::text,'Occitanie'::text), ('11'::text,'occitanie'::text,'Occitanie'::text), ('12'::text,'occitanie'::text,'Occitanie'::text), ('30'::text,'occitanie'::text,'Occitanie'::text), ('31'::text,'occitanie'::text,'Occitanie'::text), ('32'::text,'occitanie'::text,'Occitanie'::text), ('34'::text,'occitanie'::text,'Occitanie'::text), ('46'::text,'occitanie'::text,'Occitanie'::text), ('48'::text,'occitanie'::text,'Occitanie'::text), ('65'::text,'occitanie'::text,'Occitanie'::text), ('66'::text,'occitanie'::text,'Occitanie'::text), ('81'::text,'occitanie'::text,'Occitanie'::text), ('82'::text,'occitanie'::text,'Occitanie'::text), ('44'::text,'pays-de-la-loire'::text,'Pays de la Loire'::text), ('49'::text,'pays-de-la-loire'::text,'Pays de la Loire'::text), ('53'::text,'pays-de-la-loire'::text,'Pays de la Loire'::text), ('72'::text,'pays-de-la-loire'::text,'Pays de la Loire'::text), ('85'::text,'pays-de-la-loire'::text,'Pays de la Loire'::text), ('04'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('05'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('06'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('13'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('83'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('84'::text,'provence-alpes-cote-d-azur'::text,'Provence-Alpes-Cote d''Azur'::text), ('971'::text,'guadeloupe'::text,'Guadeloupe'::text), ('972'::text,'martinique'::text,'Martinique'::text), ('973'::text,'guyane'::text,'Guyane'::text), ('974'::text,'la-reunion'::text,'La Reunion'::text), ('976'::text,'mayotte'::text,'Mayotte'::text)) v(code_departement, region_slug, region_name)
+        ), fr_raw_geo AS (
+         SELECT o_1.id AS opportunity_id,
+            fdr.region_slug,
+            fdr.region_name
+           FROM (public.opportunities o_1
+             JOIN fr_department_regions fdr ON ((upper(COALESCE((o_1.raw ->> 'code_departement'::text), ''::text)) = fdr.code_departement)))
+        )
  SELECT o.id,
     o.title,
     COALESCE(b.name, NULLIF(o.buyer_name, ''::text)) AS buyer_name,
-    COALESCE(gr_linked.name, oe.region) AS region,
+    COALESCE(gr_linked.name, fr_raw_geo.region_name, oe.region) AS region,
     COALESCE(gl_linked.name, oe.locality) AS locality,
     oe.budget_value AS budget_amount,
     oe.budget_currency,
@@ -934,12 +946,12 @@ CREATE VIEW public.opportunities_geo_scope_v1 AS
     COALESCE(gc_linked.slug, gc_fallback.slug) AS geo_country_slug,
     COALESCE(gc_linked.country_code, gc_fallback.country_code) AS geo_country_code,
     COALESCE(gc_linked.name, gc_fallback.name) AS geo_country_name,
-    gr_linked.slug AS geo_region_slug,
-    gr_linked.name AS geo_region_name,
+    COALESCE(gr_linked.slug, fr_raw_geo.region_slug) AS geo_region_slug,
+    COALESCE(gr_linked.name, fr_raw_geo.region_name) AS geo_region_name,
     gl_linked.slug AS geo_locality_slug,
     gl_linked.name AS geo_locality_name,
     oe.geo_resolution_confidence
-   FROM ((((((((public.opportunities o
+   FROM (((((((((public.opportunities o
      LEFT JOIN public.buyers b ON ((b.id = o.buyer_id)))
      LEFT JOIN public.sources s ON ((s.id = o.source_id)))
      LEFT JOIN public.opportunity_extractions oe ON (((oe.opportunity_id = o.id) AND (oe.is_current = true))))
@@ -948,6 +960,7 @@ CREATE VIEW public.opportunities_geo_scope_v1 AS
      LEFT JOIN public.geo_regions gr_linked ON ((gr_linked.id = oe.geo_region_id)))
      LEFT JOIN public.geo_localities gl_linked ON ((gl_linked.id = oe.geo_locality_id)))
      LEFT JOIN public.geo_zones gz ON ((gz.id = COALESCE(gc_linked.zone_id, gc_fallback.zone_id))))
+     LEFT JOIN fr_raw_geo ON ((fr_raw_geo.opportunity_id = o.id)))
   WHERE (COALESCE(((to_jsonb(o.*) ->> 'is_deleted'::text))::boolean, false) = false);
 
 
@@ -3168,5 +3181,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict HjVDWtm9WzEGWNUyg9vTvqraqCBIEis0H8sQTWuBldwFMaaNkrbriPTluEg0ysN
+\unrestrict 6lFwtkkA98jNDf7jJbMaTnYfqcbHrHB2WbPRIOOeqWnzzL68t8txlZiDIVL1dYP
 
