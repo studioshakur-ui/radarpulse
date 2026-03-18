@@ -35,7 +35,7 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 664 kB — RLS: off — cols: 21
+ - `public.agent_runs` — size: 768 kB — RLS: off — cols: 21
  - `public.brief_versions` — size: 96 kB — RLS: off — cols: 18
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
@@ -45,7 +45,7 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 512 kB — RLS: on — cols: 21
+ - `public.opportunities` — size: 528 kB — RLS: on — cols: 21
  - `public.opportunities_raw` — size: 504 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 432 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 160 kB — RLS: off — cols: 8
@@ -53,11 +53,11 @@
  - `public.opportunity_decisions` — size: 80 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.opportunity_extractions` — size: 944 kB — RLS: off — cols: 36
+ - `public.opportunity_extractions` — size: 1072 kB — RLS: off — cols: 36
  - `public.opportunity_preps` — size: 112 kB — RLS: on — cols: 16
- - `public.opportunity_scores` — size: 312 kB — RLS: off — cols: 17
+ - `public.opportunity_scores` — size: 352 kB — RLS: off — cols: 17
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
- - `public.rp_ai_runs` — size: 520 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 528 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -125,7 +125,7 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `664 kB`
+ - **Size**: `768 kB`
  - **Size**: `96 kB`
  - **Size**: `24 kB`
  - **Size**: `64 kB`
@@ -135,7 +135,7 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `512 kB`
+ - **Size**: `528 kB`
  - **Size**: `504 kB`
  - **Size**: `432 kB`
  - **Size**: `160 kB`
@@ -143,11 +143,11 @@
  - **Size**: `80 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `944 kB`
+ - **Size**: `1072 kB`
  - **Size**: `112 kB`
- - **Size**: `312 kB`
+ - **Size**: `352 kB`
  - **Size**: `40 kB`
- - **Size**: `520 kB`
+ - **Size**: `528 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
