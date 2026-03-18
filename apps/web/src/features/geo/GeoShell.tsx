@@ -2,6 +2,8 @@ import React from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ChevronRight, Globe2, Map, MapPinned, Building2, CalendarDays } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { MetricBlock, SurfaceSection } from "@/components/ds/surfacePrimitives";
+import { DeadlinePill, SemanticPill, SignalBadge } from "@/components/ds/statusPrimitives";
 import { cn, daysLeft, fmtDateTime } from "@/lib/utils";
 import { useLocale, type TFn } from "@/lib/i18n";
 import type { GeoFeedBreakdownItem, GeoOpportunity } from "@/features/geo/geoData";
@@ -65,40 +67,14 @@ function CountryFlagMark({ countryCode, label }: { countryCode?: string | null; 
 }
 
 function geoTheme(countryCode?: string | null): GeoTheme {
-  switch ((countryCode ?? "").toUpperCase()) {
-    case "FR":
-      return {
-        haloClass:
-          "bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(239,68,68,0.12),transparent_35%)]",
-        chipClass: "border-sky-300/45 bg-sky-500/10 text-sky-700",
-        accentTextClass: "text-sky-700",
-        cardAccentClass: "border-sky-200/45 bg-sky-500/5",
-      };
-    case "IT":
-      return {
-        haloClass:
-          "bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(239,68,68,0.12),transparent_35%)]",
-        chipClass: "border-emerald-300/45 bg-emerald-500/10 text-emerald-700",
-        accentTextClass: "text-emerald-700",
-        cardAccentClass: "border-emerald-200/45 bg-emerald-500/5",
-      };
-    case "GB":
-      return {
-        haloClass:
-          "bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(220,38,38,0.12),transparent_35%)]",
-        chipClass: "border-indigo-300/45 bg-indigo-500/10 text-indigo-700",
-        accentTextClass: "text-indigo-700",
-        cardAccentClass: "border-indigo-200/45 bg-indigo-500/5",
-      };
-    default:
-      return {
-        haloClass:
-          "bg-[radial-gradient(circle_at_top_left,rgba(74,211,149,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(124,58,237,0.08),transparent_35%)]",
-        chipClass: "border-brand/25 bg-brand/10 text-brand",
-        accentTextClass: "text-brand",
-        cardAccentClass: "border-border/30 bg-white/70",
-      };
-  }
+  void countryCode;
+  return {
+    haloClass:
+      "bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.10),transparent_30%),radial-gradient(circle_at_top_right,rgba(124,58,237,0.05),transparent_36%)]",
+    chipClass: "border-brand/25 bg-brand/10 text-brand",
+    accentTextClass: "text-brand",
+    cardAccentClass: "border-brand/25 bg-brand/10",
+  };
 }
 
 function cleanGeoOpportunityTitle(title: string) {
@@ -116,7 +92,7 @@ function GeoNavItem({ to, label, end }: { to: string; label: string; end?: boole
       className={({ isActive }) =>
         cn(
           "rounded-xl px-3 py-2 text-sm font-semibold transition",
-          isActive ? "bg-surface/80 text-text shadow-soft" : "text-subtext hover:bg-surface/70 hover:text-text",
+          isActive ? "bg-elevated text-text shadow-soft" : "text-subtext hover:bg-elevated/80 hover:text-text",
         )
       }
     >
@@ -155,10 +131,11 @@ export function GeoShell({
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-3">
-            <Logo size={24} />
+            <Logo size={30} />
           </Link>
 
           <div className="hidden items-center gap-2 md:flex">
+            <GeoNavItem to="/" label={t("nav.home")} end />
             <GeoNavItem to="/global" label={t("geo.nav.global")} end />
             <GeoNavItem to="/countries/FR" label={`FR ${t("geo.nav.france")}`} />
             <GeoNavItem to="/countries/IT" label={`IT ${t("geo.nav.italy")}`} />
@@ -166,30 +143,28 @@ export function GeoShell({
           </div>
 
           <Link
-            to="/request-access"
-            className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-veil shadow-glow transition hover:opacity-90"
+            to="/inbox"
+            className="inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-semibold text-brand shadow-soft transition hover:bg-brand/16"
           >
-            {t("landing.hero.primaryCta")}
+            {t("nav.inbox")}
           </Link>
         </div>
       </div>
 
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-24">
-        <header className="rounded-[30px] border border-border/30 bg-white/70 p-6 shadow-soft backdrop-blur-md sm:p-8">
+        <header className="rounded-3xl border border-line/25 bg-surface/92 p-6 shadow-soft sm:p-8">
           <div className="flex flex-col gap-4">
             <GeoBreadcrumbs items={breadcrumbs} />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">
-                    RadarPulse Geography
+                    {t("geo.shell.eyebrow")}
                   </div>
-                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide", theme.chipClass)}>
-                    <span className="inline-flex items-center gap-2">
-                      {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
-                      {themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}
-                    </span>
-                  </span>
+                  <SignalBadge className={cn("gap-2", theme.chipClass)} uppercase>
+                    {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
+                    {themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}
+                  </SignalBadge>
                 </div>
                 <div className={cn("mt-3 inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold shadow-soft", theme.cardAccentClass)}>
                   {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
@@ -242,14 +217,7 @@ export function GeoMetricGrid({
   return (
     <div className={cn("grid gap-4", items.length <= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-4")}>
       {items.map((item) => (
-        <div
-          key={item.label}
-          className="rounded-3xl border border-border/30 bg-white/72 p-5 shadow-soft backdrop-blur-sm"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wide text-subtext/75">{item.label}</div>
-          <div className="mt-2 text-2xl font-semibold">{item.value}</div>
-          {item.hint ? <div className="mt-2 text-sm text-subtext">{item.hint}</div> : null}
-        </div>
+        <MetricBlock key={item.label} label={item.label} value={item.value} hint={item.hint} />
       ))}
     </div>
   );
@@ -264,15 +232,7 @@ export function GeoSection({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <section className="rounded-[28px] border border-border/30 bg-white/68 p-6 shadow-soft backdrop-blur-sm">
-      <div className="flex flex-col gap-2">
-        <div className="text-lg font-semibold">{title}</div>
-        {subtitle ? <div className="text-sm text-subtext">{subtitle}</div> : null}
-      </div>
-      <div className="mt-5">{children}</div>
-    </section>
-  );
+  return <SurfaceSection title={title} subtitle={subtitle}>{children}</SurfaceSection>;
 }
 
 export function GeoChildCard({
@@ -288,10 +248,11 @@ export function GeoChildCard({
   icon?: React.ReactNode;
   badge?: string | null;
 }) {
+  const { t } = useLocale();
   return (
     <Link
       to={to}
-      className="flex min-h-[120px] flex-col justify-between rounded-3xl border border-border/30 bg-white/62 p-5 shadow-soft transition hover:bg-white/78"
+      className="flex min-h-[120px] flex-col justify-between rounded-2xl border border-line/25 bg-surface/92 p-5 shadow-soft transition hover:bg-elevated/80"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -301,14 +262,10 @@ export function GeoChildCard({
           </div>
           <div className="mt-2 text-sm leading-relaxed text-subtext">{subtitle}</div>
         </div>
-        {badge ? (
-          <span className="shrink-0 rounded-full border border-border/35 bg-white/80 px-2.5 py-1 text-xs font-semibold text-subtext/80">
-            {badge}
-          </span>
-        ) : null}
+        {badge ? <SignalBadge size="sm">{badge}</SignalBadge> : null}
       </div>
       <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-brand">
-        Open <ChevronRight className="h-4 w-4" />
+        {t("geo.child.open")} <ChevronRight className="h-4 w-4" />
       </div>
     </Link>
   );
@@ -332,14 +289,14 @@ export function GeoInsightList({
       {items.map((item) => {
         const href = linkBuilder?.(item) ?? null;
         const content = (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/25 bg-bg/45 px-4 py-3 shadow-soft">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-line/25 bg-surface/92 px-4 py-3 shadow-soft">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-text">{item.label}</div>
               {item.hint ? <div className="truncate text-xs text-subtext">{item.hint}</div> : null}
             </div>
-            <span className="shrink-0 rounded-full border border-border/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-subtext">
+            <SignalBadge size="sm" mono>
               {item.value}
-            </span>
+            </SignalBadge>
           </div>
         );
 
@@ -360,10 +317,10 @@ export function GeoSignalStrip({
   items: Array<{ label: string; value: string; tone?: "default" | "good" | "warn" | "bad" }>;
 }) {
   const toneClass: Record<NonNullable<(typeof items)[number]["tone"]>, string> = {
-    default: "border-border/30 bg-white/70 text-text",
-    good: "border-good/20 bg-good/10 text-good",
-    warn: "border-warn/20 bg-warn/10 text-warn",
-    bad: "border-bad/20 bg-bad/10 text-bad",
+    default: "border-line/25 bg-surface/92 text-text",
+    good: "border-good/25 bg-good/8 text-good",
+    warn: "border-warn/25 bg-warn/8 text-warn",
+    bad: "border-bad/25 bg-bad/8 text-bad",
   };
 
   return (
@@ -393,6 +350,7 @@ export function GeoOpportunityList({
 }) {
   const { locale, t } = useLocale();
   const intlLocale = LOCALE_MAP[locale] ?? "en-US";
+  const daySuffix = t("inbox.deadline.daysSuffix");
 
   if (items.length === 0) {
     return <div className="text-sm text-subtext">{t("geo.feed.empty")}</div>;
@@ -402,10 +360,22 @@ export function GeoOpportunityList({
     <div className="grid gap-4">
       {items.map((item) => {
         const deadlineDays = daysLeft(item.deadline_at);
+        const qualityPercent =
+          typeof item.quality_score === "number"
+            ? `${Math.round(Math.max(0, Math.min(1, item.quality_score)) * 100)}%`
+            : null;
+        const qualityTone =
+          typeof item.quality_score !== "number"
+            ? "neutral"
+            : item.quality_score >= 0.7
+              ? "good"
+              : item.quality_score >= 0.4
+                ? "warn"
+                : "bad";
         return (
           <article
             key={item.id}
-            className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft"
+            className="rounded-2xl border border-line/25 bg-surface/92 p-5 shadow-soft"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
@@ -426,37 +396,39 @@ export function GeoOpportunityList({
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                   {item.source_key ? (
-                    <span className="rounded-full border border-border/30 bg-white/80 px-2.5 py-1 text-subtext">
+                    <SignalBadge size="sm">
                       {item.source_key}
-                    </span>
+                    </SignalBadge>
                   ) : null}
                   {item.origin_type ? (
-                    <span className="rounded-full border border-brand/20 bg-brand/10 px-2.5 py-1 text-brand">
+                    <SignalBadge size="sm" tone="brand" uppercase>
                       {item.origin_type}
-                    </span>
+                    </SignalBadge>
                   ) : null}
                   {item.geo_resolution_confidence ? (
-                    <span className="rounded-full border border-border/30 bg-surface/80 px-2.5 py-1 text-subtext">
+                    <SignalBadge size="sm" uppercase>
                       {item.geo_resolution_confidence}
-                    </span>
+                    </SignalBadge>
                   ) : null}
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {typeof item.quality_score === "number" ? (
-                  <span className="rounded-full border border-good/25 bg-good/10 px-2.5 py-1 text-sm font-semibold text-good">
-                    {Math.round(Math.max(0, Math.min(1, item.quality_score)) * 100)}%
-                  </span>
+                {qualityPercent ? (
+                  <SemanticPill tone={qualityTone} mono>
+                    {qualityPercent}
+                  </SemanticPill>
                 ) : null}
-                {deadlineDays !== null && deadlineDays < 0 ? (
-                  <span className="rounded-full border border-bad/25 bg-bad/10 px-2.5 py-1 text-sm font-semibold text-bad">
-                    {t("inbox.deadline.expired")}
-                  </span>
+                {deadlineDays !== null ? (
+                  <DeadlinePill
+                    deadline={item.deadline_at}
+                    daySuffix={daySuffix}
+                    expiredLabel={t("inbox.deadline.expired")}
+                  />
                 ) : null}
                 <Link
                   to={`/workspace/${item.id}`}
-                  className="inline-flex items-center gap-2 rounded-xl border border-border/35 bg-surface/70 px-3 py-2 text-sm font-semibold text-text transition hover:bg-elevated/70"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-bg/80 px-3 py-2 text-sm font-semibold text-text transition hover:bg-elevated/80"
                 >
                   {t("workspace.openBtn")}
                 </Link>

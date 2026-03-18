@@ -2,6 +2,7 @@ import type { SourceRow } from "../../../_shared/types.ts";
 
 import type { ConnectorResult } from "../index.ts";
 import { apiAnacOcdsFetch } from "./it_anac_ocds.ts";
+import { apiEappaltiFvgFetch } from "./it_eappalti_fvg.ts";
 import { apiBoampFetch } from "./fr_boamp.ts";
 import { apiContractsFinderFetch } from "./uk_contracts_finder.ts";
 import { apiEuTedSearchFetch } from "./eu_ted_search.ts";
@@ -9,7 +10,7 @@ import { apiFindTenderFetch } from "./uk_find_tender.ts";
 import { apiSamGovFetch } from "./us_sam_gov.ts";
 import { apiGrantsGovFetch } from "./us_grants_gov.ts";
 
-type Provider = "uk_find_tender" | "uk_contracts_finder" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "fr_boamp";
+type Provider = "uk_find_tender" | "uk_contracts_finder" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "it_eappalti_fvg" | "fr_boamp";
 
 type ProviderConfig = {
   key: Provider;
@@ -20,6 +21,7 @@ type ProviderConfig = {
 const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
   fr_boamp: { key: "fr_boamp", is_active: true, country_code: "FR" },
   eu_ted_search: { key: "eu_ted_search", is_active: true, country_code: "EU" },
+  it_eappalti_fvg: { key: "it_eappalti_fvg", is_active: true, country_code: "IT" },
   uk_contracts_finder: { key: "uk_contracts_finder", is_active: true, country_code: "GB" },
   uk_find_tender: { key: "uk_find_tender", is_active: true, country_code: "GB" },
   us_sam_gov: { key: "us_sam_gov", is_active: true, country_code: "US" },
@@ -31,6 +33,7 @@ function providerFromSource(source: SourceRow): Provider | null {
   const p = String(((source.meta ?? {}) as any).provider ?? "").trim();
 
   if (p === "fr_boamp") return "fr_boamp";
+  if (p === "it_eappalti_fvg") return "it_eappalti_fvg";
   if (p === "uk_contracts_finder") return "uk_contracts_finder";
   if (p === "uk_find_tender") return "uk_find_tender";
   if (p === "us_sam_gov") return "us_sam_gov";
@@ -64,6 +67,8 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
   switch (provider) {
     case "fr_boamp":
       return await apiBoampFetch(source);
+    case "it_eappalti_fvg":
+      return await apiEappaltiFvgFetch(source);
     case "uk_contracts_finder":
       return await apiContractsFinderFetch(source);
     case "uk_find_tender":

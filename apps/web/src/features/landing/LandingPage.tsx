@@ -67,8 +67,8 @@ function TypewriterHero() {
       window.setTimeout(() => {
         setIdx((i) => (i + 1) % cycles.length);
         setVisible(true);
-      }, 380);
-    }, 3400);
+      }, 520);
+    }, 5200);
     return () => window.clearInterval(interval);
   }, [cycles.length, prefersReducedMotion]);
 
@@ -76,11 +76,11 @@ function TypewriterHero() {
 
   return (
     <h1
-      className="text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-[5.25rem]"
+      className="max-w-[11ch] text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[4.8rem]"
       style={{
-        transition: prefersReducedMotion ? "none" : "opacity 0.38s ease, transform 0.38s ease",
+        transition: prefersReducedMotion ? "none" : "opacity 0.52s ease, filter 0.52s ease",
         opacity: prefersReducedMotion ? 1 : visible ? 1 : 0,
-        transform: prefersReducedMotion ? "none" : visible ? "translateY(0)" : "translateY(-10px)",
+        filter: prefersReducedMotion ? "none" : visible ? "blur(0px)" : "blur(3px)",
       }}
     >
       <span className="text-text">{line.strong} </span>
@@ -181,7 +181,7 @@ function HeroBrowserMockup() {
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   useEffect(() => {
     if (prefersReducedMotion) return;
-    const t = window.setInterval(() => setTick((n) => n + 1), 3200);
+    const t = window.setInterval(() => setTick((n) => n + 1), 5600);
     return () => window.clearInterval(t);
   }, [prefersReducedMotion]);
 
@@ -216,63 +216,65 @@ function HeroBrowserMockup() {
   ];
 
   return (
-    <div className="relative mx-auto flex w-full max-w-xl items-center justify-center lg:max-w-md lg:justify-end">
+    <div className="relative mx-auto flex w-full max-w-xl items-center justify-center lg:max-w-[35rem] lg:justify-end">
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-border/40 bg-bg shadow-2xl"
+        className="w-full max-w-[34rem] overflow-hidden rounded-[28px] border border-white/55 bg-white/82 shadow-[0_30px_80px_rgba(93,72,152,0.14)] backdrop-blur"
         style={{
-          transform: prefersReducedMotion
-            ? "none"
-            : "perspective(1200px) rotateY(-5deg) rotateX(2deg)",
+          transform: prefersReducedMotion ? "none" : "translateY(0px)",
           transformStyle: "preserve-3d",
+          transition: prefersReducedMotion ? "none" : "box-shadow 0.6s ease, transform 0.6s ease",
         }}
       >
         {/* Browser chrome */}
-        <div className="flex items-center gap-2 border-b border-border/20 bg-surface/70 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-2 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur">
           <div className="flex gap-1.5">
             <div className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
             <div className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
           </div>
-          <div className="mx-3 flex-1 rounded-md bg-bg/70 px-3 py-1 text-center text-xs text-subtext/40">
+          <div className="mx-3 flex-1 rounded-md bg-white/70 px-3 py-1 text-center text-xs text-subtext/50">
             app.radarpulse.io/inbox
           </div>
         </div>
         {/* Toolbar */}
-        <div className="flex items-center gap-3 border-b border-border/10 bg-surface/40 px-4 py-2">
-          <span className="rounded-lg bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+        <div className="flex items-center gap-3 border-b border-border/10 bg-[#faf8ff] px-4 py-3">
+          <span className="rounded-full bg-brand/12 px-3 py-1 text-[11px] font-semibold text-brand">
             {ml.allStatuses}
           </span>
-          <span className="rounded-lg border border-border/20 px-3 py-1 text-xs text-subtext/60">
+          <span className="rounded-full border border-border/25 px-3 py-1 text-[11px] text-subtext/65">
             {t("landing.mockup.sort")}
           </span>
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-subtext/40">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-subtext/50">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
             {ml.minutesAgo}
           </span>
         </div>
         {/* Cards */}
-        <div className="divide-y divide-border/10">
+        <div className="divide-y divide-border/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,244,255,0.9)_100%)]">
           {cards.map((c, i) => (
             <div
               key={c.title}
-              className="flex items-start justify-between gap-3 bg-bg/60 px-4 py-3 transition-colors hover:bg-surface/40"
-              style={{ opacity: tick % 5 === i ? 0.55 : 1, transition: "opacity 0.4s ease" }}
+              className="flex items-start justify-between gap-3 px-5 py-4 transition-colors hover:bg-white/45"
+              style={{
+                opacity: tick % cards.length === i ? 1 : 0.74,
+                transition: prefersReducedMotion ? "none" : "opacity 1.2s ease",
+              }}
             >
               <div className="min-w-0 flex-1">
-                <div className="mb-1 flex items-center gap-1.5">
+                <div className="mb-1.5 flex items-center gap-1.5">
                   <span className="text-xs">{c.flag}</span>
-                  <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-subtext/60">
+                  <span className="rounded-full bg-border/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-subtext/60">
                     {c.src}
                   </span>
                 </div>
-                <p className="line-clamp-1 text-xs font-medium text-text">{c.title}</p>
-                <p className="mt-0.5 text-[10px] text-subtext/60">{c.budget}</p>
+                <p className="line-clamp-2 text-sm font-semibold leading-snug text-text">{c.title}</p>
+                <p className="mt-1 text-[11px] text-subtext/70">{c.budget}</p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-brand">
                   AI {c.score}
                 </span>
-                <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + c.tagCls}>
+                <span className={"rounded-full px-2.5 py-1 text-[10px] font-bold " + c.tagCls}>
                   {c.tag}
                 </span>
               </div>
@@ -280,18 +282,18 @@ function HeroBrowserMockup() {
           ))}
         </div>
         {/* Footer bar */}
-        <div className="flex items-center justify-between border-t border-border/10 bg-surface/30 px-4 py-2">
-          <span className="text-[10px] text-subtext/40">{ml.results}</span>
-          <span className="text-[10px] font-medium text-brand/70">{ml.loadMore}</span>
+        <div className="flex items-center justify-between border-t border-border/10 bg-white/65 px-5 py-3">
+          <span className="text-[11px] text-subtext/50">{ml.results}</span>
+          <span className="text-[11px] font-medium text-brand/80">{ml.loadMore}</span>
         </div>
       </div>
       {/* Live badge */}
-      <div className="absolute -right-4 -top-3 flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 shadow-lg backdrop-blur">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+      <div className="absolute right-4 top-4 hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-white/88 px-3 py-1.5 text-[11px] font-bold text-emerald-500 shadow-lg backdrop-blur sm:flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         {t("landing.mockup.live")}
       </div>
       {/* AI Score floating badge */}
-      <div className="absolute -left-6 bottom-12 rounded-2xl border border-brand/20 bg-bg/90 px-4 py-2.5 shadow-xl backdrop-blur">
+      <div className="absolute -left-6 bottom-10 hidden rounded-2xl border border-brand/20 bg-white/92 px-4 py-3 shadow-xl backdrop-blur xl:block">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-subtext/50">
           {t("landing.mockup.aiScore")}
         </p>
@@ -1057,18 +1059,21 @@ export function LandingPage() {
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/20">
           <HeroBackground />
-          <div className="relative mx-auto w-full max-w-6xl px-4 py-20 sm:py-28">
-            <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+          <div className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:py-24 lg:py-28">
+            <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,0.95fr)] lg:gap-10">
               {/* Left */}
-              <div>
+              <div className="max-w-2xl">
                 <div className="mb-5">
                   <SectionLabel>{HERO_PILL[lang]}</SectionLabel>
                 </div>
                 <TypewriterHero />
-                <p className="mt-5 max-w-xl text-lg leading-relaxed text-subtext">
+                <p className="mt-6 max-w-xl text-lg leading-relaxed text-subtext">
                   {t("landing.hero.description")}
                 </p>
-                <div className="mt-6 flex flex-wrap gap-2 text-sm text-subtext/80">
+                <div className="mt-8 lg:hidden">
+                  <HeroBrowserMockup />
+                </div>
+                <div className="mt-7 flex flex-wrap gap-2 text-sm text-subtext/80">
                   <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
                     20+ live markets
                   </span>
@@ -1082,7 +1087,7 @@ export function LandingPage() {
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
                     to="/request-access"
-                    className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow hover:opacity-95"
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:-translate-y-0.5 hover:opacity-95"
                   >
                     {t("landing.hero.primaryCta")} <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -1097,7 +1102,7 @@ export function LandingPage() {
                   {stats.map((s) => (
                     <div
                       key={s.value}
-                      className="rounded-2xl border border-line/20 bg-surface/70 px-4 py-3 shadow-soft"
+                      className="rounded-2xl border border-line/20 bg-white/55 px-4 py-4 shadow-soft backdrop-blur"
                     >
                       <p className="text-xl font-bold text-text">{s.value}</p>
                       <p className="mt-1 text-sm text-muted">{s.label}</p>
@@ -1106,7 +1111,9 @@ export function LandingPage() {
                 </div>
               </div>
               {/* Right */}
-              <HeroBrowserMockup />
+              <div className="hidden lg:block">
+                <HeroBrowserMockup />
+              </div>
             </div>
           </div>
         </section>

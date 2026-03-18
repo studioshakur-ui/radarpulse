@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { Globe2, Inbox, Settings, House } from "lucide-react";
 import InboxPage from "@/features/inbox/InboxPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
@@ -267,7 +268,7 @@ function AppShell({
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-bg/70 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Logo size={24} />
+            <Logo size={30} />
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
@@ -304,7 +305,60 @@ function AppShell({
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-20">{children}</div>
+      <div className="mx-auto max-w-6xl px-4 pb-24 pt-20 md:pb-16">{children}</div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-bg/92 px-3 py-2 backdrop-blur md:hidden">
+        <div className="mx-auto grid max-w-6xl grid-cols-4 gap-2">
+          <NavLink
+            to="/global"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
+                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
+              )
+            }
+          >
+            <Globe2 className="h-4 w-4" />
+            <span>{t("geo.nav.global")}</span>
+          </NavLink>
+          <NavLink
+            to="/inbox"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
+                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
+              )
+            }
+          >
+            <Inbox className="h-4 w-4" />
+            <span>{t("nav.inbox")}</span>
+          </NavLink>
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
+                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
+              )
+            }
+          >
+            <Settings className="h-4 w-4" />
+            <span>{t("nav.settings")}</span>
+          </NavLink>
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
+                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
+              )
+            }
+          >
+            <House className="h-4 w-4" />
+            <span>{t("nav.home")}</span>
+          </NavLink>
+        </div>
+      </nav>
     </div>
   );
 }

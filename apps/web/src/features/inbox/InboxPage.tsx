@@ -1,7 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
-import { cn, fmtRelative, daysLeft } from "@/lib/utils";
+import { cn, fmtRelative } from "@/lib/utils";
+import {
+  DeadlinePill,
+  DecisionControl,
+  DecisionStateBadge,
+  ScoreStateBadge,
+  SemanticPill,
+  SignalBadge,
+  StatePanel,
+} from "@/components/ds/statusPrimitives";
 import { useLocale, type TFn } from "@/lib/i18n";
 import type { Decision } from "@/lib/types";
 import { useInboxData } from "./useInboxData";
@@ -35,72 +44,6 @@ function formatQuality(score: number | null, t: TFn): string {
   if (typeof score !== "number" || !Number.isFinite(score)) return t("inbox.card.qualityNa");
   const percent = Math.round(Math.max(0, Math.min(1, score)) * 100);
   return `${t("inbox.card.qualityPrefix")} ${percent}%`;
-}
-
-function DeadlineBadge({
-  deadline,
-  t,
-  daySuffix,
-}: {
-  deadline: string | null | undefined;
-  t: TFn;
-  daySuffix: string;
-}) {
-  const dl = daysLeft(deadline ?? null);
-  if (dl === null) return null;
-  if (dl < 0)
-    return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2 py-0.5 text-[10px] font-semibold text-bad">
-        {t("inbox.deadline.expired")}
-      </span>
-    );
-  if (dl <= 7)
-    return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2 py-0.5 text-[10px] font-semibold text-bad">
-        {`⚠ ${String(dl)}${daySuffix}`}
-      </span>
-    );
-  if (dl <= 30)
-    return (
-      <span className="rounded-full border border-warn/30 bg-warn/15 px-2 py-0.5 text-[10px] font-semibold text-warn">
-        {`${String(dl)}${daySuffix}`}
-      </span>
-    );
-  return null;
-}
-
-function DecisionButtons({
-  id,
-  current,
-  onDecide,
-}: {
-  id: string;
-  current: Decision | null;
-  onDecide: (id: string, d: Decision) => void;
-}) {
-  return (
-    <div className="flex gap-1.5">
-      {(["GO", "HOLD", "NO_GO"] as Decision[]).map((d) => {
-        const active = current === d;
-        return (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onDecide(id, d)}
-            className={cn(
-              "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
-              active && d === "GO" && "border-good/60 bg-good/20 text-good",
-              active && d === "HOLD" && "border-warn/60 bg-warn/20 text-warn",
-              active && d === "NO_GO" && "border-bad/60 bg-bad/20 text-bad",
-              !active && "border-line/25 bg-bg text-subtext hover:bg-elevated",
-            )}
-          >
-            {d === "NO_GO" ? "NO" : d}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 function BriefPanel({ brief, t }: { brief: OpportunityBrief; t: TFn }) {
@@ -157,12 +100,12 @@ function BriefPanel({ brief, t }: { brief: OpportunityBrief; t: TFn }) {
       ) : null}
 
       {brief.next_action ? (
-        <div className="rounded-xl border border-brand/30 bg-brand/8 px-3 py-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-brand">
-            {t("inbox.card.brief.nextAction")}:{" "}
-          </span>
-          <span className="text-subtext">{brief.next_action}</span>
-        </div>
+        <StatePanel
+          tone="brand"
+          title={t("inbox.card.brief.nextAction")}
+          description={brief.next_action}
+          className="rounded-xl p-3 shadow-none"
+        />
       ) : null}
     </div>
   );
@@ -201,31 +144,25 @@ function InboxRow({
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-2 text-sm font-semibold text-text">{item.title}</p>
-        <DeadlineBadge deadline={item.deadline_at} t={t} daySuffix={daySuffix} />
+        <DeadlinePill
+          deadline={item.deadline_at}
+          daySuffix={daySuffix}
+          expiredLabel={t("inbox.deadline.expired")}
+          size="sm"
+        />
       </div>
       <div className="mt-1.5 flex items-center gap-2 text-xs text-subtext">
         {formatQualityShort(item.quality_score) ? (
-          <span className="shrink-0 rounded-full border border-line/40 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-subtext">
+          <SemanticPill className="shrink-0" size="sm" mono>
             {formatQualityShort(item.quality_score)}
-          </span>
+          </SemanticPill>
         ) : null}
-        {decision ? (
-          <span
-            className={cn(
-              "shrink-0 text-[10px] font-bold",
-              decision === "GO" && "text-good",
-              decision === "HOLD" && "text-warn",
-              decision === "NO_GO" && "text-bad",
-            )}
-          >
-            {decision === "NO_GO" ? "NO" : decision}
-          </span>
-        ) : null}
+        {decision ? <DecisionStateBadge decision={decision} noGoLabel="NO" size="sm" /> : null}
         <span className="truncate">{item.buyer_name || t("inbox.card.buyerUnavailable")}</span>
         {item.origin_type ? (
-          <span className="shrink-0 rounded bg-border/20 px-1.5 text-[10px] font-bold uppercase">
+          <SignalBadge className="shrink-0" size="sm">
             {item.origin_type}
-          </span>
+          </SignalBadge>
         ) : null}
         <span className="ml-auto shrink-0">{fmtRelative(item.published_at, fmtLocale)}</span>
       </div>
@@ -272,20 +209,14 @@ function InboxDetail({
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {score ? (
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px] font-bold uppercase",
-                  score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
-                  score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
-                  score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
-                )}
-              >
-                {Math.round(score.score_value * 100)}%
-              </span>
+              <ScoreStateBadge
+                band={score.score_band}
+                label={t(`workspace.score.${score.score_band}`)}
+                value={`${Math.round(score.score_value * 100)}%`}
+                size="sm"
+              />
             ) : null}
-            <span className="rounded-full border border-line/40 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext">
-              {formatQuality(item.quality_score, t)}
-            </span>
+            <SemanticPill size="sm">{formatQuality(item.quality_score, t)}</SemanticPill>
           </div>
         </div>
 
@@ -306,18 +237,28 @@ function InboxDetail({
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <CircleGauge className="h-3.5 w-3.5 shrink-0" />
             {fmtRelative(item.deadline_at, fmtLocale)}
-            <DeadlineBadge deadline={item.deadline_at} t={t} daySuffix={daySuffix} />
+            <DeadlinePill
+              deadline={item.deadline_at}
+              daySuffix={daySuffix}
+              expiredLabel={t("inbox.deadline.expired")}
+              size="sm"
+            />
           </span>
           {item.origin_type ? (
-            <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-bold uppercase">
+            <SignalBadge size="sm">
               {item.origin_type}
-            </span>
+            </SignalBadge>
           ) : null}
         </div>
 
         {/* Actions */}
         <div className="mt-4 flex flex-wrap items-center gap-3 border-b border-line/15 pb-4">
-          <DecisionButtons id={item.id} current={decision} onDecide={onDecide} />
+          <DecisionControl
+            value={decision}
+            onChange={(nextDecision) => onDecide(item.id, nextDecision)}
+            size="sm"
+            noGoLabel="NO"
+          />
           <button
             type="button"
             onClick={onGenerateBrief}
@@ -343,13 +284,19 @@ function InboxDetail({
         {/* Brief content */}
         <div className="pt-4">
           {briefError ? (
-            <button
-              type="button"
-              onClick={onGenerateBrief}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
+            <StatePanel
+              tone="bad"
+              title={t("inbox.card.brief.error")}
+              className="p-3 shadow-none"
             >
-              {t("inbox.card.brief.error")}
-            </button>
+              <button
+                type="button"
+                onClick={onGenerateBrief}
+                className="inline-flex items-center rounded-lg border border-bad/30 bg-bad/10 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
+              >
+                {t("workspace.brief.refresh")}
+              </button>
+            </StatePanel>
           ) : brief ? (
             <BriefPanel brief={brief} t={t} />
           ) : !briefLoading ? (
@@ -548,9 +495,10 @@ export default function InboxPage() {
         {activeChips.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {activeChips.map((chip) => (
-              <span
+              <SignalBadge
                 key={chip.label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-3 py-0.5 text-xs font-semibold text-brand"
+                tone="brand"
+                className="gap-1.5 px-3 py-0.5 text-xs"
               >
                 {chip.label}
                 <button
@@ -561,7 +509,7 @@ export default function InboxPage() {
                 >
                   &times;
                 </button>
-              </span>
+              </SignalBadge>
             ))}
           </div>
         )}
@@ -619,34 +567,31 @@ export default function InboxPage() {
 
       {/* Subscription / error / loading states */}
       {subscriptionRequired ? (
-        <div className="mt-5 rounded-2xl border border-warn/40 bg-warn/10 p-6">
-          <p className="text-base font-semibold text-text">{t("inbox.subscription.title")}</p>
-          <p className="mt-1 text-sm text-subtext">{t("inbox.subscription.description")}</p>
+        <StatePanel
+          tone="warn"
+          title={t("inbox.subscription.title")}
+          description={t("inbox.subscription.description")}
+          className="mt-5 p-6"
+        >
           <Link
             to="/abbonamento"
-            className="mt-4 inline-flex items-center rounded-xl border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand transition hover:bg-brand/20"
+            className="inline-flex items-center rounded-xl border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand transition hover:bg-brand/20"
           >
             {t("inbox.subscription.cta")}
           </Link>
-        </div>
+        </StatePanel>
       ) : null}
 
       {error ? (
-        <div className="mt-5 rounded-2xl border border-bad/40 bg-bad/10 p-4 text-sm text-bad">
-          {error}
-        </div>
+        <StatePanel tone="bad" description={error} className="mt-5" />
       ) : null}
 
       {loading ? (
-        <div className="mt-5 rounded-2xl border border-line/25 bg-surface p-4 text-sm text-subtext">
-          {t("inbox.loading")}
-        </div>
+        <StatePanel description={t("inbox.loading")} className="mt-5" />
       ) : null}
 
       {!loading && filteredItems.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-line/25 bg-surface p-6 text-sm text-subtext">
-          {t("inbox.empty")}
-        </div>
+        <StatePanel description={t("inbox.empty")} className="mt-5 p-6" />
       ) : null}
 
       {/* Desktop split-pane (lg+) */}
@@ -700,9 +645,10 @@ export default function InboxPage() {
                 onGenerateBrief={() => void generate(selectedBriefInput)}
               />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-line/20 bg-surface text-sm text-subtext">
-                {t("inbox.noSelection")}
-              </div>
+              <StatePanel
+                description={t("inbox.noSelection")}
+                className="flex h-full items-center justify-center"
+              />
             )}
           </div>
         </div>
@@ -751,29 +697,50 @@ export default function InboxPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <DeadlineBadge deadline={item.deadline_at} t={t} daySuffix={daySuffix} />
-                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
-                      {formatQuality(item.quality_score, t)}
-                    </span>
+                    <DeadlinePill
+                      deadline={item.deadline_at}
+                      daySuffix={daySuffix}
+                      expiredLabel={t("inbox.deadline.expired")}
+                    />
+                    <SemanticPill>{formatQuality(item.quality_score, t)}</SemanticPill>
                     {item.origin_type ? (
-                      <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2.5 py-1 text-xs font-semibold uppercase text-subtext">
+                      <SignalBadge uppercase size="md">
                         {item.origin_type}
-                      </span>
+                      </SignalBadge>
                     ) : null}
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <DecisionButtons id={item.id} current={decision} onDecide={decide} />
+                  <DecisionControl
+                    value={decision}
+                    onChange={(nextDecision) => decide(item.id, nextDecision)}
+                    noGoLabel="NO"
+                  />
                 </div>
 
-                <div className="mt-3 flex gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-subtext">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-line/20 bg-bg px-2.5 py-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>{item.region || item.country_code || "—"}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-line/20 bg-bg px-2.5 py-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span>{formatBudget(item.budget_amount, item.budget_currency, t)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-line/20 bg-bg px-2.5 py-1">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    <span>{fmtRelative(item.published_at, fmtLocale)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => toggleBrief(briefInput)}
                     disabled={briefLoading}
                     className={cn(
-                      "flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                      "rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
                       briefExpanded && brief
                         ? "border-brand/50 bg-brand/15 text-brand"
                         : "border-line/25 bg-bg text-subtext hover:bg-elevated",
@@ -784,38 +751,19 @@ export default function InboxPage() {
                   </button>
                   <Link
                     to={`/workspace/${item.id}`}
-                    className="flex-1 rounded-xl border border-line/25 bg-bg px-3 py-2 text-center text-sm font-semibold text-subtext transition hover:bg-elevated"
+                    className="rounded-xl border border-line/25 bg-bg px-3 py-2.5 text-center text-sm font-semibold text-subtext transition hover:bg-elevated"
                   >
                     {t("workspace.openBtn")}
                   </Link>
                 </div>
 
-                <div className="mt-4 grid gap-2 text-sm text-subtext sm:grid-cols-2">
-                  <div className="inline-flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{item.region || item.country_code || "—"}</span>
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4" />
-                    <span>
-                      {fmtRelative(item.published_at, fmtLocale)}
-                    </span>
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    <span>{formatBudget(item.budget_amount, item.budget_currency, t)}</span>
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <CircleGauge className="h-4 w-4" />
-                    <span>
-                      {fmtRelative(item.deadline_at, fmtLocale)}
-                    </span>
-                  </div>
-                </div>
-
                 {briefExpanded ? (
                   briefError ? (
-                    <div className="mt-3 text-xs text-bad">{t("inbox.card.brief.error")}</div>
+                    <StatePanel
+                      tone="bad"
+                      description={t("inbox.card.brief.error")}
+                      className="mt-3 p-3 shadow-none"
+                    />
                   ) : brief ? (
                     <div className="mt-4 border-t border-border/30 pt-4">
                       <BriefPanel brief={brief} t={t} />

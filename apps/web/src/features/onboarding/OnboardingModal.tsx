@@ -1,20 +1,10 @@
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
+import { SwitchControl } from "@/components/ds/surfacePrimitives";
 import { useLocale } from "@/lib/i18n";
+import { getMarketOptions } from "@/lib/marketOptions";
+import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import type { OnboardingState } from "./useOnboarding";
-
-const COUNTRY_OPTIONS = [
-  { value: "GLOBAL", label: "🌍 Global" },
-  { value: "IT", label: "🇮🇹 Italy" },
-  { value: "FR", label: "🇫🇷 France" },
-  { value: "DE", label: "🇩🇪 Germany" },
-  { value: "UK", label: "🇬🇧 United Kingdom" },
-  { value: "ES", label: "🇪🇸 Spain" },
-  { value: "NL", label: "🇳🇱 Netherlands" },
-  { value: "PL", label: "🇵🇱 Poland" },
-  { value: "BE", label: "🇧🇪 Belgium" },
-];
 
 type StepIndicatorProps = { total: number; current: number };
 
@@ -42,6 +32,7 @@ type OnboardingModalProps = {
 
 export default function OnboardingModal({ user, saving, onComplete }: OnboardingModalProps) {
   const { t } = useLocale();
+  const marketOptions = getMarketOptions(t);
   const [step, setStep] = useState(0);
 
   const [fullName, setFullName] = useState("");
@@ -61,8 +52,9 @@ export default function OnboardingModal({ user, saving, onComplete }: Onboarding
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
-      <div className="relative mx-4 w-full max-w-md rounded-3xl border border-border/40 bg-surface shadow-soft">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/80 backdrop-blur-sm">
+      <div className="flex min-h-full items-start justify-center px-4 py-6 sm:items-center">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-line/25 bg-surface/95 shadow-soft max-sm:max-h-[calc(100dvh-3rem)] max-sm:overflow-y-auto">
         {/* Header */}
         <div className="border-b border-border/30 px-6 py-5">
           <div className="flex items-center justify-between">
@@ -109,9 +101,9 @@ export default function OnboardingModal({ user, saving, onComplete }: Onboarding
                 <select
                   value={countryFocus}
                   onChange={(e) => setCountryFocus(e.target.value)}
-                  className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
+                  className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                 >
-                  {COUNTRY_OPTIONS.map((opt) => (
+                  {marketOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -145,23 +137,11 @@ export default function OnboardingModal({ user, saving, onComplete }: Onboarding
                   <div className="text-sm font-semibold text-text">{t("onboarding.notify.email")}</div>
                   <div className="mt-0.5 text-xs text-subtext">{user.email}</div>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={emailEnabled}
-                  onClick={() => setEmailEnabled((v) => !v)}
-                  className={cn(
-                    "relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                    emailEnabled ? "bg-brand" : "bg-border/60",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200",
-                      emailEnabled ? "translate-x-4" : "translate-x-0",
-                    )}
-                  />
-                </button>
+                <SwitchControl
+                  checked={emailEnabled}
+                  onCheckedChange={setEmailEnabled}
+                  ariaLabel={t("onboarding.notify.email")}
+                />
               </div>
 
               {/* Frequency */}
@@ -175,7 +155,7 @@ export default function OnboardingModal({ user, saving, onComplete }: Onboarding
                     onChange={(e) =>
                       setEmailFrequency(e.target.value as "immediate" | "daily" | "weekly" | "off")
                     }
-                    className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
+                    className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
                   >
                     <option value="immediate">{t("onboarding.notify.frequency.immediate")}</option>
                     <option value="daily">{t("onboarding.notify.frequency.daily")}</option>
@@ -204,6 +184,7 @@ export default function OnboardingModal({ user, saving, onComplete }: Onboarding
             </div>
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   );

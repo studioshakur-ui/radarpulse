@@ -1,42 +1,29 @@
-import React, { useEffect } from "react";
-import { Sun, Moon } from "lucide-react";
+import React from "react";
+import { Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/state/theme";
+import { useLocale } from "@/lib/i18n";
 
 /**
- * ThemeMenu — Sun/Moon toggle.
- * Reads persisted preference from localStorage (key "rp_theme") via the
- * Zustand theme store and applies the .dark class to <html>.
+ * ThemeMenu — canonical theme indicator.
+ * RadarPulse uses a single curated theme to keep marketing and product
+ * surfaces in one controlled visual universe.
  */
 export function ThemeMenu({ className }: { className?: string }) {
-  const { effective, setMode, init } = useTheme();
-
-  useEffect(() => {
-    init();
-  }, [init]);
-
-  function toggle() {
-    setMode(effective === "dark" ? "light" : "dark");
-  }
+  const { t } = useLocale();
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={effective === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={effective === "dark" ? "Light mode" : "Dark mode"}
+    <div
+      role="status"
+      aria-label={t("theme.singleTheme")}
+      title={t("theme.singleTheme")}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/35",
-        "bg-surface/60 text-subtext shadow-soft transition",
-        "hover:bg-elevated/80 hover:text-text",
+        "inline-flex h-9 items-center gap-2 rounded-xl border border-line/25 bg-surface/80 px-3",
+        "text-subtext shadow-soft",
         className,
       )}
     >
-      {effective === "dark" ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
-    </button>
+      <Moon className="h-4 w-4 shrink-0 text-brand" />
+      <span className="text-xs font-semibold tracking-wide text-text">{t("theme.twilight")}</span>
+    </div>
   );
 }

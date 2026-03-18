@@ -2,6 +2,17 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ExternalLink, CalendarDays, Globe, Tag, Clock, History, ChevronDown, ChevronUp, Zap, Activity } from "lucide-react";
 import { cn, daysLeft, fmtRelative, fmtDateTime } from "@/lib/utils";
+import {
+  DecisionControl,
+  DecisionStateBadge,
+  DeadlinePill,
+  RecommendationStateBadge,
+  ScoreStateBadge,
+  SemanticPill,
+  SignalBadge,
+  StatePanel,
+  WorkflowStateBadge,
+} from "@/components/ds/statusPrimitives";
 import { useLocale } from "@/lib/i18n";
 import type { Decision, WorkflowStatus } from "@/lib/types";
 import { useDecisions } from "@/features/inbox/useDecisions";
@@ -38,10 +49,9 @@ function formatDecisionLabel(decision: Decision | null, t: (k: string) => string
 }
 
 function formatRecommendationLabel(
-  recommendation: OpportunityScore["recommendation"],
+  recommendation: Decision,
   t: (k: string) => string,
 ) {
-  if (!recommendation) return null;
   if (recommendation === "NO_GO") return t("workspace.recommendation.noGo");
   return t(`workspace.recommendation.${recommendation.toLowerCase()}`);
 }
@@ -54,96 +64,9 @@ function formatWorkflowLabel(status: WorkflowStatus, t: (k: string) => string) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtext/85">
+    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtext/85 sm:text-[11px]">
       {children}
     </div>
-  );
-}
-
-function DeadlineBadge({
-  deadline,
-  daySuffix,
-  t,
-}: {
-  deadline: string | null;
-  daySuffix: string;
-  t: (k: string) => string;
-}) {
-  const dl = daysLeft(deadline);
-  if (dl === null) return null;
-  if (dl < 0)
-    return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2.5 py-1 text-xs font-semibold text-bad">
-        {t("inbox.deadline.expired")}
-      </span>
-    );
-  if (dl <= 7)
-    return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2.5 py-1 text-xs font-semibold text-bad">
-        ⚠ {dl}
-        {daySuffix}
-      </span>
-    );
-  if (dl <= 30)
-    return (
-      <span className="rounded-full border border-warn/30 bg-warn/15 px-2.5 py-1 text-xs font-semibold text-warn">
-        {dl}
-        {daySuffix}
-      </span>
-    );
-  return (
-    <span className="rounded-full border border-line/30 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
-      {dl}
-      {daySuffix}
-    </span>
-  );
-}
-
-function RecommendationBadge({
-  recommendation,
-  t,
-}: {
-  recommendation: OpportunityScore["recommendation"];
-  t: (k: string) => string;
-}) {
-  if (!recommendation) return null;
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2.5 py-1 text-xs font-semibold",
-        recommendation === "GO" && "border border-good/40 bg-good/12 text-good",
-        recommendation === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
-        recommendation === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
-      )}
-    >
-      {formatRecommendationLabel(recommendation, t)}
-    </span>
-  );
-}
-
-function WorkflowBadge({
-  workflowStatus,
-  t,
-}: {
-  workflowStatus: WorkflowStatus | null;
-  t: (k: string) => string;
-}) {
-  if (!workflowStatus) return null;
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2.5 py-1 text-xs font-semibold",
-        workflowStatus === "NEW" && "border border-line/25 bg-bg text-subtext",
-        workflowStatus === "REVIEWED" && "border border-brand/30 bg-brand/8 text-brand",
-        workflowStatus === "GO" && "border border-good/40 bg-good/12 text-good",
-        workflowStatus === "PREPARATION" && "border border-warn/40 bg-warn/12 text-warn",
-        workflowStatus === "READY" && "border border-brand/40 bg-brand/12 text-brand",
-        workflowStatus === "SUBMITTED" && "border border-good/30 bg-good/10 text-good",
-        workflowStatus === "EXPIRED" && "border border-bad/40 bg-bad/12 text-bad",
-      )}
-    >
-      {formatWorkflowLabel(workflowStatus, t)}
-    </span>
   );
 }
 
@@ -155,45 +78,11 @@ function StatusPill({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-line/15 bg-bg/70 px-2.5 py-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+    <div className="flex items-center gap-2 rounded-full border border-line/15 bg-bg/70 px-3 py-1.5">
+      <span className="text-xs font-semibold uppercase tracking-wide text-subtext/75 sm:text-[11px]">
         {label}
       </span>
       {children}
-    </div>
-  );
-}
-
-function DecisionButtons({
-  id,
-  current,
-  onDecide,
-}: {
-  id: string;
-  current: Decision | null;
-  onDecide: (id: string, d: Decision) => void;
-}) {
-  return (
-    <div className="flex gap-2">
-      {(["GO", "HOLD", "NO_GO"] as Decision[]).map((d) => {
-        const active = current === d;
-        return (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onDecide(id, d)}
-            className={cn(
-              "flex-1 rounded-xl border py-2.5 text-sm font-semibold transition",
-              active && d === "GO" && "border-good/60 bg-good/20 text-good",
-              active && d === "HOLD" && "border-warn/60 bg-warn/20 text-warn",
-              active && d === "NO_GO" && "border-bad/60 bg-bad/20 text-bad",
-              !active && "border-line/25 bg-bg text-subtext hover:bg-elevated",
-            )}
-          >
-            {d === "NO_GO" ? "NO" : d}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -244,12 +133,12 @@ function BriefContent({ brief, t }: { brief: OpportunityBrief; t: (k: string) =>
       ) : null}
 
       {brief.next_action ? (
-        <div className="rounded-xl border border-brand/30 bg-brand/8 px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-brand">
-            {t("inbox.card.brief.nextAction")}:{" "}
-          </span>
-          <span className="text-subtext">{brief.next_action}</span>
-        </div>
+        <StatePanel
+          tone="brand"
+          title={t("inbox.card.brief.nextAction")}
+          description={brief.next_action}
+          className="rounded-xl p-3 shadow-none"
+        />
       ) : null}
     </div>
   );
@@ -481,7 +370,7 @@ export default function WorkspacePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-5">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/inbox"
           className="inline-flex items-center gap-1.5 text-sm text-subtext transition hover:text-text"
@@ -501,10 +390,10 @@ export default function WorkspacePage() {
       </div>
 
       {/* Opportunity header */}
-      <section className="rounded-2xl border border-line/30 bg-surface/95 px-5 py-4 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
+      <section className="rounded-2xl border border-line/30 bg-surface/95 px-4 py-4 shadow-soft sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold leading-tight text-text">{opportunity.title}</h1>
+            <h1 className="text-xl font-semibold leading-tight text-text sm:text-2xl">{opportunity.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-subtext">
               {opportunity.buyer_name ? <span>{opportunity.buyer_name}</span> : null}
               {opportunity.country_code ? (
@@ -521,98 +410,76 @@ export default function WorkspacePage() {
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {opportunity.status === "active" ? (
-              <span className="rounded-full border border-good/30 bg-good/10 px-2.5 py-1 text-xs font-semibold text-good">
+              <SemanticPill tone="good">
                 {opportunity.status}
-              </span>
+              </SemanticPill>
             ) : (
-              <span className="rounded-full border border-line/30 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
+              <SemanticPill>
                 {opportunity.status}
-              </span>
+              </SemanticPill>
             )}
             {extraction ? (
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
-                  extraction.extraction_quality === "high" &&
-                    "border border-good/30 bg-good/8 text-good/80",
-                  extraction.extraction_quality === "med" &&
-                    "border border-warn/30 bg-warn/8 text-warn/80",
-                  extraction.extraction_quality === "low" &&
-                    "border border-bad/30 bg-bad/8 text-bad/80",
-                )}
-                title={t("workspace.extraction.quality")}
-              >
-                {t(`workspace.score.${extraction.extraction_quality}`)}
-              </span>
+              <ScoreStateBadge
+                band={extraction.extraction_quality}
+                label={t(`workspace.score.${extraction.extraction_quality}`)}
+                size="md"
+              />
             ) : null}
             {extraction?.needs_review ? (
-              <span className="rounded-full border border-warn/40 bg-warn/10 px-2.5 py-1 text-xs font-semibold text-warn">
-                ⚠ {t("workspace.extraction.needsReview")}
-              </span>
+              <SignalBadge tone="warn">{t("workspace.extraction.needsReview")}</SignalBadge>
             ) : null}
           </div>
         </div>
         {opportunity.summary ? (
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-subtext">{opportunity.summary}</p>
+          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-subtext sm:text-base">{opportunity.summary}</p>
         ) : null}
       </section>
 
       {/* Dossier status strip */}
-      <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-line/25 bg-surface/92 px-4 py-3 shadow-soft">
+      <section className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-line/25 bg-surface/92 px-4 py-3 shadow-soft">
         <span className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
           {t("workspace.status.title")}
         </span>
         <StatusPill label={t("workspace.status.workflow")}>
-          <WorkflowBadge workflowStatus={displayWorkflowStatus} t={t} />
+          <WorkflowStateBadge
+            status={displayWorkflowStatus}
+            formatLabel={(status) => formatWorkflowLabel(status, t)}
+          />
         </StatusPill>
         <StatusPill label={t("workspace.status.decision")}>
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-semibold",
-              decision === "GO" && "border border-good/40 bg-good/12 text-good",
-              decision === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
-              decision === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
-              !decision && "border border-line/25 bg-bg text-subtext",
-            )}
-          >
-            {formatDecisionLabel(decision, t)}
-          </span>
+          <DecisionStateBadge decision={decision} undecidedLabel={formatDecisionLabel(null, t)} />
         </StatusPill>
         <StatusPill label={t("workspace.status.recommendation")}>
           {!scoreLoading && recommendation ? (
-            <RecommendationBadge recommendation={recommendation} t={t} />
+            <RecommendationStateBadge
+              recommendation={recommendation}
+              formatLabel={(nextDecision) => formatRecommendationLabel(nextDecision, t)}
+            />
           ) : (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
-              {t("workspace.recommendation.pending")}
-            </span>
+            <SemanticPill>{t("workspace.recommendation.pending")}</SemanticPill>
           )}
         </StatusPill>
         <StatusPill label={t("workspace.status.score")}>
           {!scoreLoading && score ? (
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
-                score.score_band === "high" && "border border-good/30 bg-good/8 text-good",
-                score.score_band === "med" && "border border-warn/30 bg-warn/8 text-warn",
-                score.score_band === "low" && "border border-bad/30 bg-bad/8 text-bad",
-              )}
-            >
-              {t(`workspace.score.${score.score_band}`)} · {Math.round(score.score_value * 100)}%
-            </span>
+            <ScoreStateBadge
+              band={score.score_band}
+              label={t(`workspace.score.${score.score_band}`)}
+              value={`${Math.round(score.score_value * 100)}%`}
+            />
           ) : !scoreLoading ? (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
-              {t("workspace.score.pending")}
-            </span>
+            <SemanticPill>{t("workspace.score.pending")}</SemanticPill>
           ) : null}
         </StatusPill>
         {/* Deadline */}
         <StatusPill label={t("workspace.status.urgency")}>
           {opportunity.deadline_at ? (
-            <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+            <DeadlinePill
+              deadline={opportunity.deadline_at}
+              daySuffix={daySuffix}
+              expiredLabel={t("inbox.deadline.expired")}
+            />
           ) : (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
-              {t("workspace.deadline.none")}
-            </span>
+            <SemanticPill>{t("workspace.deadline.none")}</SemanticPill>
           )}
         </StatusPill>
         {/* Deadline vs effort intelligence */}
@@ -632,7 +499,7 @@ export default function WorkspacePage() {
         ) : null}
         {/* Brief freshness */}
         {brief ? (
-          <span className="ml-auto text-xs text-subtext/70">
+          <span className="w-full text-xs text-subtext/70 sm:ml-auto sm:w-auto">
             {t("workspace.status.briefFresh")} {fmtRelative(brief.generatedAt, fmtLocale)}
           </span>
         ) : null}
@@ -642,8 +509,8 @@ export default function WorkspacePage() {
       <div className="grid gap-5 lg:grid-cols-12">
         {/* Brief + Documents — left, larger */}
         <div className="space-y-5 lg:col-span-7">
-          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">Brief</h2>
               <button
                 type="button"
@@ -666,13 +533,15 @@ export default function WorkspacePage() {
             </div>
 
             {briefError ? (
-              <button
-                type="button"
-                onClick={handleGenerateBrief}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
-              >
-                {t("inbox.card.brief.error")}
-              </button>
+              <StatePanel tone="bad" title={t("inbox.card.brief.error")} className="p-3 shadow-none">
+                <button
+                  type="button"
+                  onClick={handleGenerateBrief}
+                  className="inline-flex items-center rounded-lg border border-bad/30 bg-bad/10 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
+                >
+                  {t("workspace.brief.refresh")}
+                </button>
+              </StatePanel>
             ) : brief ? (
               <>
                 <BriefContent brief={brief} t={t} />
@@ -681,7 +550,7 @@ export default function WorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setBriefHistoryOpen((v) => !v)}
-                      className="flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtext/75 transition hover:text-text"
+                      className="flex w-full items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-subtext/75 transition hover:text-text sm:text-xs"
                     >
                       <History className="h-3 w-3" />
                       {t("workspace.brief.history.label")} ({briefVersions.length})
@@ -701,14 +570,14 @@ export default function WorkspacePage() {
                             <span className="text-xs text-text">
                               {fmtDateTime(v.created_at, fmtLocale)}
                             </span>
-                            <span className="text-[11px] font-mono text-subtext/75">{v.model}</span>
+                            <span className="text-xs font-mono text-subtext/75 sm:text-[11px]">{v.model}</span>
                             {v.is_current ? (
-                              <span className="rounded-full border border-brand/30 bg-brand/8 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand">
+                              <SignalBadge tone="brand" size="sm" uppercase>
                                 {t("workspace.brief.history.current")}
-                              </span>
+                              </SignalBadge>
                             ) : null}
                             {v.generation_ms ? (
-                              <span className="ml-auto text-[11px] tabular-nums text-subtext/65">
+                              <span className="ml-auto text-xs tabular-nums text-subtext/65 sm:text-[11px]">
                                 {v.generation_ms}ms
                               </span>
                             ) : null}
@@ -731,9 +600,9 @@ export default function WorkspacePage() {
               </div>
             ) : extraction?.summary_10s ? (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
-                  {t("workspace.extraction.quickSnapshot")}
-                </p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-subtext/75 sm:text-xs">
+                    {t("workspace.extraction.quickSnapshot")}
+                  </p>
                 <p className="text-sm leading-relaxed text-subtext">
                   {extraction.summary_10s}
                 </p>
@@ -745,52 +614,46 @@ export default function WorkspacePage() {
 
         {/* Next Actions */}
         {nextBestAction ? (
-          <div className="rounded-2xl border border-brand/30 bg-brand/8 p-5 shadow-soft">
-            <div className="mb-3 flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-brand/85" />
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-brand/85">
-                {t("workspace.nextActions.label")}
-              </h2>
-            </div>
+          <StatePanel
+            tone={
+              nextBestAction.tone === "neutral"
+                ? "neutral"
+                : nextBestAction.tone === "brand"
+                  ? "brand"
+                  : nextBestAction.tone
+            }
+            title={t("workspace.nextActions.label")}
+            className="p-5"
+          >
             <div className="space-y-3">
-              <div
-                className={cn(
-                  "rounded-xl border px-4 py-3",
-                  nextBestAction.tone === "good" && "border-good/30 bg-good/10",
-                  nextBestAction.tone === "warn" && "border-warn/30 bg-warn/10",
-                  nextBestAction.tone === "bad" && "border-bad/30 bg-bad/10",
-                  nextBestAction.tone === "brand" && "border-brand/30 bg-brand/10",
-                  nextBestAction.tone === "neutral" && "border-line/20 bg-bg/80",
-                )}
-              >
-                <p className="text-sm font-semibold text-text">{nextBestAction.title}</p>
-                <p className="mt-1 text-sm leading-relaxed text-subtext">{nextBestAction.body}</p>
+              <div className="flex items-center gap-2 text-brand/85">
+                <Zap className="h-3.5 w-3.5" />
+                <span className="text-xs font-semibold uppercase tracking-wide">{nextBestAction.title}</span>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-subtext/85">
-                {!brief ? <span>{t("workspace.nextActions.signal.briefMissing")}</span> : null}
-                {!decision ? <span>{t("workspace.nextActions.signal.decisionMissing")}</span> : null}
+              <p className="text-sm leading-relaxed text-subtext">{nextBestAction.body}</p>
+              <div className="flex flex-wrap gap-2">
+                {!brief ? <SignalBadge>{t("workspace.nextActions.signal.briefMissing")}</SignalBadge> : null}
+                {!decision ? <SignalBadge>{t("workspace.nextActions.signal.decisionMissing")}</SignalBadge> : null}
                 {recommendation ? (
-                  <span>
-                    {t("workspace.status.recommendation")}: {formatRecommendationLabel(recommendation, t)}
-                  </span>
+                  <RecommendationStateBadge
+                    recommendation={recommendation}
+                    formatLabel={(nextDecision) => formatRecommendationLabel(nextDecision, t)}
+                    size="sm"
+                  />
                 ) : null}
-                {workflowStatus ? (
-                  <span>
-                    {t("workspace.status.workflow")}: {formatWorkflowLabel(workflowStatus, t)}
-                  </span>
-                ) : (
-                  <span>
-                    {t("workspace.status.workflow")}: {formatWorkflowLabel("NEW", t)}
-                  </span>
-                )}
+                <WorkflowStateBadge
+                  status={workflowStatus ?? "NEW"}
+                  formatLabel={(status) => formatWorkflowLabel(status, t)}
+                  size="sm"
+                />
               </div>
             </div>
-          </div>
+          </StatePanel>
         ) : null}
 
         {/* Documents */}
         {documents.length > 0 ? (
-          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft sm:p-5">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtext">
               {t("workspace.documents.label")}
             </h2>
@@ -820,8 +683,8 @@ export default function WorkspacePage() {
         ) : null}
         {/* Preparation Plan */}
         {(decision === "GO" || prep || prepGenerating) ? (
-          <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">
                 {t("workspace.prep.label")}
               </h2>
@@ -862,13 +725,15 @@ export default function WorkspacePage() {
                 ) : null}
               </div>
             ) : prepError ? (
-              <button
-                type="button"
-                onClick={() => opportunity && void generatePrep(opportunity.id)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
-              >
-                {t("workspace.prep.error")}
-              </button>
+              <StatePanel tone="bad" title={t("workspace.prep.error")} className="p-3 shadow-none">
+                <button
+                  type="button"
+                  onClick={() => opportunity && void generatePrep(opportunity.id)}
+                  className="inline-flex items-center rounded-lg border border-bad/35 bg-bad/12 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/18"
+                >
+                  {t("workspace.prep.generate")}
+                </button>
+              </StatePanel>
             ) : prep ? (
               <div className="space-y-4">
                 {/* Response plan */}
@@ -888,7 +753,7 @@ export default function WorkspacePage() {
                         <li key={i} className="flex items-start gap-2.5">
                           <span
                             className={cn(
-                              "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                              "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-bold uppercase sm:text-[10px]",
                               item.priority === "high" && "bg-bad/15 text-bad",
                               item.priority === "med" && "bg-warn/15 text-warn",
                               item.priority === "low" && "bg-subtext/10 text-subtext/80",
@@ -951,7 +816,7 @@ export default function WorkspacePage() {
           {/* Workflow */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <SectionLabel>{t("workspace.workflow.label")}</SectionLabel>
-              <p className="mb-3 text-base leading-relaxed text-subtext">
+              <p className="mb-3 text-sm leading-relaxed text-subtext sm:text-base">
               {!workflowStatus
                 ? t("workspace.workflow.defaultHint")
                 : t("workspace.workflow.savedHint")}
@@ -969,7 +834,10 @@ export default function WorkspacePage() {
               ))}
             </select>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <WorkflowBadge workflowStatus={displayWorkflowStatus} t={t} />
+              <WorkflowStateBadge
+                status={displayWorkflowStatus}
+                formatLabel={(status) => formatWorkflowLabel(status, t)}
+              />
               {workflowSaving ? (
                 <span className="text-xs text-subtext/70">{t("workspace.workflow.saving")}</span>
               ) : workflow?.updated_at ? (
@@ -981,28 +849,25 @@ export default function WorkspacePage() {
               )}
             </div>
             {workflowError ? (
-              <p className="mt-2 text-xs text-bad">{workflowError}</p>
+              <StatePanel tone="bad" description={workflowError} className="mt-3 p-3 shadow-none" />
             ) : null}
           </div>
 
           {/* Decision */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <SectionLabel>{t("workspace.decision.label")}</SectionLabel>
-              <p className="mb-3 text-base leading-relaxed text-subtext">
+              <p className="mb-3 text-sm leading-relaxed text-subtext sm:text-base">
               {t("workspace.decision.helper")}
             </p>
-            <DecisionButtons id={opportunity.id} current={decision} onDecide={decide} />
+            <DecisionControl
+              value={decision}
+              onChange={(nextDecision) => void decide(opportunity.id, nextDecision)}
+              noGoLabel="NO-GO"
+            />
             {decision ? (
-              <p
-                className={cn(
-                  "mt-2 text-xs font-semibold",
-                  decision === "GO" && "text-good",
-                  decision === "HOLD" && "text-warn",
-                  decision === "NO_GO" && "text-bad",
-                )}
-              >
-                {formatDecisionLabel(decision, t)}
-              </p>
+              <div className="mt-2">
+                <DecisionStateBadge decision={decision} noGoLabel="NO-GO" />
+              </div>
             ) : null}
           </div>
 
@@ -1033,36 +898,35 @@ export default function WorkspacePage() {
                 ) : null}
               </div>
             ) : scoreError ? (
-              <button
-                type="button"
-                onClick={() => opportunity && void generateScore(opportunity.id)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-bad/30 bg-bad/8 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/15"
-              >
-                {t("workspace.score.error")}
-              </button>
+              <StatePanel tone="bad" title={t("workspace.score.error")} className="p-3 shadow-none">
+                <button
+                  type="button"
+                  onClick={() => opportunity && void generateScore(opportunity.id)}
+                  className="inline-flex items-center rounded-lg border border-bad/35 bg-bad/12 px-3 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad/18"
+                >
+                  {t("workspace.score.generate")}
+                </button>
+              </StatePanel>
             ) : score ? (
               <>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
-                      score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
-                      score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
-                      score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
-                    )}
-                  >
-                    {t(`workspace.score.${score.score_band}`)}
-                  </span>
+                  <ScoreStateBadge
+                    band={score.score_band}
+                    label={t(`workspace.score.${score.score_band}`)}
+                  />
                   <span className="text-sm font-semibold tabular-nums text-text">
                     {Math.round(score.score_value * 100)}%
                   </span>
                 </div>
                 {score.recommendation ? (
                   <div className="mt-2 space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-subtext/75 sm:text-xs">
                       {t("workspace.recommendation.label")}
                     </p>
-                    <RecommendationBadge recommendation={score.recommendation} t={t} />
+                    <RecommendationStateBadge
+                      recommendation={score.recommendation}
+                      formatLabel={(nextDecision) => formatRecommendationLabel(nextDecision, t)}
+                    />
                   </div>
                 ) : null}
                 {score.rationale_summary ? (
@@ -1091,7 +955,11 @@ export default function WorkspacePage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
+                  <DeadlinePill
+                    deadline={opportunity.deadline_at}
+                    daySuffix={daySuffix}
+                    expiredLabel={t("inbox.deadline.expired")}
+                  />
                   {dl !== null && dl >= 0 ? (
                     <span className="text-sm text-subtext">
                       {dl}
@@ -1110,10 +978,10 @@ export default function WorkspacePage() {
             <div className="space-y-3">
               <div>
                 <SectionLabel>{t("workspace.type.label")}</SectionLabel>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-line/25 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
+                <SignalBadge className="gap-1.5">
                   <Tag className="h-3.5 w-3.5" />
                   {opportunity.type}
-                </span>
+                </SignalBadge>
               </div>
               {extraction?.budget_value ? (
                 <div>
