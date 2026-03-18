@@ -1,6 +1,47 @@
 import { supabase } from "@/lib/supabase";
 
 const FEED_LIMIT = 12;
+const COUNTRY_REGION_ALIAS_MAP: Record<string, Record<string, string[]>> = {
+  IT: {
+    abruzzo: ["abruzzo", "l aquila", "laquila", "pescara", "chieti", "teramo"],
+    basilicata: ["basilicata", "potenza", "matera"],
+    calabria: ["calabria", "catanzaro", "reggio calabria", "cosenza", "crotone", "vibo valentia"],
+    campania: ["campania", "napoli", "naples", "salerno", "caserta", "avellino", "benevento"],
+    "emilia-romagna": ["emilia romagna", "bologna", "modena", "parma", "reggio emilia", "rimini", "ferrara", "piacenza", "ravenna", "forli", "cesena"],
+    "friuli-venezia-giulia": ["friuli venezia giulia", "trieste", "udine", "gorizia", "pordenone"],
+    lazio: ["lazio", "roma", "rome", "frosinone", "latina", "viterbo", "rieti"],
+    liguria: ["liguria", "genova", "genoa", "savona", "imperia", "la spezia"],
+    lombardia: ["lombardia", "milano", "milan", "bergamo", "brescia", "como", "varese", "pavia", "monza", "mantova", "cremona", "lecco", "sondrio", "lodi"],
+    marche: ["marche", "ancona", "pesaro", "urbino", "macerata", "fermo", "ascoli piceno"],
+    molise: ["molise", "campobasso", "isernia"],
+    piemonte: ["piemonte", "torino", "turin", "novara", "alessandria", "asti", "biella", "cuneo", "verbania", "vercelli"],
+    puglia: ["puglia", "bari", "lecce", "taranto", "foggia", "brindisi", "barletta", "andria", "trani"],
+    sardegna: ["sardegna", "sardinia", "cagliari", "sassari", "nuoro", "oristano"],
+    sicilia: ["sicilia", "sicily", "palermo", "catania", "messina", "trapani", "siracusa", "ragusa", "agrigento", "enna", "caltanissetta"],
+    toscana: ["toscana", "tuscany", "firenze", "florence", "pisa", "siena", "prato", "arezzo", "lucca", "livorno", "grosseto", "pistoia", "massa carrara"],
+    "trentino-alto-adige": ["trentino alto adige", "trentino alto adige sudtirol", "trento", "bolzano", "bozen"],
+    umbria: ["umbria", "perugia", "terni"],
+    "valle-daosta": ["valle d aosta", "valle daosta", "aosta"],
+    veneto: ["veneto", "venezia", "venice", "verona", "padova", "padua", "vicenza", "treviso", "belluno", "rovigo"],
+  },
+  FR: {
+    "ile-de-france": ["ile de france", "paris", "seine saint denis", "hauts de seine", "val de marne", "essonne", "yvelines", "val d oise", "seine et marne"],
+    "auvergne-rhone-alpes": ["auvergne rhone alpes", "lyon", "grenoble", "clermont ferrand", "annecy", "saint etienne", "valence", "chambery"],
+    "provence-alpes-cote-dazur": ["provence alpes cote d azur", "marseille", "nice", "toulon", "avignon", "aix en provence", "cannes"],
+    occitanie: ["occitanie", "toulouse", "montpellier", "nimes", "perpignan"],
+    "nouvelle-aquitaine": ["nouvelle aquitaine", "bordeaux", "limoges", "poitiers", "pau", "la rochelle"],
+    "hauts-de-france": ["hauts de france", "lille", "amiens", "arras", "calais", "dunkerque"],
+  },
+  GB: {
+    london: ["london", "greater london"],
+    "south-east": ["south east", "kent", "surrey", "oxford", "oxfordshire", "brighton", "hampshire"],
+    "north-west": ["north west", "manchester", "liverpool", "cumbria", "cheshire", "bolton"],
+    "west-midlands": ["west midlands", "birmingham", "coventry", "wolverhampton"],
+    scotland: ["scotland", "edinburgh", "glasgow", "aberdeen", "dundee"],
+    wales: ["wales", "cardiff", "swansea", "newport"],
+    "northern-ireland": ["northern ireland", "belfast", "derry", "londonderry"],
+  },
+};
 
 export type GeoZone = {
   id: string;
@@ -180,7 +221,91 @@ function isUrgent(deadlineAt: string | null) {
   return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
 }
 
-export function buildGeoFeedInsights(items: GeoOpportunity[]): GeoFeedInsights {
+function normalizeGeoText(value: string | null | undefined) {
+  const next = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("’", " ")
+    .replaceAll("'", " ")
+    .replaceAll("-", " ")
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return next;
+}
+
+function isActiveOpportunity(item: Pick<GeoOpportunity, "deadline_at" | "status">) {
+  if (String(item.status ?? "").toLowerCase() === "expired") return false;
+  return !isExpired(item.deadline_at);
+}
+
+function buildRegionAliasIndex(countryCode: string, regions: GeoRegion[]) {
+  const aliasConfig = COUNTRY_REGION_ALIAS_MAP[countryCode] ?? {};
+  const aliasIndex = new Map<string, string>();
+
+  for (const region of regions) {
+    aliasIndex.set(normalizeGeoText(region.slug), region.slug);
+    aliasIndex.set(normalizeGeoText(region.name), region.slug);
+    aliasIndex.set(normalizeGeoText(region.normalized_name), region.slug);
+  }
+
+  for (const [slug, aliases] of Object.entries(aliasConfig)) {
+    if (!regions.some((region) => region.slug === slug)) continue;
+    for (const alias of aliases) {
+      aliasIndex.set(normalizeGeoText(alias), slug);
+    }
+  }
+
+  return aliasIndex;
+}
+
+function findRegionSlugByText(text: string, aliasIndex: Map<string, string>) {
+  if (!text) return "";
+  for (const [alias, slug] of aliasIndex.entries()) {
+    if (alias && text.includes(alias)) return slug;
+  }
+  return "";
+}
+
+export function resolveOpportunityRegionSlug(
+  item: Pick<GeoOpportunity, "geo_region_slug" | "geo_region_name" | "region" | "locality" | "title" | "buyer_name">,
+  countryCode: string,
+  regions: GeoRegion[],
+) {
+  const regionBySlug = new Map(regions.map((region) => [region.slug, region]));
+  const aliasIndex = buildRegionAliasIndex(countryCode, regions);
+  const geoSlug = typeof item.geo_region_slug === "string" ? item.geo_region_slug.trim().toLowerCase() : "";
+  if (geoSlug && regionBySlug.has(geoSlug)) return geoSlug;
+
+  const exact =
+    aliasIndex.get(normalizeGeoText(item.geo_region_name))
+    || aliasIndex.get(normalizeGeoText(item.region))
+    || aliasIndex.get(normalizeGeoText(item.locality));
+  if (exact) return exact;
+
+  const searchText = normalizeGeoText(
+    [item.geo_region_name, item.region, item.locality, item.buyer_name, item.title]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  return findRegionSlugByText(searchText, aliasIndex);
+}
+
+export function resolveOpportunityRegionName(
+  item: Pick<GeoOpportunity, "geo_region_slug" | "geo_region_name" | "region" | "locality" | "title" | "buyer_name">,
+  countryCode: string,
+  regions: GeoRegion[],
+) {
+  const slug = resolveOpportunityRegionSlug(item, countryCode, regions);
+  if (!slug) return item.geo_region_name ?? item.region ?? item.locality ?? null;
+  return regions.find((region) => region.slug === slug)?.name ?? item.geo_region_name ?? item.region ?? item.locality ?? null;
+}
+
+export function buildGeoFeedInsights(
+  items: GeoOpportunity[],
+  options?: { countryCode?: string | null; regions?: GeoRegion[] },
+): GeoFeedInsights {
   const sourceMix = new Map<string, GeoFeedBreakdownItem>();
   const originMix = new Map<string, GeoFeedBreakdownItem>();
   const countryHotspots = new Map<string, GeoFeedBreakdownItem>();
@@ -210,12 +335,20 @@ export function buildGeoFeedInsights(items: GeoOpportunity[]): GeoFeedInsights {
       slug: item.geo_country_code ?? item.country_code,
     });
 
-    const regionLabel = normalizeLabel(item.geo_region_name ?? item.region, "Unassigned");
+    const resolvedRegionLabel =
+      options?.countryCode && options.regions?.length
+        ? resolveOpportunityRegionName(item, options.countryCode, options.regions)
+        : item.geo_region_name ?? item.region;
+    const resolvedRegionSlug =
+      options?.countryCode && options.regions?.length
+        ? resolveOpportunityRegionSlug(item, options.countryCode, options.regions)
+        : item.geo_region_slug;
+    const regionLabel = normalizeLabel(resolvedRegionLabel, "Unassigned");
     pushCount(regionHotspots, regionLabel, {
       label: regionLabel,
       hint: item.geo_country_code ?? item.country_code,
       value: 1,
-      slug: item.geo_region_slug,
+      slug: resolvedRegionSlug,
     });
 
     const localityLabel = normalizeLabel(item.geo_locality_name ?? item.locality, "Unassigned");
@@ -247,6 +380,7 @@ export function buildGeoFeedInsights(items: GeoOpportunity[]): GeoFeedInsights {
 }
 
 function opportunitiesQuery() {
+  const nowIso = new Date().toISOString();
   return supabase
     .from("opportunities_geo_scope_v1")
     .select(
@@ -254,6 +388,7 @@ function opportunitiesQuery() {
       { count: "exact" },
     )
     .eq("is_public", true)
+    .or(`deadline_at.is.null,deadline_at.gte.${nowIso}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
     .limit(FEED_LIMIT);
@@ -293,10 +428,10 @@ async function listScopedOpportunities(scope: {
   };
 }
 
-async function listCountryRegionCounts(countryCode: string): Promise<Record<string, number>> {
+async function listCountryRegionCounts(countryCode: string, regions: GeoRegion[]): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from("opportunities_geo_scope_v1")
-    .select("geo_region_slug,region")
+    .select("geo_region_slug,geo_region_name,region,locality,title,buyer_name,deadline_at,status")
     .eq("is_public", true)
     .eq("country_code", countryCode)
     .limit(5000);
@@ -305,7 +440,20 @@ async function listCountryRegionCounts(countryCode: string): Promise<Record<stri
 
   const counts: Record<string, number> = {};
   for (const row of data ?? []) {
-    const slug = typeof row.geo_region_slug === "string" ? row.geo_region_slug.trim().toLowerCase() : "";
+    if (!isActiveOpportunity(row as Pick<GeoOpportunity, "deadline_at" | "status">)) continue;
+    const slug = resolveOpportunityRegionSlug(
+      {
+        geo_region_slug: row.geo_region_slug ?? null,
+        geo_region_name: row.geo_region_name ?? null,
+        region: row.region ?? null,
+        locality: row.locality ?? null,
+        title: row.title ?? "",
+        buyer_name: row.buyer_name ?? null,
+      },
+      countryCode,
+      regions,
+    );
+
     if (!slug) continue;
     counts[slug] = (counts[slug] ?? 0) + 1;
   }
@@ -379,7 +527,7 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
   if (countryError) throw countryError;
   if (!country) return null;
 
-  const [zoneRes, regionsRes, feed, regionOpportunityCounts] = await Promise.all([
+  const [zoneRes, regionsRes, feed] = await Promise.all([
     supabase
       .from("geo_zones")
       .select("id,parent_zone_id,slug,name,kind,description,sort_order")
@@ -392,16 +540,17 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     listScopedOpportunities({ countryCode }),
-    listCountryRegionCounts(countryCode),
   ]);
 
   if (zoneRes.error) throw zoneRes.error;
   if (regionsRes.error) throw regionsRes.error;
+  const regionRows = (regionsRes.data ?? []) as GeoRegion[];
+  const regionOpportunityCounts = await listCountryRegionCounts(countryCode, regionRows);
 
   return {
     country: country as GeoCountry,
     zone: zoneRes.data as GeoZone,
-    regions: (regionsRes.data ?? []) as GeoRegion[],
+    regions: regionRows,
     regionOpportunityCounts,
     feed,
   };

@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowUpRight, Landmark, MapPinned, RadioTower, ShieldCheck } from "lucide-react";
 import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip } from "@/features/geo/GeoShell";
-import { buildGeoFeedInsights, loadCountryGeoPage, type CountryGeoPageData } from "@/features/geo/geoData";
+import {
+  buildGeoFeedInsights,
+  loadCountryGeoPage,
+  resolveOpportunityRegionName,
+  type CountryGeoPageData,
+} from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
 
 function countryStory(countryCode: string, t: (key: string) => string) {
@@ -50,11 +55,28 @@ export default function CountryPage() {
   const [data, setData] = useState<CountryGeoPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const insights = useMemo(() => buildGeoFeedInsights(data?.feed.items ?? []), [data]);
+  const insights = useMemo(
+    () => buildGeoFeedInsights(data?.feed.items ?? [], { countryCode, regions: data?.regions ?? [] }),
+    [countryCode, data],
+  );
   const story = useMemo(() => countryStory(countryCode, t), [countryCode, t]);
   const leadSource = insights.sourceMix[0] ?? null;
   const leadRegion = insights.regionHotspots[0] ?? null;
   const qualityValue = insights.avgQuality === null ? "—" : `${Math.round(insights.avgQuality * 100)}%`;
+  const nativeVisibleCount = useMemo(
+    () => (data?.feed.items ?? []).filter((item) => item.origin_type === "IT_NATIVE").length,
+    [data],
+  );
+  const resolvedRegionalCount = useMemo(
+    () =>
+      (data?.feed.items ?? []).filter((item) =>
+        Boolean(resolveOpportunityRegionName(item, countryCode, data?.regions ?? [])),
+      ).length,
+    [countryCode, data],
+  );
+  const isCoverageThin = (data?.feed.total ?? 0) <= 20 || insights.activeSources <= 1 || leadRegion?.label === "Unassigned";
+  const storyTitle = isCoverageThin ? t(`geo.country.reality.${countryCode === "FR" ? "fr" : countryCode === "GB" ? "gb" : "it"}.title`) : story.title;
+  const storyBody = isCoverageThin ? t(`geo.country.reality.${countryCode === "FR" ? "fr" : countryCode === "GB" ? "gb" : "it"}.body`) : story.body;
 
   useEffect(() => {
     if (!countryCode) return;
@@ -109,8 +131,30 @@ export default function CountryPage() {
           <div className="grid gap-0 lg:grid-cols-[1.35fr_0.95fr]">
             <div className="border-b border-border/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.82))] p-6 sm:p-8 lg:border-b-0 lg:border-r">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">{story.eyebrow}</div>
-              <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl">{story.title}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-subtext">{story.body}</p>
+              <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl">{storyTitle}</h2>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-subtext">{storyBody}</p>
+
+              <div className="mt-5">
+                <GeoSignalStrip
+                  items={[
+                    {
+                      label: t("geo.country.reality.visibleSources"),
+                      value: String(insights.activeSources),
+                      tone: insights.activeSources >= 3 ? "good" : "warn",
+                    },
+                    {
+                      label: t("geo.country.reality.nativeVisible"),
+                      value: String(nativeVisibleCount),
+                      tone: nativeVisibleCount > 0 ? "good" : "warn",
+                    },
+                    {
+                      label: t("geo.country.reality.regionResolved"),
+                      value: `${resolvedRegionalCount}/${data?.feed.items.length ?? 0}`,
+                      tone: resolvedRegionalCount > 0 ? "default" : "warn",
+                    },
+                  ]}
+                />
+              </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 {story.panels.map((panel) => {
@@ -144,8 +188,12 @@ export default function CountryPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.hotRegions")}</div>
-                  <div className="mt-2 text-xl font-semibold text-text">{leadRegion?.label ?? "—"}</div>
-                  <div className="mt-1 text-sm text-subtext">{leadRegion ? `${leadRegion.value} ${t("geo.country.intelligence.visibleItems")}` : t("geo.feed.empty")}</div>
+                  <div className="mt-2 text-xl font-semibold text-text">{leadRegion?.label ?? t("geo.country.reality.pendingRegion")}</div>
+                  <div className="mt-1 text-sm text-subtext">
+                    {leadRegion && leadRegion.label !== "Unassigned"
+                      ? `${leadRegion.value} ${t("geo.country.intelligence.visibleItems")}`
+                      : t("geo.country.reality.pendingRegionHint")}
+                  </div>
                 </div>
                 <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.avgQuality")}</div>
@@ -231,7 +279,10 @@ export default function CountryPage() {
         </GeoSection>
 
         <GeoSection title={t("geo.feed.title")} subtitle={t("geo.country.feedSubtitle")}>
-          <GeoOpportunityList items={data?.feed.items ?? []} />
+          <GeoOpportunityList
+            items={data?.feed.items ?? []}
+            locationResolver={(item) => resolveOpportunityRegionName(item, countryCode, data?.regions ?? [])}
+          />
         </GeoSection>
       </div>
     </GeoShell>

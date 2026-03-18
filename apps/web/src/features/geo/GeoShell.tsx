@@ -101,6 +101,13 @@ function geoTheme(countryCode?: string | null): GeoTheme {
   }
 }
 
+function cleanGeoOpportunityTitle(title: string) {
+  return title
+    .replace(/^(Italy|Italia|France|United Kingdom|Royaume-Uni|Regno Unito|UK|GB|FR|IT)\s+[—\-:]\s+/i, "")
+    .replace(/^Titolo:\s+/i, "")
+    .trim();
+}
+
 function GeoNavItem({ to, label, end }: { to: string; label: string; end?: boolean }) {
   return (
     <NavLink
@@ -379,8 +386,10 @@ export function GeoSignalStrip({
 
 export function GeoOpportunityList({
   items,
+  locationResolver,
 }: {
   items: GeoOpportunity[];
+  locationResolver?: (item: GeoOpportunity) => string | null;
 }) {
   const { locale, t } = useLocale();
   const intlLocale = LOCALE_MAP[locale] ?? "en-US";
@@ -400,7 +409,7 @@ export function GeoOpportunityList({
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <div className="text-base font-semibold leading-snug text-text">{item.title}</div>
+                <div className="text-base font-semibold leading-snug text-text">{cleanGeoOpportunityTitle(item.title)}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-subtext">
                   <span className="inline-flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
@@ -408,7 +417,7 @@ export function GeoOpportunityList({
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <MapPinned className="h-4 w-4" />
-                    {item.region || item.country_code || "—"}
+                    {locationResolver?.(item) || item.region || item.country_code || "—"}
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <CalendarDays className="h-4 w-4" />
