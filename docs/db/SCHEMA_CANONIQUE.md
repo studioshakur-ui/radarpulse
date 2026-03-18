@@ -35,8 +35,8 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 1272 kB — RLS: on — cols: 21
- - `public.brief_versions` — size: 96 kB — RLS: on — cols: 19
+ - `public.agent_runs` — size: 1360 kB — RLS: on — cols: 21
+ - `public.brief_versions` — size: 160 kB — RLS: on — cols: 19
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
  - `public.geo_countries` — size: 80 kB — RLS: on — cols: 10
@@ -49,9 +49,9 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 920 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 920 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 608 kB — RLS: off — cols: 34
+ - `public.opportunities` — size: 1008 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 1048 kB — RLS: off — cols: 19
+ - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 13
  - `public.opportunity_decisions` — size: 80 kB — RLS: on — cols: 8
@@ -59,9 +59,9 @@
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.opportunity_extractions` — size: 2832 kB — RLS: on — cols: 41
  - `public.opportunity_preps` — size: 112 kB — RLS: on — cols: 17
- - `public.opportunity_scores` — size: 712 kB — RLS: on — cols: 18
+ - `public.opportunity_scores` — size: 840 kB — RLS: on — cols: 18
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
- - `public.rp_ai_runs` — size: 592 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 608 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -137,8 +137,8 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `1272 kB`
- - **Size**: `96 kB`
+ - **Size**: `1360 kB`
+ - **Size**: `160 kB`
  - **Size**: `24 kB`
  - **Size**: `64 kB`
  - **Size**: `80 kB`
@@ -151,9 +151,9 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `920 kB`
- - **Size**: `920 kB`
- - **Size**: `608 kB`
+ - **Size**: `1008 kB`
+ - **Size**: `1048 kB`
+ - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `64 kB`
  - **Size**: `80 kB`
@@ -161,9 +161,9 @@
  - **Size**: `80 kB`
  - **Size**: `2832 kB`
  - **Size**: `112 kB`
- - **Size**: `712 kB`
+ - **Size**: `840 kB`
  - **Size**: `40 kB`
- - **Size**: `592 kB`
+ - **Size**: `608 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
