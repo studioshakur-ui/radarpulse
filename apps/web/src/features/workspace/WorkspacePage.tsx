@@ -73,26 +73,26 @@ function DeadlineBadge({
   if (dl === null) return null;
   if (dl < 0)
     return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2 py-0.5 text-[10px] font-semibold text-bad">
+      <span className="rounded-full border border-bad/30 bg-bad/15 px-2.5 py-1 text-xs font-semibold text-bad">
         {t("inbox.deadline.expired")}
       </span>
     );
   if (dl <= 7)
     return (
-      <span className="rounded-full border border-bad/30 bg-bad/15 px-2 py-0.5 text-[10px] font-semibold text-bad">
+      <span className="rounded-full border border-bad/30 bg-bad/15 px-2.5 py-1 text-xs font-semibold text-bad">
         ⚠ {dl}
         {daySuffix}
       </span>
     );
   if (dl <= 30)
     return (
-      <span className="rounded-full border border-warn/30 bg-warn/15 px-2 py-0.5 text-[10px] font-semibold text-warn">
+      <span className="rounded-full border border-warn/30 bg-warn/15 px-2.5 py-1 text-xs font-semibold text-warn">
         {dl}
         {daySuffix}
       </span>
     );
   return (
-    <span className="rounded-full border border-line/30 bg-bg px-2 py-0.5 text-[10px] font-semibold text-subtext">
+    <span className="rounded-full border border-line/30 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
       {dl}
       {daySuffix}
     </span>
@@ -110,7 +110,7 @@ function RecommendationBadge({
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        "rounded-full px-2.5 py-1 text-xs font-semibold",
         recommendation === "GO" && "border border-good/40 bg-good/12 text-good",
         recommendation === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
         recommendation === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
@@ -132,7 +132,7 @@ function WorkflowBadge({
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        "rounded-full px-2.5 py-1 text-xs font-semibold",
         workflowStatus === "NEW" && "border border-line/25 bg-bg text-subtext",
         workflowStatus === "REVIEWED" && "border border-brand/30 bg-brand/8 text-brand",
         workflowStatus === "GO" && "border border-good/40 bg-good/12 text-good",
@@ -183,7 +183,7 @@ function DecisionButtons({
             type="button"
             onClick={() => onDecide(id, d)}
             className={cn(
-              "flex-1 rounded-xl border py-2 text-sm font-semibold transition",
+              "flex-1 rounded-xl border py-2.5 text-sm font-semibold transition",
               active && d === "GO" && "border-good/60 bg-good/20 text-good",
               active && d === "HOLD" && "border-warn/60 bg-warn/20 text-warn",
               active && d === "NO_GO" && "border-bad/60 bg-bad/20 text-bad",
@@ -493,7 +493,7 @@ export default function WorkspacePage() {
           href={opportunity.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface/95 px-3 py-1.5 text-xs font-semibold text-text/75 transition hover:bg-elevated"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface/95 px-3 py-1.5 text-sm font-semibold text-text/75 transition hover:bg-elevated"
         >
           {t("workspace.source")}
           <ExternalLink className="h-3.5 w-3.5" />
@@ -504,7 +504,7 @@ export default function WorkspacePage() {
       <section className="rounded-2xl border border-line/30 bg-surface/95 px-5 py-4 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-snug text-text">{opportunity.title}</h1>
+            <h1 className="text-2xl font-semibold leading-tight text-text">{opportunity.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-subtext">
               {opportunity.buyer_name ? <span>{opportunity.buyer_name}</span> : null}
               {opportunity.country_code ? (
@@ -521,18 +521,18 @@ export default function WorkspacePage() {
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {opportunity.status === "active" ? (
-              <span className="rounded-full border border-good/30 bg-good/10 px-2.5 py-0.5 text-[11px] font-semibold text-good">
+              <span className="rounded-full border border-good/30 bg-good/10 px-2.5 py-1 text-xs font-semibold text-good">
                 {opportunity.status}
               </span>
             ) : (
-              <span className="rounded-full border border-line/30 bg-bg px-2.5 py-0.5 text-[11px] font-semibold text-subtext">
+              <span className="rounded-full border border-line/30 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
                 {opportunity.status}
               </span>
             )}
             {extraction ? (
               <span
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                  "rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
                   extraction.extraction_quality === "high" &&
                     "border border-good/30 bg-good/8 text-good/80",
                   extraction.extraction_quality === "med" &&
@@ -546,20 +546,20 @@ export default function WorkspacePage() {
               </span>
             ) : null}
             {extraction?.needs_review ? (
-              <span className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-[10px] font-semibold text-warn">
+              <span className="rounded-full border border-warn/40 bg-warn/10 px-2.5 py-1 text-xs font-semibold text-warn">
                 ⚠ {t("workspace.extraction.needsReview")}
               </span>
             ) : null}
           </div>
         </div>
         {opportunity.summary ? (
-          <p className="mt-3 text-sm leading-relaxed text-subtext">{opportunity.summary}</p>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-subtext">{opportunity.summary}</p>
         ) : null}
       </section>
 
       {/* Dossier status strip */}
-      <section className="flex flex-wrap items-center gap-3 rounded-xl border border-line/25 bg-surface/92 px-4 py-2.5 shadow-soft">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+      <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-line/25 bg-surface/92 px-4 py-3 shadow-soft">
+        <span className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
           {t("workspace.status.title")}
         </span>
         <StatusPill label={t("workspace.status.workflow")}>
@@ -568,7 +568,7 @@ export default function WorkspacePage() {
         <StatusPill label={t("workspace.status.decision")}>
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
               decision === "GO" && "border border-good/40 bg-good/12 text-good",
               decision === "HOLD" && "border border-warn/40 bg-warn/12 text-warn",
               decision === "NO_GO" && "border border-bad/40 bg-bad/12 text-bad",
@@ -582,7 +582,7 @@ export default function WorkspacePage() {
           {!scoreLoading && recommendation ? (
             <RecommendationBadge recommendation={recommendation} t={t} />
           ) : (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
               {t("workspace.recommendation.pending")}
             </span>
           )}
@@ -591,7 +591,7 @@ export default function WorkspacePage() {
           {!scoreLoading && score ? (
             <span
               className={cn(
-                "rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
                 score.score_band === "high" && "border border-good/30 bg-good/8 text-good",
                 score.score_band === "med" && "border border-warn/30 bg-warn/8 text-warn",
                 score.score_band === "low" && "border border-bad/30 bg-bad/8 text-bad",
@@ -600,7 +600,7 @@ export default function WorkspacePage() {
               {t(`workspace.score.${score.score_band}`)} · {Math.round(score.score_value * 100)}%
             </span>
           ) : !scoreLoading ? (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
               {t("workspace.score.pending")}
             </span>
           ) : null}
@@ -610,7 +610,7 @@ export default function WorkspacePage() {
           {opportunity.deadline_at ? (
             <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
           ) : (
-            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-0.5 text-[11px] text-subtext/80">
+            <span className="rounded-full border border-line/20 bg-bg/85 px-2.5 py-1 text-xs text-subtext/80">
               {t("workspace.deadline.none")}
             </span>
           )}
@@ -619,7 +619,7 @@ export default function WorkspacePage() {
         {prep?.effort_days && dl !== null && dl >= 0 ? (
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
               dl < prep.effort_days * 1.5
                 ? "border border-bad/40 bg-bad/10 text-bad"
                 : dl < prep.effort_days * 3
@@ -632,7 +632,7 @@ export default function WorkspacePage() {
         ) : null}
         {/* Brief freshness */}
         {brief ? (
-          <span className="ml-auto text-[11px] text-subtext/70">
+          <span className="ml-auto text-xs text-subtext/70">
             {t("workspace.status.briefFresh")} {fmtRelative(brief.generatedAt, fmtLocale)}
           </span>
         ) : null}
@@ -644,13 +644,13 @@ export default function WorkspacePage() {
         <div className="space-y-5 lg:col-span-7">
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">Brief</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">Brief</h2>
               <button
                 type="button"
                 onClick={handleGenerateBrief}
                 disabled={briefLoading}
                 className={cn(
-                  "rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition",
+                  "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
                   brief
                     ? "border-brand/50 bg-brand/15 text-brand"
                     : "border-line/25 bg-bg/85 text-subtext/85 hover:bg-elevated hover:text-text",
@@ -681,7 +681,7 @@ export default function WorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setBriefHistoryOpen((v) => !v)}
-                      className="flex w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtext/75 transition hover:text-text"
+                      className="flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtext/75 transition hover:text-text"
                     >
                       <History className="h-3 w-3" />
                       {t("workspace.brief.history.label")} ({briefVersions.length})
@@ -698,17 +698,17 @@ export default function WorkspacePage() {
                             key={v.id}
                             className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-line/15 bg-bg px-3 py-2"
                           >
-                            <span className="text-[11px] text-text">
+                            <span className="text-xs text-text">
                               {fmtDateTime(v.created_at, fmtLocale)}
                             </span>
-                            <span className="text-[10px] font-mono text-subtext/75">{v.model}</span>
+                            <span className="text-[11px] font-mono text-subtext/75">{v.model}</span>
                             {v.is_current ? (
-                              <span className="rounded-full border border-brand/30 bg-brand/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-brand">
+                              <span className="rounded-full border border-brand/30 bg-brand/8 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand">
                                 {t("workspace.brief.history.current")}
                               </span>
                             ) : null}
                             {v.generation_ms ? (
-                              <span className="ml-auto text-[10px] tabular-nums text-subtext/65">
+                              <span className="ml-auto text-[11px] tabular-nums text-subtext/65">
                                 {v.generation_ms}ms
                               </span>
                             ) : null}
@@ -731,7 +731,7 @@ export default function WorkspacePage() {
               </div>
             ) : extraction?.summary_10s ? (
               <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+                <p className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
                   {t("workspace.extraction.quickSnapshot")}
                 </p>
                 <p className="text-sm leading-relaxed text-subtext">
@@ -748,7 +748,7 @@ export default function WorkspacePage() {
           <div className="rounded-2xl border border-brand/30 bg-brand/8 p-5 shadow-soft">
             <div className="mb-3 flex items-center gap-2">
               <Zap className="h-3.5 w-3.5 text-brand/85" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-brand/85">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-brand/85">
                 {t("workspace.nextActions.label")}
               </h2>
             </div>
@@ -766,7 +766,7 @@ export default function WorkspacePage() {
                 <p className="text-sm font-semibold text-text">{nextBestAction.title}</p>
                 <p className="mt-1 text-sm leading-relaxed text-subtext">{nextBestAction.body}</p>
               </div>
-              <div className="flex flex-wrap gap-2 text-[11px] text-subtext/85">
+              <div className="flex flex-wrap gap-2 text-xs text-subtext/85">
                 {!brief ? <span>{t("workspace.nextActions.signal.briefMissing")}</span> : null}
                 {!decision ? <span>{t("workspace.nextActions.signal.decisionMissing")}</span> : null}
                 {recommendation ? (
@@ -822,12 +822,12 @@ export default function WorkspacePage() {
         {(decision === "GO" || prep || prepGenerating) ? (
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">
                 {t("workspace.prep.label")}
               </h2>
               <div className="flex items-center gap-2">
                 {prep?.effort_days ? (
-                  <span className="text-[11px] font-semibold text-subtext/70">
+                  <span className="text-xs font-semibold text-subtext/70">
                     ~{prep.effort_days}d
                   </span>
                 ) : null}
@@ -836,7 +836,7 @@ export default function WorkspacePage() {
                     type="button"
                     onClick={() => opportunity && void generatePrep(opportunity.id)}
                     className={cn(
-                      "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+                      "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
                       prep
                         ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
                         : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
@@ -858,7 +858,7 @@ export default function WorkspacePage() {
                   />
                 ))}
                 {prepGenerating ? (
-                  <p className="text-[11px] text-subtext/70">{t("workspace.prep.computing")}</p>
+                  <p className="text-xs text-subtext/70">{t("workspace.prep.computing")}</p>
                 ) : null}
               </div>
             ) : prepError ? (
@@ -888,7 +888,7 @@ export default function WorkspacePage() {
                         <li key={i} className="flex items-start gap-2.5">
                           <span
                             className={cn(
-                              "mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-bold uppercase",
+                              "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
                               item.priority === "high" && "bg-bad/15 text-bad",
                               item.priority === "med" && "bg-warn/15 text-warn",
                               item.priority === "low" && "bg-subtext/10 text-subtext/80",
@@ -951,7 +951,7 @@ export default function WorkspacePage() {
           {/* Workflow */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <SectionLabel>{t("workspace.workflow.label")}</SectionLabel>
-            <p className="mb-3 text-sm leading-relaxed text-subtext">
+              <p className="mb-3 text-base leading-relaxed text-subtext">
               {!workflowStatus
                 ? t("workspace.workflow.defaultHint")
                 : t("workspace.workflow.savedHint")}
@@ -971,24 +971,24 @@ export default function WorkspacePage() {
             <div className="mt-2 flex items-center justify-between gap-2">
               <WorkflowBadge workflowStatus={displayWorkflowStatus} t={t} />
               {workflowSaving ? (
-                <span className="text-[11px] text-subtext/70">{t("workspace.workflow.saving")}</span>
+                <span className="text-xs text-subtext/70">{t("workspace.workflow.saving")}</span>
               ) : workflow?.updated_at ? (
-                <span className="text-[11px] text-subtext/70">
+                <span className="text-xs text-subtext/70">
                   {fmtRelative(workflow.updated_at, fmtLocale)}
                 </span>
               ) : (
-                <span className="text-[11px] text-subtext/70">{t("workspace.workflow.notSavedYet")}</span>
+                <span className="text-xs text-subtext/70">{t("workspace.workflow.notSavedYet")}</span>
               )}
             </div>
             {workflowError ? (
-              <p className="mt-2 text-[11px] text-bad">{workflowError}</p>
+              <p className="mt-2 text-xs text-bad">{workflowError}</p>
             ) : null}
           </div>
 
           {/* Decision */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
             <SectionLabel>{t("workspace.decision.label")}</SectionLabel>
-            <p className="mb-3 text-sm leading-relaxed text-subtext">
+              <p className="mb-3 text-base leading-relaxed text-subtext">
               {t("workspace.decision.helper")}
             </p>
             <DecisionButtons id={opportunity.id} current={decision} onDecide={decide} />
@@ -1015,7 +1015,7 @@ export default function WorkspacePage() {
                   type="button"
                   onClick={() => opportunity && void generateScore(opportunity.id)}
                   className={cn(
-                    "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
+                    "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
                     score
                       ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
                       : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
@@ -1029,7 +1029,7 @@ export default function WorkspacePage() {
               <div className="space-y-2">
                 <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
                 {scoreGenerating ? (
-                  <p className="text-[11px] text-subtext/70">{t("workspace.score.computing")}</p>
+                  <p className="text-xs text-subtext/70">{t("workspace.score.computing")}</p>
                 ) : null}
               </div>
             ) : scoreError ? (
@@ -1045,7 +1045,7 @@ export default function WorkspacePage() {
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+                      "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
                       score.score_band === "high" && "border border-good/40 bg-good/15 text-good",
                       score.score_band === "med" && "border border-warn/40 bg-warn/15 text-warn",
                       score.score_band === "low" && "border border-bad/40 bg-bad/15 text-bad",
@@ -1059,14 +1059,14 @@ export default function WorkspacePage() {
                 </div>
                 {score.recommendation ? (
                   <div className="mt-2 space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-subtext/75">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
                       {t("workspace.recommendation.label")}
                     </p>
                     <RecommendationBadge recommendation={score.recommendation} t={t} />
                   </div>
                 ) : null}
                 {score.rationale_summary ? (
-                  <p className="mt-2 text-[12px] leading-relaxed text-subtext">
+                  <p className="mt-2 text-sm leading-relaxed text-subtext">
                     {score.rationale_summary}
                   </p>
                 ) : null}
@@ -1093,7 +1093,7 @@ export default function WorkspacePage() {
                 <div className="flex items-center gap-2">
                   <DeadlineBadge deadline={opportunity.deadline_at} daySuffix={daySuffix} t={t} />
                   {dl !== null && dl >= 0 ? (
-                    <span className="text-xs text-subtext">
+                    <span className="text-sm text-subtext">
                       {dl}
                       {daySuffix} {t("workspace.deadline.remaining")}
                     </span>
@@ -1156,7 +1156,7 @@ export default function WorkspacePage() {
       <section className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-subtext/65" />
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-subtext">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">
             {t("workspace.timeline.label")}
           </h2>
         </div>
@@ -1185,7 +1185,7 @@ export default function WorkspacePage() {
                   ) : null}
                 </div>
                 <div className="min-w-0 pb-3">
-                  <p className="text-xs text-text">
+                  <p className="text-sm text-text">
                     {t(`workspace.timeline.${ev.type}`)}
                     {ev.type === "decision_set" && ev.decisionValue
                       ? ` · ${ev.decisionValue === "NO_GO" ? "NO-GO" : ev.decisionValue}`
@@ -1194,7 +1194,7 @@ export default function WorkspacePage() {
                       ? ` → ${ev.decisionValue === "NO_GO" ? "NO-GO" : ev.decisionValue}`
                       : null}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-subtext/70">
+                  <p className="mt-0.5 text-xs text-subtext/70">
                     {fmtRelative(ev.ts, fmtLocale)}
                     {ev.durationMs ? ` · ${ev.durationMs}ms` : null}
                   </p>

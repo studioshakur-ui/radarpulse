@@ -353,7 +353,7 @@ function InboxDetail({
           ) : brief ? (
             <BriefPanel brief={brief} t={t} />
           ) : !briefLoading ? (
-            <p className="text-sm text-subtext/60">{t("inbox.noSelection")}</p>
+            <p className="text-sm text-subtext/60">{t("workspace.brief.empty")}</p>
           ) : null}
         </div>
       </div>
@@ -752,39 +752,45 @@ export default function InboxPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <DeadlineBadge deadline={item.deadline_at} t={t} daySuffix={daySuffix} />
-                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext">
+                    <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2.5 py-1 text-xs font-semibold text-subtext">
                       {formatQuality(item.quality_score, t)}
                     </span>
                     {item.origin_type ? (
-                      <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2 py-0.5 text-[11px] font-semibold uppercase text-subtext">
+                      <span className="inline-flex items-center rounded-full border border-line/40 bg-bg px-2.5 py-1 text-xs font-semibold uppercase text-subtext">
                         {item.origin_type}
                       </span>
                     ) : null}
-                    <DecisionButtons id={item.id} current={decision} onDecide={decide} />
-                    <button
-                      type="button"
-                      onClick={() => toggleBrief(briefInput)}
-                      disabled={briefLoading}
-                      className={cn(
-                        "rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition",
-                        briefExpanded && brief
-                          ? "border-brand/50 bg-brand/15 text-brand"
-                          : "border-line/25 bg-bg text-subtext hover:bg-elevated",
-                        briefLoading && "cursor-wait opacity-70",
-                      )}
-                    >
-                      {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
-                    </button>
-                    <Link
-                      to={`/workspace/${item.id}`}
-                      className="rounded-lg border border-line/25 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext transition hover:bg-elevated"
-                    >
-                      {t("workspace.openBtn")}
-                    </Link>
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-2 text-xs text-subtext sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4">
+                  <DecisionButtons id={item.id} current={decision} onDecide={decide} />
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleBrief(briefInput)}
+                    disabled={briefLoading}
+                    className={cn(
+                      "flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                      briefExpanded && brief
+                        ? "border-brand/50 bg-brand/15 text-brand"
+                        : "border-line/25 bg-bg text-subtext hover:bg-elevated",
+                      briefLoading && "cursor-wait opacity-70",
+                    )}
+                  >
+                    {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
+                  </button>
+                  <Link
+                    to={`/workspace/${item.id}`}
+                    className="flex-1 rounded-xl border border-line/25 bg-bg px-3 py-2 text-center text-sm font-semibold text-subtext transition hover:bg-elevated"
+                  >
+                    {t("workspace.openBtn")}
+                  </Link>
+                </div>
+
+                <div className="mt-4 grid gap-2 text-sm text-subtext sm:grid-cols-2">
                   <div className="inline-flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
                     <span>{item.region || item.country_code || "—"}</span>

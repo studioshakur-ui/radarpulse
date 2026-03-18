@@ -53,6 +53,7 @@ function TypewriterHero() {
   const cycles = HERO_CYCLES[lang] ?? HERO_CYCLES.en;
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     setIdx(0);
@@ -60,6 +61,7 @@ function TypewriterHero() {
   }, [lang]);
 
   useEffect(() => {
+    if (prefersReducedMotion) return;
     const interval = window.setInterval(() => {
       setVisible(false);
       window.setTimeout(() => {
@@ -68,17 +70,17 @@ function TypewriterHero() {
       }, 380);
     }, 3400);
     return () => window.clearInterval(interval);
-  }, [cycles.length]);
+  }, [cycles.length, prefersReducedMotion]);
 
   const line = cycles[idx] ?? { strong: "Win more", accent: "public tenders." };
 
   return (
     <h1
-      className="text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-[5.25rem]"
+      className="text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-[5.25rem]"
       style={{
-        transition: "opacity 0.38s ease, transform 0.38s ease",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(-10px)",
+        transition: prefersReducedMotion ? "none" : "opacity 0.38s ease, transform 0.38s ease",
+        opacity: prefersReducedMotion ? 1 : visible ? 1 : 0,
+        transform: prefersReducedMotion ? "none" : visible ? "translateY(0)" : "translateY(-10px)",
       }}
     >
       <span className="text-text">{line.strong} </span>
@@ -176,10 +178,12 @@ function HeroBrowserMockup() {
   };
   const ml = MOCKUP_LABELS[lang] ?? MOCKUP_LABELS.en;
   const [tick, setTick] = useState(0);
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   useEffect(() => {
+    if (prefersReducedMotion) return;
     const t = window.setInterval(() => setTick((n) => n + 1), 3200);
     return () => window.clearInterval(t);
-  }, []);
+  }, [prefersReducedMotion]);
 
   const cards = [
     {
@@ -212,11 +216,13 @@ function HeroBrowserMockup() {
   ];
 
   return (
-    <div className="relative hidden lg:flex lg:items-center lg:justify-center">
+    <div className="relative mx-auto flex w-full max-w-xl items-center justify-center lg:max-w-md lg:justify-end">
       <div
         className="w-full max-w-md overflow-hidden rounded-2xl border border-border/40 bg-bg shadow-2xl"
         style={{
-          transform: "perspective(1200px) rotateY(-5deg) rotateX(2deg)",
+          transform: prefersReducedMotion
+            ? "none"
+            : "perspective(1200px) rotateY(-5deg) rotateX(2deg)",
           transformStyle: "preserve-3d",
         }}
       >
@@ -369,7 +375,7 @@ function SourcesStrip() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3 py-1 text-xs font-semibold text-brand/80">
+    <span className="inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand/80">
       <span className="h-1 w-1 rounded-full bg-brand/60" />
       {children}
     </span>
@@ -1059,9 +1065,20 @@ export function LandingPage() {
                   <SectionLabel>{HERO_PILL[lang]}</SectionLabel>
                 </div>
                 <TypewriterHero />
-                <p className="mt-5 max-w-lg text-base leading-relaxed text-subtext">
+                <p className="mt-5 max-w-xl text-lg leading-relaxed text-subtext">
                   {t("landing.hero.description")}
                 </p>
+                <div className="mt-6 flex flex-wrap gap-2 text-sm text-subtext/80">
+                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
+                    20+ live markets
+                  </span>
+                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
+                    AI scoring and briefs
+                  </span>
+                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
+                    Inbox to workspace workflow
+                  </span>
+                </div>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
                     to="/request-access"
@@ -1076,14 +1093,14 @@ export function LandingPage() {
                     {t("landing.hero.secondaryCta")}
                   </Link>
                 </div>
-                <div className="mt-10 flex flex-wrap gap-8">
+                <div className="mt-10 grid gap-3 sm:grid-cols-3">
                   {stats.map((s) => (
-                    <div key={s.value} className="flex items-start gap-3">
-                      <div className="mt-0.5 h-11 w-0.5 rounded-full bg-brand/40" />
-                      <div>
-                        <p className="text-lg font-bold text-text">{s.value}</p>
-                        <p className="text-xs text-muted">{s.label}</p>
-                      </div>
+                    <div
+                      key={s.value}
+                      className="rounded-2xl border border-line/20 bg-surface/70 px-4 py-3 shadow-soft"
+                    >
+                      <p className="text-xl font-bold text-text">{s.value}</p>
+                      <p className="mt-1 text-sm text-muted">{s.label}</p>
                     </div>
                   ))}
                 </div>
@@ -1102,11 +1119,15 @@ export function LandingPage() {
 
         {/* Bento features */}
         <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
-          <div className="mb-10">
+          <div className="mb-10 max-w-3xl">
             <SectionLabel>{t("landing.diff.eyebrow")}</SectionLabel>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
               {t("landing.diff.title")}
             </h2>
+            <p className="mt-3 text-base leading-relaxed text-subtext">
+              RadarPulse is strongest when the story is obvious at a glance: scan, qualify, decide,
+              then move into action.
+            </p>
           </div>
           <div ref={bentoRef} className="grid grid-cols-1 gap-4 md:grid-cols-12">
             {/* Wide top-left */}
