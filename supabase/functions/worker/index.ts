@@ -10,6 +10,12 @@ import { safeStr } from "../_shared/text.ts";
 import { canonicalizeUrl, sha256Hex, normalizeText } from "../_shared/rp_ai_utils.ts";
 import { runConnector, type ConnectorResult } from "./connectors/index.ts";
 
+type WorkerRunOptions = {
+  aiEnabledOverride?: boolean | null;
+  aiMaxPerJobOverride?: number | null;
+  softDeadlineMsOverride?: number | null;
+};
+
 /* -----------------------------
    Supabase client (service role)
 ----------------------------- */
@@ -403,7 +409,7 @@ function shouldRunAiForItem(args: {
 /* -----------------------------
    Job processor
 ----------------------------- */
-async function processJob(job: IngestionJobRow) {
+async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
   // sécurité absolue
   const jobId = coerceJobId(job as any);
   if (jobId === null) {
@@ -415,9 +421,9 @@ async function processJob(job: IngestionJobRow) {
   const source = await getSource((job as any).source_id);
   const { runId, cursor: runCursor } = await startIngestionRun(source);
   const jobStartedAtMs = Date.now();
-  const aiEnabled = Boolean(Deno.env.get("OPENAI_API_KEY"));
-  const aiMaxPerJob = Math.max(0, getIntEnv("WORKER_MAX_AI_PER_JOB", 8));
-  const softDeadlineMs = Math.max(30_000, getIntEnv("WORKER_SOFT_DEADLINE_MS", 240_000));
+  const aiEnabled = options?.aiEnabledOverride ?? Boolean(Deno.env.get("OPENAI_API_KEY"));
+  const aiMaxPerJob = Math.max(0, options?.aiMaxPerJobOverride ?? getIntEnv("WORKER_MAX_AI_PER_JOB", 8));
+  const softDeadlineMs = Math.max(30_000, options?.softDeadlineMsOverride ?? getIntEnv("WORKER_SOFT_DEADLINE_MS", 240_000));
   const progressEvery = Math.max(1, getIntEnv("WORKER_PROGRESS_EVERY", 10));
 
   try {
@@ -621,6 +627,16 @@ Deno.serve(async (req) => {
   }
 
   const maxJobs = Math.max(1, Math.min(10, Number(body?.max_jobs ?? 1)));
+  const aiEnabledOverride =
+    typeof body?.ai_enabled === "boolean"
+      ? body.ai_enabled
+      : typeof body?.disable_ai === "boolean"
+        ? !body.disable_ai
+        : null;
+  const aiMaxPerJobOverride =
+    Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
+  const softDeadlineMsOverride =
+    Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
   const results: any[] = [];
 
   try {
@@ -644,7 +660,11 @@ Deno.serve(async (req) => {
         break;
       }
 
-      results.push(await processJob(jobAny as IngestionJobRow));
+      results.push(await processJob(jobAny as IngestionJobRow, {
+        aiEnabledOverride,
+        aiMaxPerJobOverride,
+        softDeadlineMsOverride,
+      }));
     }
 
     if (!results.length) {
