@@ -35,8 +35,8 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 1456 kB — RLS: on — cols: 21
- - `public.brief_versions` — size: 160 kB — RLS: on — cols: 19
+ - `public.agent_runs` — size: 1472 kB — RLS: on — cols: 21
+ - `public.brief_versions` — size: 176 kB — RLS: on — cols: 19
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
  - `public.geo_countries` — size: 80 kB — RLS: on — cols: 10
@@ -44,13 +44,13 @@
  - `public.geo_regions` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_zones` — size: 64 kB — RLS: on — cols: 9
  - `public.ingestion_jobs` — size: 192 kB — RLS: on — cols: 11
- - `public.ingestion_runs` — size: 128 kB — RLS: off — cols: 12
+ - `public.ingestion_runs` — size: 144 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 2760 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 2632 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 2816 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 2672 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 96 kB — RLS: on — cols: 13
@@ -137,8 +137,8 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `1456 kB`
- - **Size**: `160 kB`
+ - **Size**: `1472 kB`
+ - **Size**: `176 kB`
  - **Size**: `24 kB`
  - **Size**: `64 kB`
  - **Size**: `80 kB`
@@ -146,13 +146,13 @@
  - **Size**: `80 kB`
  - **Size**: `64 kB`
  - **Size**: `192 kB`
- - **Size**: `128 kB`
+ - **Size**: `144 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `2760 kB`
- - **Size**: `2632 kB`
+ - **Size**: `2816 kB`
+ - **Size**: `2672 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `96 kB`
