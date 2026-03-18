@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict RHFlS8RU8KXdnsWPTEOGZoOqJtXo26P1cKCZ1hZKlvsksbsnoAXdZOZt5kuMRuH
+\restrict eRa4YwdI4w7emioErXQHeRYlwFJ2MjU2v4WoeXZMve2xOle8uGfYCJYlg00Tm4C
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -47,7 +47,8 @@ CREATE TYPE public.agent_run_type AS ENUM (
     'source',
     'extract',
     'score',
-    'brief'
+    'brief',
+    'prep'
 );
 
 
@@ -445,6 +446,20 @@ $$;
 --
 
 CREATE FUNCTION public.set_updated_at_opportunity_decisions() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
+-- Name: set_updated_at_opportunity_workflows(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at_opportunity_workflows() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
@@ -1017,6 +1032,30 @@ CREATE TABLE public.opportunity_extractions (
 
 
 --
+-- Name: opportunity_preps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_preps (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    agent_run_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    is_backfilled boolean DEFAULT false NOT NULL,
+    is_current boolean DEFAULT false NOT NULL,
+    prep_version text NOT NULL,
+    model text,
+    generation_ms integer,
+    checklist jsonb DEFAULT '[]'::jsonb NOT NULL,
+    missing_docs text[] DEFAULT '{}'::text[] NOT NULL,
+    effort_days numeric,
+    blockers text[] DEFAULT '{}'::text[] NOT NULL,
+    response_plan text NOT NULL,
+    input_snapshot jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: opportunity_scores; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1037,7 +1076,24 @@ CREATE TABLE public.opportunity_scores (
     input_profile_snapshot jsonb,
     input_extraction_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    recommendation text,
+    CONSTRAINT opportunity_scores_recommendation_check CHECK (((recommendation IS NULL) OR (recommendation = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
     CONSTRAINT opportunity_scores_subject_type_check CHECK ((subject_type = 'user'::text))
+);
+
+
+--
+-- Name: opportunity_workflows; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.opportunity_workflows (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    workflow_status text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunity_workflows_workflow_status_check CHECK ((workflow_status = ANY (ARRAY['NEW'::text, 'REVIEWED'::text, 'GO'::text, 'PREPARATION'::text, 'READY'::text, 'SUBMITTED'::text, 'EXPIRED'::text])))
 );
 
 
@@ -1360,6 +1416,22 @@ ALTER TABLE ONLY public.opportunity_extractions
 
 
 --
+-- Name: opportunity_preps opportunity_preps_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_agent_run_id_key UNIQUE (agent_run_id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: opportunity_scores opportunity_scores_agent_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1373,6 +1445,22 @@ ALTER TABLE ONLY public.opportunity_scores
 
 ALTER TABLE ONLY public.opportunity_scores
     ADD CONSTRAINT opportunity_scores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_opportunity_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_opportunity_id_user_id_key UNIQUE (opportunity_id, user_id);
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_pkey PRIMARY KEY (id);
 
 
 --
@@ -1761,6 +1849,27 @@ CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_ex
 
 
 --
+-- Name: opportunity_preps_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_idx ON public.opportunity_preps USING btree (opportunity_id, user_id) WHERE (is_current = true);
+
+
+--
+-- Name: opportunity_preps_opportunity_user_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_preps_opportunity_user_created_at_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, created_at DESC);
+
+
+--
+-- Name: opportunity_preps_user_current_created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_preps_user_current_created_at_idx ON public.opportunity_preps USING btree (user_id, is_current, created_at DESC);
+
+
+--
 -- Name: opportunity_scores_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1779,6 +1888,20 @@ CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opport
 --
 
 CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC);
+
+
+--
+-- Name: opportunity_workflows_opportunity_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_workflows_opportunity_id_idx ON public.opportunity_workflows USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_workflows_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX opportunity_workflows_user_id_idx ON public.opportunity_workflows USING btree (user_id);
 
 
 --
@@ -1863,6 +1986,13 @@ CREATE TRIGGER trg_opportunity_briefs_updated_at BEFORE UPDATE ON public.opportu
 --
 
 CREATE TRIGGER trg_opportunity_decisions_updated_at BEFORE UPDATE ON public.opportunity_decisions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_decisions();
+
+
+--
+-- Name: opportunity_workflows trg_opportunity_workflows_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_opportunity_workflows_updated_at BEFORE UPDATE ON public.opportunity_workflows FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_opportunity_workflows();
 
 
 --
@@ -2141,6 +2271,30 @@ ALTER TABLE ONLY public.opportunity_extractions
 
 
 --
+-- Name: opportunity_preps opportunity_preps_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_agent_run_id_fkey FOREIGN KEY (agent_run_id) REFERENCES public.agent_runs(id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id);
+
+
+--
+-- Name: opportunity_preps opportunity_preps_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_preps
+    ADD CONSTRAINT opportunity_preps_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
 -- Name: opportunity_scores opportunity_scores_agent_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2170,6 +2324,22 @@ ALTER TABLE ONLY public.opportunity_scores
 
 ALTER TABLE ONLY public.opportunity_scores
     ADD CONSTRAINT opportunity_scores_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: opportunity_workflows opportunity_workflows_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.opportunity_workflows
+    ADD CONSTRAINT opportunity_workflows_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 
 --
@@ -2218,10 +2388,24 @@ CREATE POLICY "Service role manages opportunity briefs" ON public.opportunity_br
 
 
 --
+-- Name: opportunity_preps Service role manages preps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages preps" ON public.opportunity_preps TO service_role USING (true) WITH CHECK (true);
+
+
+--
 -- Name: opportunity_decisions Service role reads all decisions; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Service role reads all decisions" ON public.opportunity_decisions FOR SELECT TO service_role USING (true);
+
+
+--
+-- Name: opportunity_workflows Service role reads all workflows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role reads all workflows" ON public.opportunity_workflows FOR SELECT TO service_role USING (true);
 
 
 --
@@ -2232,10 +2416,24 @@ CREATE POLICY "Users manage own decisions" ON public.opportunity_decisions TO au
 
 
 --
+-- Name: opportunity_workflows Users manage own workflows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users manage own workflows" ON public.opportunity_workflows TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: decision_history Users read own decision history; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users read own decision history" ON public.decision_history FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+
+
+--
+-- Name: opportunity_preps Users read own preps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own preps" ON public.opportunity_preps FOR SELECT TO authenticated USING ((auth.uid() = user_id));
 
 
 --
@@ -2354,6 +2552,18 @@ CREATE POLICY opportunity_events_public_read ON public.opportunity_events FOR SE
    FROM public.opportunities o
   WHERE ((o.id = opportunity_events.opportunity_id) AND (o.is_public = true)))));
 
+
+--
+-- Name: opportunity_preps; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_preps ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_workflows; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.opportunity_workflows ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: notification_preferences owner_rw; Type: POLICY; Schema: public; Owner: -
@@ -2491,5 +2701,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict RHFlS8RU8KXdnsWPTEOGZoOqJtXo26P1cKCZ1hZKlvsksbsnoAXdZOZt5kuMRuH
+\unrestrict eRa4YwdI4w7emioErXQHeRYlwFJ2MjU2v4WoeXZMve2xOle8uGfYCJYlg00Tm4C
 

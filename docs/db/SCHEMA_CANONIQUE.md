@@ -16,7 +16,7 @@
  
  ## Enums
  - `public.agent_run_status` = 'queued', 'running', 'success', 'error', 'skipped'
- - `public.agent_run_type` = 'source', 'extract', 'score', 'brief'
+ - `public.agent_run_type` = 'source', 'extract', 'score', 'brief', 'prep'
  - `public.event_type` = 'NEW', 'UPDATED', 'DEADLINE_CHANGED', 'NEW_DOC', 'AWARDED', 'EXPIRED'
  - `public.job_status` = 'queued', 'running', 'success', 'error'
  - `public.notify_channel` = 'email', 'telegram', 'whatsapp'
@@ -35,27 +35,29 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 480 kB — RLS: off — cols: 21
- - `public.brief_versions` — size: 40 kB — RLS: off — cols: 18
+ - `public.agent_runs` — size: 664 kB — RLS: off — cols: 21
+ - `public.brief_versions` — size: 96 kB — RLS: off — cols: 18
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
- - `public.decision_history` — size: 32 kB — RLS: on — cols: 12
- - `public.ingestion_jobs` — size: 152 kB — RLS: on — cols: 11
+ - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
+ - `public.ingestion_jobs` — size: 168 kB — RLS: on — cols: 11
  - `public.ingestion_runs` — size: 96 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 496 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 472 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 400 kB — RLS: off — cols: 33
+ - `public.opportunities` — size: 512 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 504 kB — RLS: off — cols: 19
+ - `public.opportunity_ai` — size: 432 kB — RLS: off — cols: 33
  - `public.opportunity_ai_evidence` — size: 160 kB — RLS: off — cols: 8
- - `public.opportunity_briefs` — size: 32 kB — RLS: on — cols: 12
- - `public.opportunity_decisions` — size: 40 kB — RLS: on — cols: 8
+ - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 12
+ - `public.opportunity_decisions` — size: 80 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.opportunity_extractions` — size: 784 kB — RLS: off — cols: 36
- - `public.opportunity_scores` — size: 48 kB — RLS: off — cols: 16
- - `public.rp_ai_runs` — size: 432 kB — RLS: off — cols: 11
+ - `public.opportunity_extractions` — size: 944 kB — RLS: off — cols: 36
+ - `public.opportunity_preps` — size: 112 kB — RLS: on — cols: 16
+ - `public.opportunity_scores` — size: 312 kB — RLS: off — cols: 17
+ - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
+ - `public.rp_ai_runs` — size: 520 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -84,7 +86,9 @@
  #### Table: `public.opportunity_documents`
  #### Table: `public.opportunity_events`
  #### Table: `public.opportunity_extractions`
+ #### Table: `public.opportunity_preps`
  #### Table: `public.opportunity_scores`
+ #### Table: `public.opportunity_workflows`
  #### Table: `public.rp_ai_runs`
  #### Table: `public.sources`
  #### Table: `public.subscriptions`
@@ -111,7 +115,9 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
+ - **RLS**: `on`
  - **RLS**: `off`
+ - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -119,27 +125,29 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `480 kB`
- - **Size**: `40 kB`
+ - **Size**: `664 kB`
+ - **Size**: `96 kB`
  - **Size**: `24 kB`
- - **Size**: `32 kB`
- - **Size**: `152 kB`
+ - **Size**: `64 kB`
+ - **Size**: `168 kB`
  - **Size**: `96 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `496 kB`
- - **Size**: `472 kB`
- - **Size**: `400 kB`
+ - **Size**: `512 kB`
+ - **Size**: `504 kB`
+ - **Size**: `432 kB`
  - **Size**: `160 kB`
- - **Size**: `32 kB`
- - **Size**: `40 kB`
+ - **Size**: `64 kB`
+ - **Size**: `80 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `784 kB`
- - **Size**: `48 kB`
- - **Size**: `432 kB`
+ - **Size**: `944 kB`
+ - **Size**: `112 kB`
+ - **Size**: `312 kB`
+ - **Size**: `40 kB`
+ - **Size**: `520 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
@@ -172,6 +180,8 @@
  
  
  
+ 
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -199,6 +209,10 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -497,6 +511,22 @@
  | `opportunity_id` | `uuid` | `no` | — |
  | `agent_run_id` | `uuid` | `no` | — |
  | `user_id` | `uuid` | `no` | — |
+ | `is_backfilled` | `boolean` | `no` | false |
+ | `is_current` | `boolean` | `no` | false |
+ | `prep_version` | `text` | `no` | — |
+ | `model` | `text` | `yes` | — |
+ | `generation_ms` | `integer` | `yes` | — |
+ | `checklist` | `jsonb` | `no` | '[]'::jsonb |
+ | `missing_docs` | `text[]` | `no` | '{}'::text[] |
+ | `effort_days` | `numeric` | `yes` | — |
+ | `blockers` | `text[]` | `no` | '{}'::text[] |
+ | `response_plan` | `text` | `no` | — |
+ | `input_snapshot` | `jsonb` | `yes` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `agent_run_id` | `uuid` | `no` | — |
+ | `user_id` | `uuid` | `no` | — |
  | `subject_type` | `text` | `no` | 'user'::text |
  | `is_backfilled` | `boolean` | `no` | false |
  | `is_current` | `boolean` | `no` | false |
@@ -509,6 +539,13 @@
  | `input_profile_snapshot` | `jsonb` | `yes` | — |
  | `input_extraction_id` | `uuid` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `recommendation` | `text` | `yes` | — |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `user_id` | `uuid` | `no` | — |
+ | `workflow_status` | `text` | `no` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `raw_id` | `uuid` | `no` | — |
  | `ai_id` | `uuid` | `yes` | — |
@@ -592,6 +629,10 @@
  
  
  
+ 
+ 
+ ##### Indexes
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -693,11 +734,20 @@
  - `CREATE INDEX opportunity_extractions_opportunity_created_at_idx ON public.opportunity_extractions USING btree (opportunity_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_extractions_pkey ON public.opportunity_extractions USING btree (id)`
  - `CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_extractions USING btree (raw_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX opportunity_preps_agent_run_id_key ON public.opportunity_preps USING btree (agent_run_id)`
+ - `CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_idx ON public.opportunity_preps USING btree (opportunity_id, user_id) WHERE (is_current = true)`
+ - `CREATE INDEX opportunity_preps_opportunity_user_created_at_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX opportunity_preps_pkey ON public.opportunity_preps USING btree (id)`
+ - `CREATE INDEX opportunity_preps_user_current_created_at_idx ON public.opportunity_preps USING btree (user_id, is_current, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_scores_agent_run_id_key ON public.opportunity_scores USING btree (agent_run_id)`
  - `CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_idx ON public.opportunity_scores USING btree (opportunity_id, user_id) WHERE (is_current = true)`
  - `CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_scores_pkey ON public.opportunity_scores USING btree (id)`
  - `CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC)`
+ - `CREATE INDEX opportunity_workflows_opportunity_id_idx ON public.opportunity_workflows USING btree (opportunity_id)`
+ - `CREATE UNIQUE INDEX opportunity_workflows_opportunity_id_user_id_key ON public.opportunity_workflows USING btree (opportunity_id, user_id)`
+ - `CREATE UNIQUE INDEX opportunity_workflows_pkey ON public.opportunity_workflows USING btree (id)`
+ - `CREATE INDEX opportunity_workflows_user_id_idx ON public.opportunity_workflows USING btree (user_id)`
  - `CREATE UNIQUE INDEX rp_ai_runs_pkey ON public.rp_ai_runs USING btree (id)`
  - `CREATE INDEX rp_ai_runs_raw_id_idx ON public.rp_ai_runs USING btree (raw_id)`
  - `CREATE INDEX rp_ai_runs_started_at_idx ON public.rp_ai_runs USING btree (started_at DESC)`
@@ -713,6 +763,8 @@
  - `CREATE UNIQUE INDEX telegram_profiles_pkey ON public.telegram_profiles USING btree (user_id)`
  - `CREATE UNIQUE INDEX user_profiles_pkey ON public.user_profiles USING btree (user_id)`
  - `CREATE UNIQUE INDEX whatsapp_optins_pkey ON public.whatsapp_optins USING btree (user_id)`
+ ##### RLS Policies
+ ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
@@ -758,6 +810,10 @@
  - `public_read_opportunity_documents` (cmd: SELECT, roles: {public})
  - `opportunity_events_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunity_events` (cmd: SELECT, roles: {public})
+ - `Service role manages preps` (cmd: ALL, roles: {service_role})
+ - `Users read own preps` (cmd: SELECT, roles: {authenticated})
+ - `Service role reads all workflows` (cmd: SELECT, roles: {service_role})
+ - `Users manage own workflows` (cmd: ALL, roles: {authenticated})
  - `sources_public_read` (cmd: SELECT, roles: {anon})
  - `subscriptions_owner_read` (cmd: SELECT, roles: {public})
  - `subscriptions_owner_update` (cmd: UPDATE, roles: {public})
@@ -804,6 +860,8 @@
  ##### Triggers
  ##### Triggers
  ##### Triggers
+ ##### Triggers
+ ##### Triggers
  - `trg_jobs_updated_at`: CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON ingestion_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_rp_set_updated_at_opportunities_raw`: CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON opportunities_raw FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
  - `trg_compute_opportunity_quality`: CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION compute_opportunity_quality()
@@ -811,6 +869,7 @@
  - `trg_set_opportunity_ai_fingerprint_from_raw`: CREATE TRIGGER trg_set_opportunity_ai_fingerprint_from_raw BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION set_opportunity_ai_fingerprint_from_raw()
  - `trg_opportunity_briefs_updated_at`: CREATE TRIGGER trg_opportunity_briefs_updated_at BEFORE UPDATE ON opportunity_briefs FOR EACH ROW EXECUTE FUNCTION set_updated_at_opportunity_briefs()
  - `trg_opportunity_decisions_updated_at`: CREATE TRIGGER trg_opportunity_decisions_updated_at BEFORE UPDATE ON opportunity_decisions FOR EACH ROW EXECUTE FUNCTION set_updated_at_opportunity_decisions()
+ - `trg_opportunity_workflows_updated_at`: CREATE TRIGGER trg_opportunity_workflows_updated_at BEFORE UPDATE ON opportunity_workflows FOR EACH ROW EXECUTE FUNCTION set_updated_at_opportunity_workflows()
  - `trg_sources_updated_at`: CREATE TRIGGER trg_sources_updated_at BEFORE UPDATE ON sources FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_subscriptions_updated_at`: CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - (none)
@@ -833,6 +892,9 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ 
+ 
  
  
  
@@ -875,5 +937,6 @@
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_briefs()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_decisions()` → `trigger` (lang: plpgsql)
-(875 rows)
+ - `public.set_updated_at_opportunity_workflows()` → `trigger` (lang: plpgsql)
+(938 rows)
 
