@@ -44,13 +44,13 @@
  - `public.geo_regions` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_zones` — size: 64 kB — RLS: on — cols: 9
  - `public.ingestion_jobs` — size: 192 kB — RLS: on — cols: 11
- - `public.ingestion_runs` — size: 112 kB — RLS: off — cols: 12
+ - `public.ingestion_runs` — size: 128 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 2256 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 2208 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 2760 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 2632 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 96 kB — RLS: on — cols: 13
@@ -62,7 +62,7 @@
  - `public.opportunity_scores` — size: 896 kB — RLS: on — cols: 18
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
  - `public.rp_ai_runs` — size: 632 kB — RLS: off — cols: 11
- - `public.sources` — size: 96 kB — RLS: on — cols: 15
+ - `public.sources` — size: 104 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
  - `public.user_profiles` — size: 32 kB — RLS: on — cols: 7
@@ -146,13 +146,13 @@
  - **Size**: `80 kB`
  - **Size**: `64 kB`
  - **Size**: `192 kB`
- - **Size**: `112 kB`
+ - **Size**: `128 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `2256 kB`
- - **Size**: `2208 kB`
+ - **Size**: `2760 kB`
+ - **Size**: `2632 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `96 kB`
@@ -164,7 +164,7 @@
  - **Size**: `896 kB`
  - **Size**: `40 kB`
  - **Size**: `632 kB`
- - **Size**: `96 kB`
+ - **Size**: `104 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
