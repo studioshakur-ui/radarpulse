@@ -35,7 +35,7 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 1440 kB — RLS: on — cols: 21
+ - `public.agent_runs` — size: 1456 kB — RLS: on — cols: 21
  - `public.brief_versions` — size: 160 kB — RLS: on — cols: 19
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
@@ -49,16 +49,16 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 2128 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 2144 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 2256 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 2208 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
- - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 13
+ - `public.opportunity_briefs` — size: 96 kB — RLS: on — cols: 13
  - `public.opportunity_decisions` — size: 80 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.opportunity_extractions` — size: 2832 kB — RLS: on — cols: 41
- - `public.opportunity_preps` — size: 144 kB — RLS: on — cols: 17
+ - `public.opportunity_preps` — size: 200 kB — RLS: on — cols: 17
  - `public.opportunity_scores` — size: 896 kB — RLS: on — cols: 18
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
  - `public.rp_ai_runs` — size: 632 kB — RLS: off — cols: 11
@@ -137,7 +137,7 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `1440 kB`
+ - **Size**: `1456 kB`
  - **Size**: `160 kB`
  - **Size**: `24 kB`
  - **Size**: `64 kB`
@@ -151,16 +151,16 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `2128 kB`
- - **Size**: `2144 kB`
+ - **Size**: `2256 kB`
+ - **Size**: `2208 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
- - **Size**: `64 kB`
+ - **Size**: `96 kB`
  - **Size**: `80 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
  - **Size**: `2832 kB`
- - **Size**: `144 kB`
+ - **Size**: `200 kB`
  - **Size**: `896 kB`
  - **Size**: `40 kB`
  - **Size**: `632 kB`

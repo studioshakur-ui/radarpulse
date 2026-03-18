@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-03-18 20:25:36Z`
+- Generated (UTC): `2026-03-18 21:31:34Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,7 +15,7 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- (none)
+- VIEW public.opportunities_geo_scope_v1
 
 ## Notes
 
