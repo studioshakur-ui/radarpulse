@@ -16,7 +16,7 @@
  
  ## Enums
  - `public.agent_run_status` = 'queued', 'running', 'success', 'error', 'skipped'
- - `public.agent_run_type` = 'source', 'extract', 'score', 'brief', 'prep'
+ - `public.agent_run_type` = 'source', 'extract', 'score', 'brief', 'prep', 'deadline'
  - `public.event_type` = 'NEW', 'UPDATED', 'DEADLINE_CHANGED', 'NEW_DOC', 'AWARDED', 'EXPIRED'
  - `public.job_status` = 'queued', 'running', 'success', 'error'
  - `public.notify_channel` = 'email', 'telegram', 'whatsapp'
@@ -35,10 +35,14 @@
  
  ### Résumé
  - `public.access_requests` — size: 32 kB — RLS: on — cols: 6
- - `public.agent_runs` — size: 768 kB — RLS: off — cols: 21
- - `public.brief_versions` — size: 96 kB — RLS: off — cols: 18
+ - `public.agent_runs` — size: 904 kB — RLS: on — cols: 21
+ - `public.brief_versions` — size: 96 kB — RLS: on — cols: 19
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
+ - `public.geo_countries` — size: 80 kB — RLS: on — cols: 10
+ - `public.geo_localities` — size: 80 kB — RLS: on — cols: 9
+ - `public.geo_regions` — size: 80 kB — RLS: on — cols: 9
+ - `public.geo_zones` — size: 64 kB — RLS: on — cols: 9
  - `public.ingestion_jobs` — size: 168 kB — RLS: on — cols: 11
  - `public.ingestion_runs` — size: 96 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
@@ -47,17 +51,17 @@
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
  - `public.opportunities` — size: 528 kB — RLS: on — cols: 21
  - `public.opportunities_raw` — size: 504 kB — RLS: off — cols: 19
- - `public.opportunity_ai` — size: 432 kB — RLS: off — cols: 33
+ - `public.opportunity_ai` — size: 440 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 160 kB — RLS: off — cols: 8
- - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 12
+ - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 13
  - `public.opportunity_decisions` — size: 80 kB — RLS: on — cols: 8
  - `public.opportunity_documents` — size: 24 kB — RLS: on — cols: 8
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
- - `public.opportunity_extractions` — size: 1072 kB — RLS: off — cols: 36
- - `public.opportunity_preps` — size: 112 kB — RLS: on — cols: 16
- - `public.opportunity_scores` — size: 352 kB — RLS: off — cols: 17
+ - `public.opportunity_extractions` — size: 2832 kB — RLS: on — cols: 41
+ - `public.opportunity_preps` — size: 112 kB — RLS: on — cols: 17
+ - `public.opportunity_scores` — size: 608 kB — RLS: on — cols: 18
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
- - `public.rp_ai_runs` — size: 528 kB — RLS: off — cols: 11
+ - `public.rp_ai_runs` — size: 552 kB — RLS: off — cols: 11
  - `public.sources` — size: 96 kB — RLS: on — cols: 15
  - `public.subscriptions` — size: 104 kB — RLS: on — cols: 14
  - `public.telegram_profiles` — size: 16 kB — RLS: on — cols: 4
@@ -71,6 +75,10 @@
  #### Table: `public.brief_versions`
  #### Table: `public.buyers`
  #### Table: `public.decision_history`
+ #### Table: `public.geo_countries`
+ #### Table: `public.geo_localities`
+ #### Table: `public.geo_regions`
+ #### Table: `public.geo_zones`
  #### Table: `public.ingestion_jobs`
  #### Table: `public.ingestion_runs`
  #### Table: `public.magic_link_tokens`
@@ -96,27 +104,31 @@
  #### Table: `public.user_profiles`
  #### Table: `public.whatsapp_optins`
  - **RLS**: `on`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `on`
- - **RLS**: `on`
- - **RLS**: `on`
- - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
- - **RLS**: `off`
- - **RLS**: `off`
- - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
  - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `off`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `on`
@@ -125,9 +137,13 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **Size**: `32 kB`
- - **Size**: `768 kB`
+ - **Size**: `904 kB`
  - **Size**: `96 kB`
  - **Size**: `24 kB`
+ - **Size**: `64 kB`
+ - **Size**: `80 kB`
+ - **Size**: `80 kB`
+ - **Size**: `80 kB`
  - **Size**: `64 kB`
  - **Size**: `168 kB`
  - **Size**: `96 kB`
@@ -137,17 +153,17 @@
  - **Size**: `24 kB`
  - **Size**: `528 kB`
  - **Size**: `504 kB`
- - **Size**: `432 kB`
+ - **Size**: `440 kB`
  - **Size**: `160 kB`
  - **Size**: `64 kB`
  - **Size**: `80 kB`
  - **Size**: `24 kB`
  - **Size**: `80 kB`
- - **Size**: `1072 kB`
+ - **Size**: `2832 kB`
  - **Size**: `112 kB`
- - **Size**: `352 kB`
+ - **Size**: `608 kB`
  - **Size**: `40 kB`
- - **Size**: `528 kB`
+ - **Size**: `552 kB`
  - **Size**: `96 kB`
  - **Size**: `104 kB`
  - **Size**: `16 kB`
@@ -182,6 +198,10 @@
  
  
  
+ 
+ 
+ 
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -211,6 +231,14 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
+ |---|---|---|---|
+ |---|---|---|---|
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -285,6 +313,7 @@
  | `input_snapshot` | `jsonb` | `yes` | — |
  | `generation_ms` | `integer` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `output_locale` | `text` | `yes` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `country_code` | `text` | `yes` | — |
  | `name` | `text` | `no` | — |
@@ -301,6 +330,43 @@
  | `note` | `text` | `yes` | — |
  | `source` | `text` | `no` | — |
  | `is_backfilled` | `boolean` | `no` | false |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `zone_id` | `uuid` | `no` | — |
+ | `country_code` | `text` | `no` | — |
+ | `slug` | `text` | `no` | — |
+ | `name` | `text` | `no` | — |
+ | `territory_kind` | `text` | `no` | 'country'::text |
+ | `flag_emoji` | `text` | `yes` | — |
+ | `sort_order` | `integer` | `no` | 0 |
+ | `is_active` | `boolean` | `no` | true |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `region_id` | `uuid` | `no` | — |
+ | `slug` | `text` | `no` | — |
+ | `name` | `text` | `no` | — |
+ | `normalized_name` | `text` | `no` | — |
+ | `code` | `text` | `yes` | — |
+ | `sort_order` | `integer` | `no` | 0 |
+ | `is_active` | `boolean` | `no` | true |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `country_id` | `uuid` | `no` | — |
+ | `slug` | `text` | `no` | — |
+ | `name` | `text` | `no` | — |
+ | `normalized_name` | `text` | `no` | — |
+ | `code` | `text` | `yes` | — |
+ | `sort_order` | `integer` | `no` | 0 |
+ | `is_active` | `boolean` | `no` | true |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `parent_zone_id` | `uuid` | `yes` | — |
+ | `slug` | `text` | `no` | — |
+ | `name` | `text` | `no` | — |
+ | `kind` | `text` | `no` | — |
+ | `description` | `text` | `yes` | — |
+ | `sort_order` | `integer` | `no` | 0 |
+ | `is_active` | `boolean` | `no` | true |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `bigint` | `no` | nextval('ingestion_jobs_id_seq'::regclass) |
  | `source_id` | `uuid` | `no` | — |
@@ -430,6 +496,7 @@
  | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `quality_score` | `numeric` | `yes` | 0 |
  | `completeness_score` | `numeric` | `yes` | 0 |
+ | `locality` | `text` | `yes` | — |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `ai_id` | `uuid` | `no` | — |
  | `field` | `text` | `no` | — |
@@ -450,6 +517,7 @@
  | `generation_ms` | `integer` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
+ | `output_locale` | `text` | `yes` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `user_id` | `uuid` | `no` | — |
@@ -507,6 +575,11 @@
  | `quality_score` | `numeric` | `yes` | — |
  | `completeness_score` | `numeric` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `geo_country_id` | `uuid` | `yes` | — |
+ | `geo_region_id` | `uuid` | `yes` | — |
+ | `geo_locality_id` | `uuid` | `yes` | — |
+ | `geo_resolution_confidence` | `text` | `yes` | — |
+ | `locality` | `text` | `yes` | — |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `agent_run_id` | `uuid` | `no` | — |
@@ -523,6 +596,7 @@
  | `response_plan` | `text` | `no` | — |
  | `input_snapshot` | `jsonb` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `output_locale` | `text` | `yes` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `agent_run_id` | `uuid` | `no` | — |
@@ -540,6 +614,7 @@
  | `input_extraction_id` | `uuid` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `recommendation` | `text` | `yes` | — |
+ | `output_locale` | `text` | `yes` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `user_id` | `uuid` | `no` | — |
@@ -631,6 +706,14 @@
  
  
  
+ 
+ 
+ 
+ 
+ ##### Indexes
+ ##### Indexes
+ ##### Indexes
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -676,6 +759,21 @@
  - `CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision_history USING btree (opportunity_id, user_id, created_at DESC)`
  - `CREATE UNIQUE INDEX decision_history_pkey ON public.decision_history USING btree (id)`
  - `CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC)`
+ - `CREATE UNIQUE INDEX geo_countries_country_code_key ON public.geo_countries USING btree (country_code)`
+ - `CREATE UNIQUE INDEX geo_countries_pkey ON public.geo_countries USING btree (id)`
+ - `CREATE UNIQUE INDEX geo_countries_slug_key ON public.geo_countries USING btree (slug)`
+ - `CREATE INDEX geo_countries_zone_sort_idx ON public.geo_countries USING btree (zone_id, sort_order, name)`
+ - `CREATE UNIQUE INDEX geo_localities_pkey ON public.geo_localities USING btree (id)`
+ - `CREATE UNIQUE INDEX geo_localities_region_normalized_name_unique ON public.geo_localities USING btree (region_id, normalized_name)`
+ - `CREATE UNIQUE INDEX geo_localities_region_slug_unique ON public.geo_localities USING btree (region_id, slug)`
+ - `CREATE INDEX geo_localities_region_sort_idx ON public.geo_localities USING btree (region_id, sort_order, name)`
+ - `CREATE UNIQUE INDEX geo_regions_country_normalized_name_unique ON public.geo_regions USING btree (country_id, normalized_name)`
+ - `CREATE UNIQUE INDEX geo_regions_country_slug_unique ON public.geo_regions USING btree (country_id, slug)`
+ - `CREATE INDEX geo_regions_country_sort_idx ON public.geo_regions USING btree (country_id, sort_order, name)`
+ - `CREATE UNIQUE INDEX geo_regions_pkey ON public.geo_regions USING btree (id)`
+ - `CREATE INDEX geo_zones_parent_sort_idx ON public.geo_zones USING btree (parent_zone_id, sort_order, name)`
+ - `CREATE UNIQUE INDEX geo_zones_pkey ON public.geo_zones USING btree (id)`
+ - `CREATE UNIQUE INDEX geo_zones_slug_key ON public.geo_zones USING btree (slug)`
  - `CREATE INDEX ingestion_jobs_claim_idx ON public.ingestion_jobs USING btree (run_at, id) WHERE (status = 'queued'::job_status)`
  - `CREATE UNIQUE INDEX ingestion_jobs_one_open_per_source ON public.ingestion_jobs USING btree (source_id) WHERE (status = ANY (ARRAY['queued'::job_status, 'running'::job_status]))`
  - `CREATE UNIQUE INDEX ingestion_jobs_pkey ON public.ingestion_jobs USING btree (id)`
@@ -730,6 +828,9 @@
  - `CREATE UNIQUE INDEX opportunity_events_pkey ON public.opportunity_events USING btree (id)`
  - `CREATE UNIQUE INDEX opportunity_extractions_agent_run_id_key ON public.opportunity_extractions USING btree (agent_run_id)`
  - `CREATE INDEX opportunity_extractions_fingerprint_idx ON public.opportunity_extractions USING btree (fingerprint)`
+ - `CREATE INDEX opportunity_extractions_geo_country_current_idx ON public.opportunity_extractions USING btree (geo_country_id) WHERE (is_current = true)`
+ - `CREATE INDEX opportunity_extractions_geo_locality_current_idx ON public.opportunity_extractions USING btree (geo_locality_id) WHERE (is_current = true)`
+ - `CREATE INDEX opportunity_extractions_geo_region_current_idx ON public.opportunity_extractions USING btree (geo_region_id) WHERE (is_current = true)`
  - `CREATE UNIQUE INDEX opportunity_extractions_one_current_per_opportunity_idx ON public.opportunity_extractions USING btree (opportunity_id) WHERE (is_current = true)`
  - `CREATE INDEX opportunity_extractions_opportunity_created_at_idx ON public.opportunity_extractions USING btree (opportunity_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_extractions_pkey ON public.opportunity_extractions USING btree (id)`
@@ -792,11 +893,21 @@
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
  - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
+ - `Authenticated read workspace timeline agent runs` (cmd: SELECT, roles: {authenticated})
+ - `Authenticated can read brief versions` (cmd: SELECT, roles: {authenticated})
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
  - `Service role manages decision history` (cmd: ALL, roles: {service_role})
  - `Users read own decision history` (cmd: SELECT, roles: {authenticated})
+ - `geo_countries_public_read` (cmd: SELECT, roles: {public})
+ - `geo_localities_public_read` (cmd: SELECT, roles: {public})
+ - `geo_regions_public_read` (cmd: SELECT, roles: {public})
+ - `geo_zones_public_read` (cmd: SELECT, roles: {public})
  - `service_role can manage tokens` (cmd: ALL, roles: {service_role})
  - `owner_rw` (cmd: ALL, roles: {authenticated})
  - `service_role_all` (cmd: ALL, roles: {service_role})
@@ -810,8 +921,10 @@
  - `public_read_opportunity_documents` (cmd: SELECT, roles: {public})
  - `opportunity_events_public_read` (cmd: SELECT, roles: {anon})
  - `public_read_opportunity_events` (cmd: SELECT, roles: {public})
+ - `Authenticated can read opportunity extractions` (cmd: SELECT, roles: {authenticated})
  - `Service role manages preps` (cmd: ALL, roles: {service_role})
  - `Users read own preps` (cmd: SELECT, roles: {authenticated})
+ - `Users read own opportunity scores` (cmd: SELECT, roles: {authenticated})
  - `Service role reads all workflows` (cmd: SELECT, roles: {service_role})
  - `Users manage own workflows` (cmd: ALL, roles: {authenticated})
  - `sources_public_read` (cmd: SELECT, roles: {anon})
@@ -829,10 +942,10 @@
  - (none)
  - (none)
  - (none)
- - (none)
- - (none)
- - (none)
- - (none)
+ ##### Triggers
+ ##### Triggers
+ ##### Triggers
+ ##### Triggers
  ##### Triggers
  ##### Triggers
  ##### Triggers
@@ -893,6 +1006,14 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ - (none)
+ - (none)
+ - (none)
+ 
+ 
+ 
+ 
  
  
  
@@ -924,6 +1045,7 @@
  
  
  ## Views
+ - `public.opportunities_geo_scope_v1` (view)
  - `public.opportunities_inbox_it_v1` (view)
  - `public.opportunities_search_it_v1` (view)
  - `public.opportunities_search_v1` (view)
@@ -932,11 +1054,12 @@
  - `public.claim_next_ingestion_job(max_attempts integer)` → `ingestion_jobs` (lang: plpgsql)
  - `public.claim_next_notification(p_channel notify_channel)` → `notification_queue` (lang: plpgsql)
  - `public.compute_opportunity_quality()` → `trigger` (lang: plpgsql)
+ - `public.rp_normalize_geo_text(input text)` → `text` (lang: sql)
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_briefs()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_decisions()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_workflows()` → `trigger` (lang: plpgsql)
-(938 rows)
+(1061 rows)
 
