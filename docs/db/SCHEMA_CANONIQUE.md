@@ -49,8 +49,8 @@
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 1184 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 1104 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 1920 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 1872 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 64 kB — RLS: on — cols: 13
@@ -151,8 +151,8 @@
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `1184 kB`
- - **Size**: `1104 kB`
+ - **Size**: `1920 kB`
+ - **Size**: `1872 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `64 kB`
