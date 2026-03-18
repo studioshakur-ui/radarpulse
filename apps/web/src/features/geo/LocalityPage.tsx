@@ -35,7 +35,13 @@ export default function LocalityPage() {
 
   if (notFound) {
     return (
-      <GeoShell title={t("geo.errors.notFoundTitle")} subtitle={t("geo.errors.notFoundBody")} breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode, to: `/countries/${countryCode}` }, { label: regionSlug, to: `/countries/${countryCode}/regions/${regionSlug}` }, { label: localitySlug }]}>
+      <GeoShell
+        title={t("geo.errors.notFoundTitle")}
+        subtitle={t("geo.errors.notFoundBody")}
+        themeCountryCode={countryCode}
+        themeCountryName={countryCode}
+        breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode, to: `/countries/${countryCode}` }, { label: regionSlug, to: `/countries/${countryCode}/regions/${regionSlug}` }, { label: localitySlug }]}
+      >
         <div className="rounded-2xl border border-border/25 bg-white/45 p-5 text-sm text-muted">{t("geo.errors.notFoundBody")}</div>
       </GeoShell>
     );
@@ -45,6 +51,9 @@ export default function LocalityPage() {
     <GeoShell
       title={data?.locality.name ?? t("geo.loading")}
       subtitle={t("geo.locality.subtitle")}
+      themeCountryCode={data?.country.country_code ?? countryCode}
+      themeCountryName={data?.country.name ?? countryCode}
+      themeCountryFlag={data?.country.flag_emoji}
       breadcrumbs={[
         { label: t("geo.nav.global"), to: "/global" },
         data?.zone ? { label: data.zone.name, to: `/zones/${data.zone.slug}` } : { label: "…" },

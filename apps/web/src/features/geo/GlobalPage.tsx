@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Globe2, Map } from "lucide-react";
-import { GeoChildCard, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
-import { loadGlobalGeoPage, type GeoCountry, type GlobalGeoPageData } from "@/features/geo/geoData";
+import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
+import { buildGeoFeedInsights, loadGlobalGeoPage, type GeoCountry, type GlobalGeoPageData } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
 
 export default function GlobalPage() {
@@ -28,7 +28,32 @@ export default function GlobalPage() {
     };
   }, []);
 
-  const featuredCountries = useMemo(() => (data?.countries ?? []).slice(0, 6), [data]);
+  const visibleCountries = useMemo(
+    () => (data?.countries ?? []).filter((country) => country.country_code !== "US"),
+    [data],
+  );
+  const visibleZones = useMemo(
+    () => (data?.zones ?? []).filter((zone) => visibleCountries.some((country) => country.zone_id === zone.id)),
+    [data, visibleCountries],
+  );
+  const featuredCountries = useMemo(() => {
+    const priority = ["FR", "IT", "GB", "EU"];
+    const pool = [...visibleCountries];
+    return pool
+      .sort((a, b) => {
+        const aRank = priority.indexOf(a.country_code);
+        const bRank = priority.indexOf(b.country_code);
+        const safeARank = aRank === -1 ? 999 : aRank;
+        const safeBRank = bRank === -1 ? 999 : bRank;
+        return safeARank - safeBRank || a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+      })
+      .slice(0, 6);
+  }, [visibleCountries]);
+  const insights = useMemo(() => {
+    const next = buildGeoFeedInsights((data?.feed.items ?? []).filter((item) => item.country_code !== "US"));
+    next.countryHotspots = next.countryHotspots.filter((item) => item.slug !== "US");
+    return next;
+  }, [data]);
 
   return (
     <GeoShell
@@ -42,16 +67,39 @@ export default function GlobalPage() {
         <GeoMetricGrid
           items={[
             { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.global.metrics.publicOppsHint") },
-            { label: t("geo.labels.zones"), value: String(data?.zones.length ?? 0), hint: t("geo.global.metrics.zonesHint") },
-            { label: t("geo.labels.countries"), value: String(data?.countries.length ?? 0), hint: t("geo.global.metrics.countriesHint") },
+            { label: t("geo.labels.zones"), value: String(visibleZones.length), hint: t("geo.global.metrics.zonesHint") },
+            { label: t("geo.labels.countries"), value: String(visibleCountries.length), hint: t("geo.global.metrics.countriesHint") },
+            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.global.metrics.sourcesHint") },
           ]}
         />
+
+        <GeoSignalStrip
+          items={[
+            { label: t("geo.insights.urgent"), value: String(insights.urgentCount), tone: insights.urgentCount > 0 ? "warn" : "default" },
+            { label: t("geo.insights.expired"), value: String(insights.expiredCount), tone: insights.expiredCount > 0 ? "bad" : "default" },
+            {
+              label: t("geo.insights.avgQuality"),
+              value: insights.avgQuality === null ? "—" : `${Math.round(insights.avgQuality * 100)}%`,
+              tone: insights.avgQuality !== null && insights.avgQuality >= 0.7 ? "good" : "default",
+            },
+          ]}
+        />
+
+        <GeoSection title={t("geo.global.coreMarketsTitle")} subtitle={t("geo.global.coreMarketsSubtitle")}>
+          <GeoSignalStrip
+            items={featuredCountries.slice(0, 4).map((country, index) => ({
+              label: country.name,
+              value: index === 0 ? t("geo.global.marketLead") : country.country_code,
+              tone: index === 0 ? "good" : "default",
+            }))}
+          />
+        </GeoSection>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <GeoSection title={t("geo.labels.zones")} subtitle={t("geo.global.zonesSubtitle")}>
             <div className="grid gap-4 sm:grid-cols-2">
-              {(data?.zones ?? []).map((zone) => {
-                const countryCount = (data?.countries ?? []).filter((country) => country.zone_id === zone.id).length;
+              {visibleZones.map((zone) => {
+                const countryCount = visibleCountries.filter((country) => country.zone_id === zone.id).length;
                 return (
                   <GeoChildCard
                     key={zone.id}
@@ -81,6 +129,30 @@ export default function GlobalPage() {
             </div>
           </GeoSection>
         </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GeoSection title={t("geo.insights.hotCountries")} subtitle={t("geo.global.hotCountriesSubtitle")}>
+            <GeoInsightList
+              items={insights.countryHotspots}
+              emptyLabel={t("geo.feed.empty")}
+              linkBuilder={(item) => (item.slug ? `/countries/${item.slug}` : null)}
+            />
+          </GeoSection>
+
+          <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.global.sourceCoverageSubtitle")}>
+            <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
+          </GeoSection>
+        </div>
+
+        <GeoSection title={t("geo.insights.originMix")} subtitle={t("geo.global.originMixSubtitle")}>
+          <GeoSignalStrip
+            items={insights.originMix.map((item) => ({
+              label: item.label,
+              value: String(item.value),
+              tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+            }))}
+          />
+        </GeoSection>
 
         <GeoSection title={t("geo.feed.title")} subtitle={t("geo.global.feedSubtitle")}>
           <GeoOpportunityList items={data?.feed.items ?? []} />

@@ -77,6 +77,25 @@ export type GeoFeed = {
   total: number;
 };
 
+export type GeoFeedBreakdownItem = {
+  label: string;
+  value: number;
+  hint?: string | null;
+  slug?: string | null;
+};
+
+export type GeoFeedInsights = {
+  activeSources: number;
+  urgentCount: number;
+  expiredCount: number;
+  avgQuality: number | null;
+  sourceMix: GeoFeedBreakdownItem[];
+  originMix: GeoFeedBreakdownItem[];
+  countryHotspots: GeoFeedBreakdownItem[];
+  regionHotspots: GeoFeedBreakdownItem[];
+  localityHotspots: GeoFeedBreakdownItem[];
+};
+
 export type GlobalGeoPageData = {
   zones: GeoZone[];
   countries: GeoCountry[];
@@ -111,6 +130,120 @@ export type LocalityGeoPageData = {
   locality: GeoLocality;
   feed: GeoFeed;
 };
+
+function normalizeLabel(value: string | null | undefined, fallback: string) {
+  const next = String(value ?? "").trim();
+  return next || fallback;
+}
+
+function sourceLabel(sourceKey: string | null | undefined) {
+  const next = normalizeLabel(sourceKey, "unknown_source");
+  return next
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.toUpperCase() === part ? part : part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function originLabel(originType: string | null | undefined) {
+  const next = normalizeLabel(originType, "other");
+  if (next === "IT_NATIVE") return "IT native";
+  if (next === "EU") return "EU";
+  return next[0]?.toUpperCase() + next.slice(1).toLowerCase();
+}
+
+function pushCount(map: Map<string, GeoFeedBreakdownItem>, key: string, item: GeoFeedBreakdownItem) {
+  const current = map.get(key);
+  if (current) {
+    current.value += item.value;
+    return;
+  }
+  map.set(key, { ...item });
+}
+
+function topBreakdown(map: Map<string, GeoFeedBreakdownItem>, limit = 5) {
+  return [...map.values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)).slice(0, limit);
+}
+
+function isExpired(deadlineAt: string | null) {
+  if (!deadlineAt) return false;
+  const ts = Date.parse(deadlineAt);
+  return Number.isFinite(ts) && ts < Date.now();
+}
+
+function isUrgent(deadlineAt: string | null) {
+  if (!deadlineAt) return false;
+  const ts = Date.parse(deadlineAt);
+  if (!Number.isFinite(ts)) return false;
+  const diff = ts - Date.now();
+  return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+}
+
+export function buildGeoFeedInsights(items: GeoOpportunity[]): GeoFeedInsights {
+  const sourceMix = new Map<string, GeoFeedBreakdownItem>();
+  const originMix = new Map<string, GeoFeedBreakdownItem>();
+  const countryHotspots = new Map<string, GeoFeedBreakdownItem>();
+  const regionHotspots = new Map<string, GeoFeedBreakdownItem>();
+  const localityHotspots = new Map<string, GeoFeedBreakdownItem>();
+  const qualityScores: number[] = [];
+  let urgentCount = 0;
+  let expiredCount = 0;
+
+  for (const item of items) {
+    pushCount(sourceMix, item.source_key ?? "unknown_source", {
+      label: sourceLabel(item.source_key),
+      hint: item.source_key,
+      value: 1,
+    });
+    pushCount(originMix, item.origin_type ?? "other", {
+      label: originLabel(item.origin_type),
+      hint: item.origin_type,
+      value: 1,
+    });
+
+    const countryLabel = normalizeLabel(item.geo_country_name ?? item.country_code, "Unscoped");
+    pushCount(countryHotspots, countryLabel, {
+      label: countryLabel,
+      hint: item.geo_country_code ?? item.country_code,
+      value: 1,
+      slug: item.geo_country_code ?? item.country_code,
+    });
+
+    const regionLabel = normalizeLabel(item.geo_region_name ?? item.region, "Unassigned");
+    pushCount(regionHotspots, regionLabel, {
+      label: regionLabel,
+      hint: item.geo_country_code ?? item.country_code,
+      value: 1,
+      slug: item.geo_region_slug,
+    });
+
+    const localityLabel = normalizeLabel(item.geo_locality_name ?? item.locality, "Unassigned");
+    pushCount(localityHotspots, localityLabel, {
+      label: localityLabel,
+      hint: item.geo_region_name ?? item.region,
+      value: 1,
+      slug: item.geo_locality_slug,
+    });
+
+    if (typeof item.quality_score === "number") {
+      qualityScores.push(Math.max(0, Math.min(1, item.quality_score)));
+    }
+    if (isUrgent(item.deadline_at)) urgentCount += 1;
+    if (isExpired(item.deadline_at)) expiredCount += 1;
+  }
+
+  return {
+    activeSources: sourceMix.size,
+    urgentCount,
+    expiredCount,
+    avgQuality: qualityScores.length > 0 ? qualityScores.reduce((sum, value) => sum + value, 0) / qualityScores.length : null,
+    sourceMix: topBreakdown(sourceMix),
+    originMix: topBreakdown(originMix, 4),
+    countryHotspots: topBreakdown(countryHotspots),
+    regionHotspots: topBreakdown(regionHotspots),
+    localityHotspots: topBreakdown(localityHotspots),
+  };
+}
 
 function opportunitiesQuery() {
   return supabase

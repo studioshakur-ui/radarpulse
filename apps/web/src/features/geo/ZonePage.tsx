@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Map } from "lucide-react";
-import { GeoChildCard, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
-import { loadZoneGeoPage, type ZoneGeoPageData } from "@/features/geo/geoData";
+import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
+import { buildGeoFeedInsights, loadZoneGeoPage, type ZoneGeoPageData } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
 
 export default function ZonePage() {
@@ -12,6 +12,7 @@ export default function ZonePage() {
   const [data, setData] = useState<ZoneGeoPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const insights = buildGeoFeedInsights(data?.feed.items ?? []);
 
   useEffect(() => {
     if (!zoneSlug) return;
@@ -57,6 +58,19 @@ export default function ZonePage() {
             { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.zone.metrics.publicOppsHint") },
             { label: t("geo.labels.countries"), value: String(data?.countries.length ?? 0), hint: t("geo.zone.metrics.countriesHint") },
             { label: t("geo.labels.scope"), value: data?.zone.name ?? "—", hint: t("geo.zone.metrics.scopeHint") },
+            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.zone.metrics.sourcesHint") },
+          ]}
+        />
+
+        <GeoSignalStrip
+          items={[
+            { label: t("geo.insights.urgent"), value: String(insights.urgentCount), tone: insights.urgentCount > 0 ? "warn" : "default" },
+            { label: t("geo.insights.expired"), value: String(insights.expiredCount), tone: insights.expiredCount > 0 ? "bad" : "default" },
+            {
+              label: t("geo.insights.avgQuality"),
+              value: insights.avgQuality === null ? "—" : `${Math.round(insights.avgQuality * 100)}%`,
+              tone: insights.avgQuality !== null && insights.avgQuality >= 0.7 ? "good" : "default",
+            },
           ]}
         />
 
@@ -74,6 +88,20 @@ export default function ZonePage() {
             ))}
           </div>
         </GeoSection>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GeoSection title={t("geo.insights.hotCountries")} subtitle={t("geo.zone.hotCountriesSubtitle")}>
+            <GeoInsightList
+              items={insights.countryHotspots}
+              emptyLabel={t("geo.feed.empty")}
+              linkBuilder={(item) => (item.slug ? `/countries/${item.slug}` : null)}
+            />
+          </GeoSection>
+
+          <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.zone.sourceCoverageSubtitle")}>
+            <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
+          </GeoSection>
+        </div>
 
         <GeoSection title={t("geo.feed.title")} subtitle={t("geo.zone.feedSubtitle")}>
           <GeoOpportunityList items={data?.feed.items ?? []} />

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MapPinned } from "lucide-react";
-import { GeoChildCard, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell } from "@/features/geo/GeoShell";
-import { loadCountryGeoPage, type CountryGeoPageData } from "@/features/geo/geoData";
+import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip } from "@/features/geo/GeoShell";
+import { buildGeoFeedInsights, loadCountryGeoPage, type CountryGeoPageData } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
 
 export default function CountryPage() {
@@ -12,6 +12,7 @@ export default function CountryPage() {
   const [data, setData] = useState<CountryGeoPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const insights = useMemo(() => buildGeoFeedInsights(data?.feed.items ?? []), [data]);
 
   useEffect(() => {
     if (!countryCode) return;
@@ -34,7 +35,13 @@ export default function CountryPage() {
 
   if (notFound) {
     return (
-      <GeoShell title={t("geo.errors.notFoundTitle")} subtitle={t("geo.errors.notFoundBody")} breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode }]}>
+      <GeoShell
+        title={t("geo.errors.notFoundTitle")}
+        subtitle={t("geo.errors.notFoundBody")}
+        themeCountryCode={countryCode}
+        themeCountryName={countryCode}
+        breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode }]}
+      >
         <div className="rounded-2xl border border-border/25 bg-white/45 p-5 text-sm text-muted">{t("geo.errors.notFoundBody")}</div>
       </GeoShell>
     );
@@ -44,6 +51,9 @@ export default function CountryPage() {
     <GeoShell
       title={data ? `${data.country.flag_emoji ?? ""} ${data.country.name}`.trim() : t("geo.loading")}
       subtitle={t("geo.country.subtitle")}
+      themeCountryCode={data?.country.country_code ?? countryCode}
+      themeCountryName={data?.country.name ?? countryCode}
+      themeCountryFlag={data?.country.flag_emoji}
       breadcrumbs={[
         { label: t("geo.nav.global"), to: "/global" },
         data?.zone ? { label: data.zone.name, to: `/zones/${data.zone.slug}` } : { label: "…" },
@@ -58,6 +68,19 @@ export default function CountryPage() {
             { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.country.metrics.publicOppsHint") },
             { label: t("geo.labels.regions"), value: String(data?.regions.length ?? 0), hint: t("geo.country.metrics.regionsHint") },
             { label: t("geo.labels.scope"), value: data?.country.country_code ?? "—", hint: t("geo.country.metrics.scopeHint") },
+            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.country.metrics.sourcesHint") },
+          ]}
+        />
+
+        <GeoSignalStrip
+          items={[
+            { label: t("geo.insights.urgent"), value: String(insights.urgentCount), tone: insights.urgentCount > 0 ? "warn" : "default" },
+            { label: t("geo.insights.expired"), value: String(insights.expiredCount), tone: insights.expiredCount > 0 ? "bad" : "default" },
+            {
+              label: t("geo.insights.avgQuality"),
+              value: insights.avgQuality === null ? "—" : `${Math.round(insights.avgQuality * 100)}%`,
+              tone: insights.avgQuality !== null && insights.avgQuality >= 0.7 ? "good" : "default",
+            },
           ]}
         />
 
@@ -73,6 +96,30 @@ export default function CountryPage() {
               />
             ))}
           </div>
+        </GeoSection>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GeoSection title={t("geo.insights.hotRegions")} subtitle={t("geo.country.hotRegionsSubtitle")}>
+            <GeoInsightList
+              items={insights.regionHotspots}
+              emptyLabel={t("geo.feed.empty")}
+              linkBuilder={(item) => (item.slug ? `/countries/${countryCode}/regions/${item.slug}` : null)}
+            />
+          </GeoSection>
+
+          <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.country.sourceCoverageSubtitle")}>
+            <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
+          </GeoSection>
+        </div>
+
+        <GeoSection title={t("geo.insights.originMix")} subtitle={t("geo.country.originMixSubtitle")}>
+          <GeoSignalStrip
+            items={insights.originMix.map((item) => ({
+              label: item.label,
+              value: String(item.value),
+              tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+            }))}
+          />
         </GeoSection>
 
         <GeoSection title={t("geo.feed.title")} subtitle={t("geo.country.feedSubtitle")}>
