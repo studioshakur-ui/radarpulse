@@ -43,14 +43,14 @@
  - `public.geo_localities` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_regions` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_zones` — size: 64 kB — RLS: on — cols: 9
- - `public.ingestion_jobs` — size: 208 kB — RLS: on — cols: 11
- - `public.ingestion_runs` — size: 184 kB — RLS: off — cols: 12
+ - `public.ingestion_jobs` — size: 240 kB — RLS: on — cols: 11
+ - `public.ingestion_runs` — size: 224 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 3744 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 3584 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 4024 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 3888 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 96 kB — RLS: on — cols: 13
@@ -145,14 +145,14 @@
  - **Size**: `80 kB`
  - **Size**: `80 kB`
  - **Size**: `64 kB`
- - **Size**: `208 kB`
- - **Size**: `184 kB`
+ - **Size**: `240 kB`
+ - **Size**: `224 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `3744 kB`
- - **Size**: `3584 kB`
+ - **Size**: `4024 kB`
+ - **Size**: `3888 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `96 kB`
