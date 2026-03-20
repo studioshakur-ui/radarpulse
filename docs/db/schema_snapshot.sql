@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict NaDoVRjgYo6Kv1xvw3gMFzCPsG3dkeoLg0kvTf93XGaQyBnZFs4dzaQpMEsMuLH
+\restrict ofqJylJv3LkZBE2fFyjMQeANaCUiiqh3UPyDbp3xv6No4D6uPAZBSkxV2JxZ8Yy
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -462,6 +462,20 @@ end $$;
 
 
 --
+-- Name: set_updated_at_dossiers(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_updated_at_dossiers() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+--
 -- Name: set_updated_at_opportunity_briefs(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -569,7 +583,7 @@ CREATE TABLE public.brief_versions (
     input_snapshot jsonb,
     generation_ms integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    output_locale text DEFAULT 'en'::text,
+    output_locale text DEFAULT 'en'::text NOT NULL,
     CONSTRAINT brief_versions_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
@@ -608,6 +622,34 @@ CREATE TABLE public.decision_history (
     CONSTRAINT decision_history_event_type_check CHECK ((event_type = ANY (ARRAY['set'::text, 'change'::text, 'clear'::text, 'backfill'::text]))),
     CONSTRAINT decision_history_previous_decision_value_check CHECK (((previous_decision_value IS NULL) OR (previous_decision_value = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
     CONSTRAINT decision_history_source_check CHECK ((source = ANY (ARRAY['web'::text, 'backfill'::text, 'system'::text])))
+);
+
+
+--
+-- Name: dossier_tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.dossier_tasks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    dossier_id uuid NOT NULL,
+    label text NOT NULL,
+    is_done boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: dossiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.dossiers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    opportunity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT dossiers_status_check CHECK ((status = ANY (ARRAY['NEW'::text, 'REVIEW'::text, 'GO'::text, 'HOLD'::text, 'BLOCKED'::text, 'READY'::text, 'SUBMITTED'::text])))
 );
 
 
@@ -1153,7 +1195,7 @@ CREATE TABLE public.opportunity_briefs (
     generation_ms integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    output_locale text DEFAULT 'en'::text,
+    output_locale text DEFAULT 'en'::text NOT NULL,
     CONSTRAINT opportunity_briefs_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
@@ -1225,7 +1267,7 @@ CREATE TABLE public.opportunity_preps (
     response_plan text NOT NULL,
     input_snapshot jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    output_locale text DEFAULT 'en'::text,
+    output_locale text DEFAULT 'en'::text NOT NULL,
     CONSTRAINT opportunity_preps_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text])))
 );
 
@@ -1252,7 +1294,7 @@ CREATE TABLE public.opportunity_scores (
     input_extraction_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     recommendation text,
-    output_locale text DEFAULT 'en'::text,
+    output_locale text DEFAULT 'en'::text NOT NULL,
     CONSTRAINT opportunity_scores_output_locale_check CHECK ((output_locale = ANY (ARRAY['en'::text, 'fr'::text, 'it'::text]))),
     CONSTRAINT opportunity_scores_recommendation_check CHECK (((recommendation IS NULL) OR (recommendation = ANY (ARRAY['GO'::text, 'HOLD'::text, 'NO_GO'::text])))),
     CONSTRAINT opportunity_scores_subject_type_check CHECK ((subject_type = 'user'::text))
@@ -1422,6 +1464,30 @@ ALTER TABLE ONLY public.buyers
 
 ALTER TABLE ONLY public.decision_history
     ADD CONSTRAINT decision_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: dossier_tasks dossier_tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossier_tasks
+    ADD CONSTRAINT dossier_tasks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: dossiers dossiers_opportunity_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossiers
+    ADD CONSTRAINT dossiers_opportunity_id_user_id_key UNIQUE (opportunity_id, user_id);
+
+
+--
+-- Name: dossiers dossiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossiers
+    ADD CONSTRAINT dossiers_pkey PRIMARY KEY (id);
 
 
 --
@@ -1617,11 +1683,11 @@ ALTER TABLE ONLY public.opportunity_ai
 
 
 --
--- Name: opportunity_briefs opportunity_briefs_opportunity_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: opportunity_briefs opportunity_briefs_opportunity_id_output_locale_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.opportunity_briefs
-    ADD CONSTRAINT opportunity_briefs_opportunity_id_key UNIQUE (opportunity_id);
+    ADD CONSTRAINT opportunity_briefs_opportunity_id_output_locale_key UNIQUE (opportunity_id, output_locale);
 
 
 --
@@ -1820,10 +1886,10 @@ CREATE INDEX agent_runs_status_started_at_idx ON public.agent_runs USING btree (
 
 
 --
--- Name: brief_versions_one_current_per_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: brief_versions_one_current_per_opportunity_locale_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_idx ON public.brief_versions USING btree (opportunity_id) WHERE (is_current = true);
+CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_locale_idx ON public.brief_versions USING btree (opportunity_id, output_locale) WHERE (is_current = true);
 
 
 --
@@ -1852,6 +1918,34 @@ CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision
 --
 
 CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: dossier_tasks_dossier_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dossier_tasks_dossier_id_idx ON public.dossier_tasks USING btree (dossier_id);
+
+
+--
+-- Name: dossiers_opportunity_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dossiers_opportunity_id_idx ON public.dossiers USING btree (opportunity_id);
+
+
+--
+-- Name: dossiers_status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dossiers_status_idx ON public.dossiers USING btree (status);
+
+
+--
+-- Name: dossiers_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dossiers_user_id_idx ON public.dossiers USING btree (user_id);
 
 
 --
@@ -2163,10 +2257,10 @@ CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_ex
 
 
 --
--- Name: opportunity_preps_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: opportunity_preps_one_current_per_user_opportunity_locale_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_idx ON public.opportunity_preps USING btree (opportunity_id, user_id) WHERE (is_current = true);
+CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_locale_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, output_locale) WHERE (is_current = true);
 
 
 --
@@ -2184,10 +2278,10 @@ CREATE INDEX opportunity_preps_user_current_created_at_idx ON public.opportunity
 
 
 --
--- Name: opportunity_scores_one_current_per_user_opportunity_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: opportunity_scores_one_current_per_user_opportunity_locale_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_idx ON public.opportunity_scores USING btree (opportunity_id, user_id) WHERE (is_current = true);
+CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_locale_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, output_locale) WHERE (is_current = true);
 
 
 --
@@ -2279,6 +2373,13 @@ CREATE INDEX subscriptions_user_idx ON public.subscriptions USING btree (user_id
 --
 
 CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON public.opportunity_ai FOR EACH ROW EXECUTE FUNCTION public.compute_opportunity_quality();
+
+
+--
+-- Name: dossiers trg_dossiers_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_dossiers_updated_at BEFORE UPDATE ON public.dossiers FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_dossiers();
 
 
 --
@@ -2446,6 +2547,30 @@ ALTER TABLE ONLY public.decision_history
 
 ALTER TABLE ONLY public.decision_history
     ADD CONSTRAINT decision_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: dossier_tasks dossier_tasks_dossier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossier_tasks
+    ADD CONSTRAINT dossier_tasks_dossier_id_fkey FOREIGN KEY (dossier_id) REFERENCES public.dossiers(id) ON DELETE CASCADE;
+
+
+--
+-- Name: dossiers dossiers_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossiers
+    ADD CONSTRAINT dossiers_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES public.opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: dossiers dossiers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dossiers
+    ADD CONSTRAINT dossiers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 
 --
@@ -2778,6 +2903,20 @@ CREATE POLICY "Service role manages decision history" ON public.decision_history
 
 
 --
+-- Name: dossier_tasks Service role manages dossier tasks; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages dossier tasks" ON public.dossier_tasks TO service_role USING (true) WITH CHECK (true);
+
+
+--
+-- Name: dossiers Service role manages dossiers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role manages dossiers" ON public.dossiers TO service_role USING (true) WITH CHECK (true);
+
+
+--
 -- Name: opportunity_briefs Service role manages opportunity briefs; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2824,6 +2963,22 @@ CREATE POLICY "Users manage own workflows" ON public.opportunity_workflows TO au
 --
 
 CREATE POLICY "Users read own decision history" ON public.decision_history FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+
+
+--
+-- Name: dossier_tasks Users read own dossier tasks; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own dossier tasks" ON public.dossier_tasks FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.dossiers d
+  WHERE ((d.id = dossier_tasks.dossier_id) AND (d.user_id = auth.uid())))));
+
+
+--
+-- Name: dossiers Users read own dossiers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users read own dossiers" ON public.dossiers FOR SELECT TO authenticated USING ((auth.uid() = user_id));
 
 
 --
@@ -2883,6 +3038,18 @@ CREATE POLICY buyers_public_read ON public.buyers FOR SELECT TO anon USING (true
 --
 
 ALTER TABLE public.decision_history ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: dossier_tasks; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.dossier_tasks ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: dossiers; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.dossiers ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: geo_countries; Type: ROW SECURITY; Schema: public; Owner: -
@@ -3181,5 +3348,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict NaDoVRjgYo6Kv1xvw3gMFzCPsG3dkeoLg0kvTf93XGaQyBnZFs4dzaQpMEsMuLH
+\unrestrict ofqJylJv3LkZBE2fFyjMQeANaCUiiqh3UPyDbp3xv6No4D6uPAZBSkxV2JxZ8Yy
 
