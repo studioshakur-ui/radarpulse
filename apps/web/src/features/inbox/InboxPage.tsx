@@ -328,6 +328,7 @@ export default function InboxPage() {
   const [status, setStatus] = useState("all");
   const [minQualityInput, setMinQualityInput] = useState("");
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
+  const [originTypeFilter, setOriginTypeFilter] = useState("");
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedBriefs, setExpandedBriefs] = useState<Record<string, boolean>>({});
@@ -340,7 +341,7 @@ export default function InboxPage() {
   }, [minQualityInput]);
 
   const { items, loading, loadingMore, error, hasMore, subscriptionRequired, loadMore } =
-    useInboxData({ q, status, minQuality });
+    useInboxData({ q, status, minQuality, originType: originTypeFilter || undefined });
 
   const { decide, getDecision, store } = useDecisions();
   const {
@@ -356,7 +357,7 @@ export default function InboxPage() {
     return items.filter((item) => store[item.id]?.decision === decisionFilter);
   }, [items, decisionFilter, store]);
 
-  const hasActiveFilters = q.trim() !== "" || status !== "all" || minQualityInput.trim() !== "" || decisionFilter !== "all";
+  const hasActiveFilters = q.trim() !== "" || status !== "all" || minQualityInput.trim() !== "" || decisionFilter !== "all" || originTypeFilter !== "";
 
   const undecidedCount = useMemo(
     () => filteredItems.filter((item) => !store[item.id]).length,
@@ -429,6 +430,11 @@ export default function InboxPage() {
         label: `${t("inbox.filter.chip.decision")}: ${decisionLabel[decisionFilter]}`,
         onRemove: () => setDecisionFilter("all"),
       });
+    if (originTypeFilter)
+      chips.push({
+        label: `${t("inbox.filter.chip.originType")}: ${originTypeFilter}`,
+        onRemove: () => setOriginTypeFilter(""),
+      });
     return chips;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, minQualityInput, decisionFilter, t]);
@@ -437,6 +443,7 @@ export default function InboxPage() {
     setStatus("all");
     setMinQualityInput("");
     setDecisionFilter("all");
+    setOriginTypeFilter("");
   }
 
   function toggleBrief(item: BriefInput) {
@@ -568,6 +575,9 @@ export default function InboxPage() {
                 inputMode="decimal"
                 className="w-full rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-brand/40"
               />
+              {minQualityInput.trim() && Number.isFinite(Number(minQualityInput)) && Number(minQualityInput) > 1 ? (
+                <p className="mt-1 text-xs text-warn">{t("inbox.filter.minQuality.hint")}</p>
+              ) : null}
             </label>
 
             <label className="block text-sm">
@@ -584,6 +594,23 @@ export default function InboxPage() {
                 <option value="GO">GO</option>
                 <option value="HOLD">HOLD</option>
                 <option value="NO_GO">NO-GO</option>
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
+                {t("inbox.filter.originType")}
+              </span>
+              <select
+                value={originTypeFilter}
+                onChange={(e) => setOriginTypeFilter(e.target.value)}
+                className="w-full rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-brand/40"
+              >
+                <option value="">{t("inbox.filter.originType.all")}</option>
+                <option value="WORKS">{formatOriginType("WORKS", locale) ?? "WORKS"}</option>
+                <option value="SERVICES">{formatOriginType("SERVICES", locale) ?? "SERVICES"}</option>
+                <option value="SUPPLIES">{formatOriginType("SUPPLIES", locale) ?? "SUPPLIES"}</option>
+                <option value="OTHER">{formatOriginType("OTHER", locale) ?? "OTHER"}</option>
               </select>
             </label>
           </div>

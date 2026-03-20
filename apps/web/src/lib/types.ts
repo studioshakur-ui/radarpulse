@@ -26,7 +26,7 @@ export type SourceRow = {
   last_run_at: string | null;
   last_success_at: string | null;
   last_error: string | null;
-  meta: any;
+  meta: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,7 +49,7 @@ export type OpportunityRow = {
   deadline_tz: string | null;
   source_url: string;
   language: string | null;
-  raw: any;
+  raw: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };
@@ -59,7 +59,7 @@ export type OpportunityEventRow = {
   opportunity_id: Uuid;
   type: OpportunityEventType;
   occurred_at: string;
-  data: any;
+  data: Record<string, unknown> | null;
 };
 
 export type OpportunityDocumentRow = {
@@ -81,7 +81,7 @@ export type IngestionJobRow = {
   run_at: string;
   started_at: string | null;
   finished_at: string | null;
-  payload: any;
+  payload: Record<string, unknown> | null;
   error: string | null;
   created_at: string;
   updated_at: string;

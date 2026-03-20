@@ -161,6 +161,13 @@ export default function DossierPage() {
 
   return (
     <div className="space-y-5">
+      <nav className="flex items-center gap-1.5 px-1 text-xs font-medium text-subtext/60">
+        <Link to="/dossiers" className="transition hover:text-text">
+          {t("dossiers.title")}
+        </Link>
+        <span>/</span>
+        <span className="truncate text-text/80">{opportunity.title}</span>
+      </nav>
       <PageIntro
         eyebrow={t("dossier.eyebrow")}
         title={opportunity.title}

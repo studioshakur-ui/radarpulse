@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(python3:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls \"C:\\\\Users\\\\hamid\\\\OneDrive\\\\Documents\\\\dev\\\\radarpulse\\\\supabase\\\\migrations\"\" | grep -E \"magic_link)",
+      "Bash(revoke)",
+      "Bash(anon)",
+      "Bash(cursor)",
+      "Bash(rls \")",
+      "Bash(grep -l \"opportunities_search_v1\\\\|opportunities_inbox_it_v1\" C:/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/*.sql)",
+      "Bash(sort -u grep -rh \"Deno.env.get\" \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/functions/\" --include=\"*.ts\")",
+      "Bash(head -20 grep -n \"ingestion_runs\\\\|PRIMARY KEY\\\\|SERIAL\\\\|BIGSERIAL\" \"C:/Users/hamid/OneDrive/Documents/dev/radarpulse/supabase/migrations/20260301100500_add_ingestion_runs.sql\")",
+      "Bash(find C:/Users/hamid/OneDrive/Documents/dev/radarpulse/apps/web/src -name *Settings* -o -name *settings*)",
+      "WebSearch",
+      "WebFetch(domain:www.trackerintelligence.com)",
+      "WebFetch(domain:www.tendersdirect.co.uk)",
+      "WebFetch(domain:info.mercell.com)",
+      "WebFetch(domain:hermix.com)",
+      "WebFetch(domain:www.caffeinemarketing.com)",
+      "WebFetch(domain:genesysgrowth.com)",
+      "WebFetch(domain:www.saasframe.io)",
+      "WebFetch(domain:instapage.com)"
+    ]
+  }
+}

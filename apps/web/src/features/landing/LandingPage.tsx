@@ -1,81 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/state/theme";
 import { Link } from "react-router-dom";
-import { ArrowRight, Brain, Globe, CheckCircle, Clock } from "lucide-react";
+import { ArrowRight, Brain, Globe, CheckCircle, Clock, Target, Zap, Map } from "lucide-react";
 import { CoreCard } from "@/components/ds/CoreCard";
 import { useT } from "@/i18n";
 import type { Locale } from "@/lib/i18n";
 import { MarketingShell } from "./marketingPrimitives";
-
-// ─── Hero typewriter ──────────────────────────────────────────────────────────
-
-const HERO_CYCLES: Record<Locale, Array<{ strong: string; accent: string }>> = {
-  en: [
-    { strong: "Qualify faster,", accent: "pursue less." },
-    { strong: "Catch blockers", accent: "before bid cost builds." },
-    { strong: "Move the right", accent: "opportunities forward." },
-  ],
-  fr: [
-    { strong: "Qualifiez plus vite,", accent: "poursuivez moins." },
-    { strong: "Détectez les blockers", accent: "avant que le bid coûte." },
-    { strong: "Faites avancer les", accent: "bonnes opportunités." },
-  ],
-  it: [
-    { strong: "Qualifica più veloce,", accent: "pursuit più mirato." },
-    { strong: "Intercetta i blocchi", accent: "prima del bid effort." },
-    { strong: "Sposta avanti", accent: "le opportunità giuste." },
-  ],
-};
-
-function TypewriterHero() {
-  const { lang } = useT();
-  const cycles = HERO_CYCLES[lang] ?? HERO_CYCLES.en;
-  const [idx, setIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  useEffect(() => {
-    setIdx(0);
-    setVisible(true);
-  }, [lang]);
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    const interval = window.setInterval(() => {
-      setVisible(false);
-      window.setTimeout(() => {
-        setIdx((i) => (i + 1) % cycles.length);
-        setVisible(true);
-      }, 520);
-    }, 5200);
-    return () => window.clearInterval(interval);
-  }, [cycles.length, prefersReducedMotion]);
-
-  const line = cycles[idx] ?? { strong: "Find the right", accent: "public opportunities." };
-
-  return (
-    <h1
-      className="max-w-[11ch] text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[4.8rem]"
-      style={{
-        transition: prefersReducedMotion ? "none" : "opacity 0.52s ease, filter 0.52s ease",
-        opacity: prefersReducedMotion ? 1 : visible ? 1 : 0,
-        filter: prefersReducedMotion ? "none" : visible ? "blur(0px)" : "blur(3px)",
-      }}
-    >
-      <span className="text-text">{line.strong} </span>
-      <span
-        style={{
-          background: "linear-gradient(135deg, #7c5cbf 0%, #a78bfa 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}
-      >
-        {line.accent}
-      </span>
-    </h1>
-  );
-}
 
 // ─── Hero background orbs ─────────────────────────────────────────────────────
 
@@ -328,44 +258,6 @@ function HeroBrowserMockup() {
   );
 }
 
-// ─── Hero stats ───────────────────────────────────────────────────────────────
-
-const HERO_STATS: Record<Locale, Array<{ value: string; label: string }>> = {
-  en: [
-    { value: "GO / NO", label: "Qualified per opportunity" },
-    { value: "Blockers", label: "Exposed before bid effort" },
-    { value: "UK live", label: "Primary market coverage" },
-  ],
-  fr: [
-    { value: "GO / NO", label: "Qualifie par opportunite" },
-    { value: "Blockers", label: "Identifies avant le bid effort" },
-    { value: "UK live", label: "Couverture marche principale" },
-  ],
-  it: [
-    { value: "GO / NO", label: "Qualificato per opportunita" },
-    { value: "Blockers", label: "Identificati prima del bid effort" },
-    { value: "UK live", label: "Copertura mercato principale" },
-  ],
-};
-
-const HERO_CHIPS: Record<Locale, string[]> = {
-  en: [
-    "Qualify before pursuit cost compounds",
-    "Blockers exposed in qualification",
-    "Tracked pipeline per market",
-  ],
-  fr: [
-    "Qualifiez avant que le cout s'accumule",
-    "Blocages identifies en qualification",
-    "Pipeline suivi par marche",
-  ],
-  it: [
-    "Qualifica prima che il costo si accumuli",
-    "Blocchi identificati in qualifica",
-    "Pipeline tracciato per mercato",
-  ],
-};
-
 // ─── Section label ────────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -394,68 +286,6 @@ function useInView<T extends Element>(ref: React.RefObject<T | null>, threshold 
     return () => obs.disconnect();
   }, [ref, threshold]);
   return inView;
-}
-
-// ─── Mock tender card ────────────────────────────────────────────────────────
-
-function MockTenderCard({
-  flag,
-  country,
-  title,
-  buyer,
-  budget,
-  deadline,
-  score,
-  decision,
-}: {
-  flag: string;
-  country: string;
-  title: string;
-  buyer: string;
-  budget: string;
-  deadline: string;
-  score: number;
-  decision: "GO" | "HOLD" | "NO";
-}) {
-  const scoreBg =
-    score >= 70
-      ? "bg-emerald-100 text-emerald-700"
-      : score >= 40
-        ? "bg-amber-100 text-amber-700"
-        : "bg-red-100 text-red-700";
-  const decisionBg = {
-    GO: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-    HOLD: "bg-amber-100 text-amber-700 border border-amber-200",
-    NO: "bg-red-100 text-red-700 border border-red-200",
-  }[decision];
-  return (
-    <CoreCard variant="glass" className="rounded-2xl p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <span className="text-sm">{flag}</span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-subtext">
-              {country}
-            </span>
-          </div>
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-text">{title}</p>
-          <p className="mt-1 text-xs text-subtext">{buyer}</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + scoreBg}>
-            AI {score}%
-          </span>
-          <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + decisionBg}>
-            {decision}
-          </span>
-        </div>
-      </div>
-      <div className="mt-3 flex gap-4 text-xs text-subtext">
-        <span>💰 {budget}</span>
-        <span>📅 {deadline}</span>
-      </div>
-    </CoreCard>
-  );
 }
 
 // ─── Bento card ───────────────────────────────────────────────────────────────
@@ -580,20 +410,21 @@ function PricingCard({
   );
 }
 
-// ─── Pricing data helper ──────────────────────────────────────────────────────
+// ─── Pricing data ─────────────────────────────────────────────────────────────
 
 function getPricingPlans(lang: Locale) {
   if (lang === "fr")
     return {
       free: {
-        name: "Pilot",
+        name: "Solo",
         price: "Sur revue",
         period: "",
-        description: "Pour les equipes qui valident RadarPulse sur du flux reel UK et France.",
+        description: "Pour les consultants et bid managers qui qualifient seuls.",
         features: [
-          "Intake UK et France",
-          "Qualification rapide",
-          "Brief et score de signal",
+          "Inbox Europe (UK, FR, IT, EU TED)",
+          "Score qualite IA par opportunite",
+          "Brief auto en un clic",
+          "Decisions GO / HOLD / NO-GO",
         ],
         cta: "Demander l'acces",
         ctaHref: "/request-access",
@@ -602,11 +433,13 @@ function getPricingPlans(lang: Locale) {
         name: "Team",
         price: "Personnalise",
         period: "",
-        description: "Pour les equipes qui veulent operer des dossiers en continu.",
+        description: "Pour les equipes qui operent des dossiers en continu.",
         features: [
-          "Board dossiers et checklist",
-          "Decision support et prep",
-          "Couverture live UK et France",
+          "Tout Solo inclus",
+          "Board dossiers et checklist equipe",
+          "Decisions et workspace partages",
+          "Intelligence geographique",
+          "Onboarding prioritaire",
         ],
         cta: "Demander l'acces",
         ctaHref: "/request-access",
@@ -615,14 +448,15 @@ function getPricingPlans(lang: Locale) {
   if (lang === "it")
     return {
       free: {
-        name: "Pilot",
+        name: "Solo",
         price: "Su valutazione",
         period: "",
-        description: "Per i team che validano RadarPulse su flusso reale UK e Francia.",
+        description: "Per consulenti e bid manager che qualificano da soli.",
         features: [
-          "Intake UK e Francia",
-          "Qualifica rapida",
-          "Brief e score di segnale",
+          "Inbox Europa (UK, FR, IT, EU TED)",
+          "Punteggio qualita AI per opportunita",
+          "Brief automatico in un click",
+          "Decisioni GO / HOLD / NO-GO",
         ],
         cta: "Richiedi accesso",
         ctaHref: "/request-access",
@@ -631,11 +465,13 @@ function getPricingPlans(lang: Locale) {
         name: "Team",
         price: "Custom",
         period: "",
-        description: "Per i team che vogliono operare dossier in continuita.",
+        description: "Per i team che operano dossier in continuita.",
         features: [
-          "Board dossier e checklist",
-          "Decision support e prep",
-          "Copertura live UK e Francia",
+          "Tutto Solo incluso",
+          "Board dossier e checklist team",
+          "Decisioni e workspace condivisi",
+          "Intelligenza geografica",
+          "Onboarding prioritario",
         ],
         cta: "Richiedi accesso",
         ctaHref: "/request-access",
@@ -643,14 +479,15 @@ function getPricingPlans(lang: Locale) {
     };
   return {
     free: {
-      name: "Pilot",
+      name: "Solo",
       price: "By review",
       period: "",
-      description: "For teams validating RadarPulse on live UK and France opportunity flow.",
+      description: "For consultants and bid managers qualifying on their own.",
       features: [
-        "UK and France intake",
-        "Fast qualification",
-        "Brief and signal score",
+        "European inbox (UK, FR, IT, EU TED)",
+        "AI quality score per opportunity",
+        "One-click auto-brief",
+        "GO / HOLD / NO-GO decisions",
       ],
       cta: "Request access",
       ctaHref: "/request-access",
@@ -659,11 +496,13 @@ function getPricingPlans(lang: Locale) {
       name: "Team",
       price: "Custom",
       period: "",
-      description: "For teams operating dossiers across qualification and action.",
+      description: "For teams operating dossiers continuously.",
       features: [
-        "Dossier board and checklist",
-        "Decision support and prep",
-        "UK and France live coverage",
+        "Everything in Solo",
+        "Dossier board & team checklist",
+        "Shared decisions & workspace",
+        "Geographic intelligence",
+        "Priority onboarding",
       ],
       cta: "Request access",
       ctaHref: "/request-access",
@@ -671,101 +510,144 @@ function getPricingPlans(lang: Locale) {
   };
 }
 
+// ─── Coverage data ────────────────────────────────────────────────────────────
+
+const COVERAGE: Array<{
+  flag: string;
+  name: Record<Locale, string>;
+  sources: string[];
+}> = [
+  {
+    flag: "🇬🇧",
+    name: { en: "United Kingdom", fr: "Royaume-Uni", it: "Regno Unito" },
+    sources: ["Find a Tender", "Contracts Finder", "Sub-threshold notices"],
+  },
+  {
+    flag: "🇫🇷",
+    name: { en: "France", fr: "France", it: "Francia" },
+    sources: ["BOAMP", "Marchés Publics", "Regional platforms"],
+  },
+  {
+    flag: "🇮🇹",
+    name: { en: "Italy", fr: "Italie", it: "Italia" },
+    sources: ["ANAC", "eAppalti FVG", "Regional sources"],
+  },
+  {
+    flag: "🇪🇺",
+    name: { en: "EU (TED)", fr: "UE (TED)", it: "UE (TED)" },
+    sources: ["TED — Tenders Electronic Daily", "EU institutions", "OJEU notices"],
+  },
+];
+
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
 export function LandingPage() {
   const { t, lang } = useT();
-  const cardsRef = useRef<HTMLDivElement>(null);
-  const cardsInView = useInView(cardsRef);
   const bentoRef = useRef<HTMLDivElement>(null);
   const bentoInView = useInView(bentoRef);
   const pricingRef = useRef<HTMLDivElement>(null);
   const pricingInView = useInView(pricingRef);
+  const problemRef = useRef<HTMLDivElement>(null);
+  const problemInView = useInView(problemRef);
+  const engineRef = useRef<HTMLDivElement>(null);
+  const engineInView = useInView(engineRef);
+  const coverageRef = useRef<HTMLDivElement>(null);
+  const coverageInView = useInView(coverageRef);
 
-  const stats = HERO_STATS[lang] ?? HERO_STATS.en;
   const pricing = getPricingPlans(lang);
 
-  const mockTenders = [
-    {
-      flag: "🇬🇧",
-      country: "UK · Find a Tender",
-      title: "Cloud infrastructure modernisation and managed services",
-      buyer: "NHS England",
-      budget: "£ 8.5M",
-      deadline: "Mar 29, 2026",
-      score: 88,
-      decision: "GO" as const,
-    },
-    {
-      flag: "🇬🇧",
-      country: "UK · Contracts Finder",
-      title: "Data and analytics advisory — regional transport authority",
-      buyer: "Transport for the North",
-      budget: "£ 2.4M",
-      deadline: "Apr 11, 2026",
-      score: 67,
-      decision: "HOLD" as const,
-    },
-    {
-      flag: "🇬🇧",
-      country: "UK · FindTender",
-      title: "Commercial due diligence support for regional transport expansion",
-      buyer: "Transport for Greater Manchester",
-      budget: "£ 3.4M",
-      deadline: "Apr 6, 2026",
-      score: 54,
-      decision: "NO" as const,
-    },
-  ];
-
-  const PRICING_LABEL: Record<Locale, string> = {
-    en: "Access",
-    fr: "Acces",
-    it: "Accesso",
-  };
-  const PRICING_TITLE: Record<Locale, string> = {
-    en: "Controlled access, aligned to your operating model.",
-    fr: "Un acces controle, aligne a votre mode operatoire.",
-    it: "Accesso controllato, allineato al tuo modello operativo.",
-  };
-  const PRICING_SUB: Record<Locale, string> = {
-    en: "RadarPulse is currently onboarded through reviewed access while the dossier system hardens.",
-    fr: "RadarPulse est actuellement ouvert via un acces revu pendant que le systeme dossier se consolide.",
-    it: "RadarPulse viene attualmente aperto tramite accesso valutato mentre il sistema dossier si consolida.",
-  };
-  const HERO_PILL: Record<Locale, string> = {
-    en: "UK public opportunity qualification",
-    fr: "Qualification d'opportunités publiques UK",
-    it: "Qualifica opportunità pubbliche UK",
-  };
-  const NO_CARD: Record<Locale, string> = {
-    en: "Access is reviewed with each team before rollout.",
-    fr: "L'acces est revu avec chaque equipe avant ouverture.",
-    it: "L'accesso viene valutato con ogni team prima dell'apertura.",
-  };
-  const TIMELINE_ROWS: Record<Locale, Array<{ time: string; label: string; active: boolean }>> = {
+  const HERO_STATS: Record<Locale, Array<{ value: string; label: string }>> = {
     en: [
-      { time: "08:40", label: "New market signal captured", active: false },
-      { time: "09:00", label: "Qualification updated", active: true },
-      { time: "09:15", label: "Dossier ready for review", active: false },
+      { value: "€2T+", label: "EU public procurement per year" },
+      { value: "40+", label: "Active sources aggregated" },
+      { value: "UK · FR · IT · EU", label: "Live markets" },
     ],
     fr: [
-      { time: "08:40", label: "Nouveau signal marche capte", active: false },
-      { time: "09:00", label: "Qualification mise a jour", active: true },
-      { time: "09:15", label: "Dossier pret pour revue", active: false },
+      { value: "€2T+", label: "Marchés publics EU par an" },
+      { value: "40+", label: "Sources actives agrégées" },
+      { value: "UK · FR · IT · EU", label: "Marchés en direct" },
     ],
     it: [
-      { time: "08:40", label: "Nuovo segnale mercato acquisito", active: false },
-      { time: "09:00", label: "Qualifica aggiornata", active: true },
-      { time: "09:15", label: "Dossier pronto per revisione", active: false },
+      { value: "€2T+", label: "Appalti pubblici EU all'anno" },
+      { value: "40+", label: "Fonti attive aggregate" },
+      { value: "UK · FR · IT · EU", label: "Mercati live" },
     ],
   };
+
+  const TIMELINE_ROWS: Record<Locale, Array<{ time: string; label: string; active: boolean }>> = {
+    en: [
+      { time: "08:40", label: "UK tender captured from Find a Tender", active: false },
+      { time: "09:02", label: "AI score computed: 84 — shortlisted", active: true },
+      { time: "09:03", label: "Brief generated, dossier ready", active: false },
+    ],
+    fr: [
+      { time: "08:40", label: "Appel capté depuis BOAMP", active: false },
+      { time: "09:02", label: "Score IA calculé : 84 — présélectionné", active: true },
+      { time: "09:03", label: "Brief généré, dossier prêt", active: false },
+    ],
+    it: [
+      { time: "08:40", label: "Gara catturata da ANAC", active: false },
+      { time: "09:02", label: "Score AI calcolato: 84 — selezionato", active: true },
+      { time: "09:03", label: "Brief generato, dossier pronto", active: false },
+    ],
+  };
+
+  const HERO_PILL: Record<Locale, string> = {
+    en: "European public procurement intelligence",
+    fr: "Intelligence sur les marchés publics européens",
+    it: "Intelligence sugli appalti pubblici europei",
+  };
+
+  const NO_CARD: Record<Locale, string> = {
+    en: "Reviewed access. Onboarded with your team. Cancel anytime.",
+    fr: "Accès revu. Onboarding avec votre équipe. Résiliation à tout moment.",
+    it: "Accesso valutato. Onboarding con il tuo team. Cancellazione in qualsiasi momento.",
+  };
+
+  const stats = HERO_STATS[lang] ?? HERO_STATS.en;
 
   const fade = (inView: boolean, delay = 0): React.CSSProperties => ({
     transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
     opacity: inView ? 1 : 0,
     transform: inView ? "translateY(0)" : "translateY(20px)",
   });
+
+  const ENGINE_FEATURES: Array<{
+    icon: React.ReactNode;
+    accent: string;
+    iconColor: string;
+    titleKey: string;
+    bodyKey: string;
+  }> = [
+    {
+      icon: <Target className="h-5 w-5" />,
+      accent: "bg-brand/10",
+      iconColor: "text-brand",
+      titleKey: "landing.engine.feat1.title",
+      bodyKey: "landing.engine.feat1.body",
+    },
+    {
+      icon: <Zap className="h-5 w-5" />,
+      accent: "bg-emerald-500/10",
+      iconColor: "text-emerald-500",
+      titleKey: "landing.engine.feat2.title",
+      bodyKey: "landing.engine.feat2.body",
+    },
+    {
+      icon: <Brain className="h-5 w-5" />,
+      accent: "bg-violet-500/10",
+      iconColor: "text-violet-400",
+      titleKey: "landing.engine.feat3.title",
+      bodyKey: "landing.engine.feat3.body",
+    },
+    {
+      icon: <Map className="h-5 w-5" />,
+      accent: "bg-blue-500/10",
+      iconColor: "text-blue-400",
+      titleKey: "landing.engine.feat4.title",
+      bodyKey: "landing.engine.feat4.body",
+    },
+  ];
 
   return (
     <MarketingShell
@@ -777,303 +659,402 @@ export function LandingPage() {
         linkTo: "/request-access",
       }}
     >
-        {/* Hero */}
-        <section className="relative overflow-hidden border-b border-border/20">
-          <HeroBackground />
-          <div className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:py-24 lg:py-28">
-            <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,0.95fr)] lg:gap-10">
-              {/* Left */}
-              <div className="max-w-2xl">
-                <div className="mb-5">
-                  <SectionLabel>{HERO_PILL[lang]}</SectionLabel>
-                </div>
-                <TypewriterHero />
-                <p className="mt-6 max-w-xl text-lg leading-relaxed text-subtext">
-                  {t("landing.hero.description")}
-                </p>
-                <div className="mt-8 lg:hidden">
-                  <HeroBrowserMockup />
-                </div>
-                <div className="mt-7 flex flex-wrap gap-2 text-sm text-subtext/80">
-                  {(HERO_CHIPS[lang] ?? HERO_CHIPS.en).map((chip) => (
-                    <span
-                      key={chip}
-                      className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5"
-                    >
-                      {chip}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <Link
-                    to="/request-access"
-                    className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:-translate-y-0.5 hover:opacity-95"
-                  >
-                    {t("landing.hero.primaryCta")} <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-5 py-3 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
-                  >
-                    {t("landing.hero.secondaryCta")}
-                  </Link>
-                </div>
-                <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                  {stats.map((s) => (
-                    <div
-                      key={s.value}
-                      className="rounded-2xl border border-line/20 bg-white/55 px-4 py-4 shadow-soft backdrop-blur"
-                    >
-                      <p className="text-xl font-bold text-text">{s.value}</p>
-                      <p className="mt-1 text-sm text-muted">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
+      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b border-border/20">
+        <HeroBackground />
+        <div className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:py-24 lg:py-28">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,0.95fr)] lg:gap-10">
+            {/* Left */}
+            <div className="max-w-2xl">
+              <div className="mb-5">
+                <SectionLabel>{HERO_PILL[lang]}</SectionLabel>
               </div>
-              {/* Right */}
-              <div className="hidden lg:block">
+
+              {/* Static headline — no typewriter */}
+              <h1 className="max-w-[16ch] text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[4.8rem]">
+                <span
+                  style={{
+                    background: "linear-gradient(135deg, #7c5cbf 0%, #a78bfa 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
+                  {t("landing.hero.title")}
+                </span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-subtext">
+                {t("landing.hero.description")}
+              </p>
+
+              <div className="mt-8 lg:hidden">
                 <HeroBrowserMockup />
               </div>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link
+                  to="/request-access"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:-translate-y-0.5 hover:opacity-95"
+                >
+                  {t("landing.hero.primaryCta")} <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-5 py-3 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
+                >
+                  {t("landing.hero.secondaryCta")}
+                </Link>
+              </div>
+
+              {/* Market stats */}
+              <div className="mt-10 grid gap-3 sm:grid-cols-3">
+                {stats.map((s) => (
+                  <div
+                    key={s.value}
+                    className="rounded-2xl border border-line/20 bg-white/55 px-4 py-4 shadow-soft backdrop-blur"
+                  >
+                    <p className="text-xl font-bold text-text">{s.value}</p>
+                    <p className="mt-1 text-sm text-muted">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — browser mockup */}
+            <div className="hidden lg:block">
+              <HeroBrowserMockup />
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Bento features */}
-        <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+      {/* ── PROBLEM ───────────────────────────────────────────────────────── */}
+      <section className="border-b border-border/20 bg-surface/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
           <div className="mb-10 max-w-3xl">
-            <SectionLabel>{t("landing.diff.eyebrow")}</SectionLabel>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              {t("landing.diff.title")}
-            </h2>
-            <p className="mt-3 text-base leading-relaxed text-subtext">
-              {t("landing.diff.subtitle")}
-            </p>
-          </div>
-          <div ref={bentoRef} className="grid grid-cols-1 gap-4 md:grid-cols-12">
-            {/* Wide top-left */}
-            <div className="md:col-span-7" style={fade(bentoInView, 0)}>
-              <BentoCard
-                icon={<Clock className="h-5 w-5" />}
-                label="01"
-                title={t("landing.diff1.title")}
-                description={t("landing.diff1.description")}
-                className="h-full"
-              >
-                <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
-                  {(TIMELINE_ROWS[lang] ?? TIMELINE_ROWS.en).map((r) => (
-                    <div key={r.time} className="flex items-center gap-3">
-                      <span className="w-10 shrink-0 font-mono text-[10px] text-subtext/50">
-                        {r.time}
-                      </span>
-                      <span
-                        className={
-                          "h-1.5 w-1.5 shrink-0 rounded-full " +
-                          (r.active ? "animate-pulse bg-emerald-500" : "bg-border/40")
-                        }
-                      />
-                      <span
-                        className={
-                          "text-xs " + (r.active ? "font-medium text-text" : "text-subtext/60")
-                        }
-                      >
-                        {r.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </BentoCard>
-            </div>
-            {/* Tall top-right */}
-            <div className="md:col-span-5" style={fade(bentoInView, 100)}>
-              <BentoCard
-                icon={<Brain className="h-5 w-5" />}
-                label="02"
-                title={t("landing.diff2.title")}
-                description={t("landing.diff2.description")}
-                accent="bg-violet-500/10"
-                iconColor="text-violet-400"
-                className="h-full"
-              >
-                <div className="flex flex-col items-center rounded-2xl bg-bg/60 p-4">
-                  <div className="relative flex h-20 w-20 items-center justify-center">
-                    <svg className="h-20 w-20 -rotate-90" viewBox="0 0 36 36">
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="15.9"
-                        fill="none"
-                        stroke="rgba(124,92,191,0.1)"
-                        strokeWidth="2.5"
-                      />
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="15.9"
-                        fill="none"
-                        stroke="rgba(124,92,191,0.8)"
-                        strokeWidth="2.5"
-                        strokeDasharray="88, 100"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="absolute text-xl font-bold text-text">88</span>
-                  </div>
-                  <p className="mt-2 text-xs font-semibold text-brand">{t("landing.mockup.aiScore")}</p>
-                  <div className="mt-2 flex gap-2">
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      GO
-                    </span>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                      HOLD
-                    </span>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
-                      NO
-                    </span>
-                  </div>
-                </div>
-              </BentoCard>
-            </div>
-            {/* Full-width bottom */}
-            <div className="md:col-span-12" style={fade(bentoInView, 200)}>
-              <BentoCard
-                icon={<Globe className="h-5 w-5" />}
-                label="03"
-                title={t("landing.diff3.title")}
-                description={t("landing.diff3.description")}
-                accent="bg-blue-500/10"
-                iconColor="text-blue-400"
-              >
-                <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
-                  {[
-                    { label: "Security appendix", done: true },
-                    { label: "Partner sign-off", done: true },
-                    { label: "Budget review", done: false, active: true },
-                    { label: "Final submission", done: false },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-2 text-xs">
-                      <span className={item.done ? "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" : item.active ? "h-1.5 w-1.5 shrink-0 rounded-full animate-pulse bg-amber-500" : "h-1.5 w-1.5 shrink-0 rounded-full bg-border/40"} />
-                      <span className={item.done ? "line-through text-subtext/40" : item.active ? "font-medium text-text" : "text-subtext/60"}>
-                        {item.label}
-                      </span>
-                      {item.done ? <CheckCircle className="ml-auto h-3 w-3 text-emerald-500/70" /> : null}
-                    </div>
-                  ))}
-                </div>
-              </BentoCard>
-            </div>
-          </div>
-        </section>
-        {/* How it works */}
-        <section className="border-y border-border/20 bg-surface/20">
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
-            <div className="mb-10 max-w-3xl">
-              <SectionLabel>{t("landing.how.eyebrow")}</SectionLabel>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                {t("landing.how.title")}
-              </h2>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <HowStep
-                step="01"
-                title={t("landing.how.step1.title")}
-                description={t("landing.how.step1.description")}
-              />
-              <HowStep
-                step="02"
-                title={t("landing.how.step2.title")}
-                description={t("landing.how.step2.description")}
-              />
-              <HowStep
-                step="03"
-                title={t("landing.how.step3.title")}
-                description={t("landing.how.step3.description")}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Product preview */}
-        <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
-          <div className="mb-8">
             <SectionLabel>{t("landing.preview.eyebrow")}</SectionLabel>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
               {t("landing.preview.title")}
             </h2>
-            <p className="mt-2 max-w-xl text-sm text-subtext">{t("landing.preview.subtitle")}</p>
+            <p className="mt-3 text-base leading-relaxed text-subtext">
+              {t("landing.preview.subtitle")}
+            </p>
           </div>
-          <div ref={cardsRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {mockTenders.map((tender, i) => (
-              <div key={tender.title} style={fade(cardsInView, i * 120)}>
-                <MockTenderCard {...tender} />
+          <div ref={problemRef} className="grid gap-4 md:grid-cols-3">
+            {(
+              [
+                { titleKey: "landing.problem.col1.title", bodyKey: "landing.problem.col1.body", dot: "bg-bad" },
+                { titleKey: "landing.problem.col2.title", bodyKey: "landing.problem.col2.body", dot: "bg-warn" },
+                { titleKey: "landing.problem.col3.title", bodyKey: "landing.problem.col3.body", dot: "bg-brand/50" },
+              ] as const
+            ).map(({ titleKey, bodyKey, dot }, i) => (
+              <div key={titleKey} style={fade(problemInView, i * 100)}>
+                <CoreCard variant="glass" className="h-full rounded-3xl p-6">
+                  <div className={"mb-4 h-2 w-2 rounded-full " + dot} />
+                  <h3 className="text-lg font-semibold tracking-tight text-text">
+                    {t(titleKey as Parameters<typeof t>[0])}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-subtext">
+                    {t(bodyKey as Parameters<typeof t>[0])}
+                  </p>
+                </CoreCard>
               </div>
             ))}
           </div>
-          <p className="mt-5 text-center text-xs text-subtext">{t("landing.preview.hint")}</p>
-        </section>
+        </div>
+      </section>
 
-        {/* Pricing */}
-        <section className="border-y border-border/20 bg-surface/20">
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
-            <div className="mb-10 text-center">
-              <SectionLabel>{PRICING_LABEL[lang]}</SectionLabel>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                {PRICING_TITLE[lang]}
-              </h2>
-              <p className="mx-auto mt-2 max-w-lg text-sm text-subtext">{PRICING_SUB[lang]}</p>
-            </div>
-            <div ref={pricingRef} className="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
-              <div style={fade(pricingInView, 0)}>
-                <PricingCard {...pricing.free} />
+      {/* ── BENTO — HOW IT WORKS ──────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+        <div className="mb-10 max-w-3xl">
+          <SectionLabel>{t("landing.diff.eyebrow")}</SectionLabel>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {t("landing.diff.title")}
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-subtext">
+            {t("landing.diff.subtitle")}
+          </p>
+        </div>
+        <div ref={bentoRef} className="grid grid-cols-1 gap-4 md:grid-cols-12">
+          {/* Wide top-left */}
+          <div className="md:col-span-7" style={fade(bentoInView, 0)}>
+            <BentoCard
+              icon={<Clock className="h-5 w-5" />}
+              label="01"
+              title={t("landing.diff1.title")}
+              description={t("landing.diff1.description")}
+              className="h-full"
+            >
+              <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
+                {(TIMELINE_ROWS[lang] ?? TIMELINE_ROWS.en).map((r) => (
+                  <div key={r.time} className="flex items-center gap-3">
+                    <span className="w-10 shrink-0 font-mono text-[10px] text-subtext/50">
+                      {r.time}
+                    </span>
+                    <span
+                      className={
+                        "h-1.5 w-1.5 shrink-0 rounded-full " +
+                        (r.active ? "animate-pulse bg-emerald-500" : "bg-border/40")
+                      }
+                    />
+                    <span
+                      className={
+                        "text-xs " + (r.active ? "font-medium text-text" : "text-subtext/60")
+                      }
+                    >
+                      {r.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div style={fade(pricingInView, 120)}>
-                <PricingCard {...pricing.pro} highlight badgeText={t("landing.pricing.popular")} />
-              </div>
-            </div>
+            </BentoCard>
           </div>
-        </section>
 
-        {/* Final CTA */}
-        <section className="relative overflow-hidden">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(124,92,191,0.12) 0%, rgba(167,139,250,0.08) 50%, rgba(124,92,191,0.06) 100%)",
-            }}
-          />
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(124,92,191,1) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,191,1) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
-          <div className="relative mx-auto w-full max-w-4xl px-4 py-20 text-center sm:py-28">
-            <SectionLabel>{t("landing.final.eyebrow")}</SectionLabel>
-            <h2 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl">
-              {t("landing.final.title")}
+          {/* Tall top-right */}
+          <div className="md:col-span-5" style={fade(bentoInView, 100)}>
+            <BentoCard
+              icon={<Brain className="h-5 w-5" />}
+              label="02"
+              title={t("landing.diff2.title")}
+              description={t("landing.diff2.description")}
+              accent="bg-violet-500/10"
+              iconColor="text-violet-400"
+              className="h-full"
+            >
+              <div className="flex flex-col items-center rounded-2xl bg-bg/60 p-4">
+                <div className="relative flex h-20 w-20 items-center justify-center">
+                  <svg className="h-20 w-20 -rotate-90" viewBox="0 0 36 36">
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.9"
+                      fill="none"
+                      stroke="rgba(124,92,191,0.1)"
+                      strokeWidth="2.5"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.9"
+                      fill="none"
+                      stroke="rgba(124,92,191,0.8)"
+                      strokeWidth="2.5"
+                      strokeDasharray="88, 100"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="absolute text-xl font-bold text-text">88</span>
+                </div>
+                <p className="mt-2 text-xs font-semibold text-brand">{t("landing.mockup.aiScore")}</p>
+                <div className="mt-2 flex gap-2">
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    GO
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                    HOLD
+                  </span>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                    NO-GO
+                  </span>
+                </div>
+              </div>
+            </BentoCard>
+          </div>
+
+          {/* Full-width bottom */}
+          <div className="md:col-span-12" style={fade(bentoInView, 200)}>
+            <BentoCard
+              icon={<CheckCircle className="h-5 w-5" />}
+              label="03"
+              title={t("landing.diff3.title")}
+              description={t("landing.diff3.description")}
+              accent="bg-blue-500/10"
+              iconColor="text-blue-400"
+            >
+              <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
+                {[
+                  { label: "Security appendix", done: true },
+                  { label: "Partner sign-off", done: true },
+                  { label: "Budget review", done: false, active: true },
+                  { label: "Final submission", done: false },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2 text-xs">
+                    <span className={item.done ? "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" : item.active ? "h-1.5 w-1.5 shrink-0 rounded-full animate-pulse bg-amber-500" : "h-1.5 w-1.5 shrink-0 rounded-full bg-border/40"} />
+                    <span className={item.done ? "line-through text-subtext/40" : item.active ? "font-medium text-text" : "text-subtext/60"}>
+                      {item.label}
+                    </span>
+                    {item.done ? <CheckCircle className="ml-auto h-3 w-3 text-emerald-500/70" /> : null}
+                  </div>
+                ))}
+              </div>
+            </BentoCard>
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS (3 steps) ────────────────────────────────────────── */}
+      <section className="border-y border-border/20 bg-surface/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+          <div className="mb-10 max-w-3xl">
+            <SectionLabel>{t("landing.how.eyebrow")}</SectionLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {t("landing.how.title")}
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-subtext">
-              {t("landing.final.description")}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                to="/request-access"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-sm font-semibold text-white shadow-glow hover:opacity-95"
-              >
-                {t("landing.final.primaryCta")} <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-6 py-3.5 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
-              >
-                {t("landing.final.secondaryCta")}
-              </Link>
-            </div>
-            <p className="mt-6 text-xs text-subtext/50">{NO_CARD[lang]}</p>
           </div>
-        </section>
+          <div className="grid gap-4 md:grid-cols-3">
+            <HowStep step="01" title={t("landing.how.step1.title")} description={t("landing.how.step1.description")} />
+            <HowStep step="02" title={t("landing.how.step2.title")} description={t("landing.how.step2.description")} />
+            <HowStep step="03" title={t("landing.how.step3.title")} description={t("landing.how.step3.description")} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── QUALIFICATION ENGINE ──────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+        <div className="mb-10 max-w-3xl">
+          <SectionLabel>{t("landing.engine.eyebrow")}</SectionLabel>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {t("landing.engine.title")}
+          </h2>
+        </div>
+        <div ref={engineRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {ENGINE_FEATURES.map((feat, i) => (
+            <div key={feat.titleKey} style={fade(engineInView, i * 80)}>
+              <CoreCard variant="glass" className="h-full rounded-3xl p-5">
+                <div className={"mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl " + feat.accent}>
+                  <span className={feat.iconColor}>{feat.icon}</span>
+                </div>
+                <h3 className="text-base font-semibold tracking-tight text-text">
+                  {t(feat.titleKey as Parameters<typeof t>[0])}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-subtext">
+                  {t(feat.bodyKey as Parameters<typeof t>[0])}
+                </p>
+              </CoreCard>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── COVERAGE MAP ──────────────────────────────────────────────────── */}
+      <section className="border-y border-border/20 bg-surface/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+          <div className="mb-10 max-w-3xl">
+            <SectionLabel>{t("landing.coverage.eyebrow")}</SectionLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {t("landing.coverage.title")}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-subtext">
+              {t("landing.coverage.subtitle")}
+            </p>
+          </div>
+          <div ref={coverageRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {COVERAGE.map((market, i) => (
+              <div key={market.flag} style={fade(coverageInView, i * 80)}>
+                <CoreCard variant="glass" className="h-full rounded-3xl p-5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="text-2xl">{market.flag}</span>
+                    <span className="text-sm font-semibold text-text">
+                      {market.name[lang] ?? market.name.en}
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {market.sources.map((source) => (
+                      <li key={source} className="flex items-center gap-2 text-xs text-subtext">
+                        <span className="h-1 w-1 shrink-0 rounded-full bg-brand/50" />
+                        {source}
+                      </li>
+                    ))}
+                  </ul>
+                </CoreCard>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-sm text-subtext/60">
+            <Globe className="mr-1.5 inline-block h-3.5 w-3.5" />
+            {t("landing.coverage.coming")}
+          </p>
+        </div>
+      </section>
+
+      {/* ── PRICING ───────────────────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+        <div className="mb-10 text-center">
+          <SectionLabel>
+            {lang === "fr" ? "Accès" : lang === "it" ? "Accesso" : "Access"}
+          </SectionLabel>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {lang === "fr"
+              ? "Un accès clair, aligné à votre organisation."
+              : lang === "it"
+                ? "Un accesso chiaro, allineato alla tua organizzazione."
+                : "Clear access, aligned to your team."}
+          </h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-subtext">
+            {lang === "fr"
+              ? "Accès revu avant onboarding. Pas de carte de crédit requise pour démarrer."
+              : lang === "it"
+                ? "Accesso valutato prima dell'onboarding. Nessuna carta di credito richiesta per iniziare."
+                : "Access reviewed before onboarding. No credit card required to get started."}
+          </p>
+        </div>
+        <div ref={pricingRef} className="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+          <div style={fade(pricingInView, 0)}>
+            <PricingCard {...pricing.free} />
+          </div>
+          <div style={fade(pricingInView, 120)}>
+            <PricingCard
+              {...pricing.pro}
+              highlight
+              badgeText={t("landing.pricing.popular")}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-t border-border/20">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(124,92,191,0.12) 0%, rgba(167,139,250,0.08) 50%, rgba(124,92,191,0.06) 100%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(124,92,191,1) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,191,1) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-4xl px-4 py-20 text-center sm:py-28">
+          <SectionLabel>{t("landing.final.eyebrow")}</SectionLabel>
+          <h2 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl">
+            {t("landing.final.title")}
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-subtext">
+            {t("landing.final.description")}
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/request-access"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-sm font-semibold text-white shadow-glow hover:opacity-95"
+            >
+              {t("landing.final.primaryCta")} <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-6 py-3.5 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
+            >
+              {t("landing.final.secondaryCta")}
+            </Link>
+          </div>
+          <p className="mt-6 text-xs text-subtext/50">{NO_CARD[lang]}</p>
+        </div>
+      </section>
     </MarketingShell>
   );
 }

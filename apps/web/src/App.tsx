@@ -236,9 +236,13 @@ function InboxAccessGate({
       setLoading(false);
     }
 
-    check();
+    void check();
+    // Item-5 FIX: re-check subscription every 15 min so an expired subscription
+    // revokes access without requiring a page reload.
+    const interval = setInterval(() => { void check(); }, 15 * 60 * 1000);
     return () => {
       mounted = false;
+      clearInterval(interval);
     };
   }, [user?.id, isAdmin]);
 

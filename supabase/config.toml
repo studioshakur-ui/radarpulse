@@ -112,6 +112,9 @@ max_indexes = 5
 
 [auth]
 enabled = true
+# BUG-26: this value is for local development only (supabase start).
+# In production, site_url is overridden by the Supabase dashboard:
+# Settings > Authentication > Site URL → set to https://radarpulse.io
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 jwt_expiry = 3600

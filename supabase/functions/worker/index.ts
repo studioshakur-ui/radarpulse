@@ -607,39 +607,40 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, { status: 405 });
 
-  let body: any = {};
+  // BUG-30 FIX: single outer try-catch covers all handler logic, including
+  // override parsing that previously sat unguarded between two separate blocks.
   try {
-    const auth = req.headers.get("Authorization") ?? "";
-    if (auth) {
-      if (!auth.toLowerCase().startsWith("bearer ")) {
-        return json({ ok: false, error: "Invalid Authorization header format" }, { status: 401 });
+    let body: any = {};
+    try {
+      const auth = req.headers.get("Authorization") ?? "";
+      if (auth) {
+        if (!auth.toLowerCase().startsWith("bearer ")) {
+          return json({ ok: false, error: "Invalid Authorization header format" }, { status: 401 });
+        }
+        const token = auth.slice(7).trim();
+        const { data, error } = await sb().auth.getUser(token);
+        if (error || !data?.user?.id) {
+          return json({ ok: false, error: "Invalid JWT token" }, { status: 401 });
+        }
       }
-      const token = auth.slice(7).trim();
-      const { data, error } = await sb().auth.getUser(token);
-      if (error || !data?.user?.id) {
-        return json({ ok: false, error: "Invalid JWT token" }, { status: 401 });
-      }
+      body = await req.json();
+    } catch {
+      body = {};
     }
 
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+    const maxJobs = Math.max(1, Math.min(10, Number(body?.max_jobs ?? 1)));
+    const aiEnabledOverride =
+      typeof body?.ai_enabled === "boolean"
+        ? body.ai_enabled
+        : typeof body?.disable_ai === "boolean"
+          ? !body.disable_ai
+          : null;
+    const aiMaxPerJobOverride =
+      Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
+    const softDeadlineMsOverride =
+      Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
+    const results: any[] = [];
 
-  const maxJobs = Math.max(1, Math.min(10, Number(body?.max_jobs ?? 1)));
-  const aiEnabledOverride =
-    typeof body?.ai_enabled === "boolean"
-      ? body.ai_enabled
-      : typeof body?.disable_ai === "boolean"
-        ? !body.disable_ai
-        : null;
-  const aiMaxPerJobOverride =
-    Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
-  const softDeadlineMsOverride =
-    Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
-  const results: any[] = [];
-
-  try {
     for (let i = 0; i < maxJobs; i++) {
       // IMPORTANT: rpc peut renvoyer:
       // - null
@@ -677,3 +678,4 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: msg }, { status: 500 });
   }
 });
+
