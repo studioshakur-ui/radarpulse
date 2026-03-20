@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Decision, DecisionRecord } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useLocale } from "@/lib/i18n";
+import { createDossier } from "@/features/dossiers/dossierApi";
 
 const STORAGE_KEY = "radarpulse:decisions";
 
@@ -110,7 +111,12 @@ export function useDecisions() {
             },
         })
         .then(({ error }) => {
-          if (!error) return;
+          if (!error) {
+            if (!isToggle && decision === "GO") {
+              void createDossier(opportunityId, "GO").catch(() => {});
+            }
+            return;
+          }
           setStore(previousStore);
           saveLocal(previousStore);
         })

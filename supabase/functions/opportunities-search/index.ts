@@ -146,10 +146,11 @@ function isSubscriptionActive(row: Record<string, unknown> | null): boolean {
   return isActiveBool;
 }
 
-function buildRealDeps(): OpportunitiesSearchDeps {
+function buildRealDeps(req: Request): OpportunitiesSearchDeps {
   const getEnv = (name: string) => Deno.env.get(name);
 
-  const url = getEnv("SB_URL") ?? getEnv("SUPABASE_URL");
+  const requestUrl = new URL(req.url);
+  const url = requestUrl.origin || getEnv("SB_URL") || getEnv("SUPABASE_URL");
   const serviceKey = getEnv("SERVICE_ROLE_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) {
     throw new Error("SERVER_CONFIG_ERROR");
@@ -306,6 +307,8 @@ export function createHandler(deps: OpportunitiesSearchDeps) {
 }
 
 if (import.meta.main) {
-  const realDeps = buildRealDeps();
-  Deno.serve(createHandler(realDeps));
+  Deno.serve((req) => {
+    const realDeps = buildRealDeps(req);
+    return createHandler(realDeps)(req);
+  });
 }

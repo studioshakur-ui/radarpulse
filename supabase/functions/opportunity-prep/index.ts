@@ -1,5 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
-import { sbAdmin } from "../_shared/db.ts";
+import { sbAdmin, sbAdminForRequest } from "../_shared/db.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { PrepRunnerError, generateOpportunityPrep } from "../_shared/opportunity_prep_runner.ts";
 
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
   let sb: ReturnType<typeof sbAdmin>;
   let userId: string;
   try {
-    sb = sbAdmin();
+    sb = sbAdminForRequest(req);
     const { data, error: authErr } = await sb.auth.getUser(token);
     if (authErr || !data?.user?.id) return json(401, { ok: false, error: "UNAUTHORIZED" });
     userId = data.user.id;

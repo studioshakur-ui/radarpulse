@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Route, Routes, Navigate, useLocation } from "react-router-dom";
-import { Globe2, Inbox, Settings, House } from "lucide-react";
+import { Globe2, Inbox, Settings, House, FolderOpen, Map } from "lucide-react";
 import InboxPage from "@/features/inbox/InboxPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import RequestAccessPage from "@/features/landing/RequestAccessPage";
@@ -21,6 +21,8 @@ import LocalityPage from "@/features/geo/LocalityPage";
 import SubscribePage from "@/features/billing/SubscribePage";
 import SettingsPage from "@/features/settings/SettingsPage";
 import WorkspacePage from "@/features/workspace/WorkspacePage";
+import DossiersPage from "@/features/dossiers/DossiersPage";
+import DossierPage from "@/features/dossiers/DossierPage";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -272,8 +274,10 @@ function AppShell({
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            <NavItem to="/global" label={t("geo.nav.global")} />
+            <NavItem to="/dossiers" label={t("nav.dossiers")} />
             <NavItem to="/inbox" label={t("nav.inbox")} />
+            <NavItem to="/countries/GB" label={t("geo.nav.uk")} />
+            <NavItem to="/global" label={t("geo.nav.global")} />
             <NavItem to="/settings" label={t("nav.settings")} />
           </div>
 
@@ -310,7 +314,7 @@ function AppShell({
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-bg/92 px-3 py-2 backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-6xl grid-cols-4 gap-2">
           <NavLink
-            to="/global"
+            to="/dossiers"
             className={({ isActive }) =>
               cn(
                 "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
@@ -318,8 +322,8 @@ function AppShell({
               )
             }
           >
-            <Globe2 className="h-4 w-4" />
-            <span>{t("geo.nav.global")}</span>
+            <FolderOpen className="h-4 w-4" />
+            <span>{t("nav.dossiers")}</span>
           </NavLink>
           <NavLink
             to="/inbox"
@@ -334,6 +338,18 @@ function AppShell({
             <span>{t("nav.inbox")}</span>
           </NavLink>
           <NavLink
+            to="/countries/GB"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
+                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
+              )
+            }
+          >
+            <Map className="h-4 w-4" />
+            <span>{t("geo.nav.uk")}</span>
+          </NavLink>
+          <NavLink
             to="/settings"
             className={({ isActive }) =>
               cn(
@@ -344,18 +360,6 @@ function AppShell({
           >
             <Settings className="h-4 w-4" />
             <span>{t("nav.settings")}</span>
-          </NavLink>
-          <NavLink
-            to="/"
-            className={({ isActive }) =>
-              cn(
-                "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition",
-                isActive ? "bg-elevated text-text shadow-soft" : "text-text/65",
-              )
-            }
-          >
-            <House className="h-4 w-4" />
-            <span>{t("nav.home")}</span>
           </NavLink>
         </div>
       </nav>
@@ -438,6 +442,30 @@ export default function App() {
           <Route path="/countries/:countryCode/regions/:regionSlug" element={<RegionPage />} />
           <Route path="/countries/:countryCode/regions/:regionSlug/localities/:localitySlug" element={<LocalityPage />} />
 
+          <Route
+            path="/dossiers"
+            element={
+              !user ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <InboxAccessGate user={user} isAdmin={isAdmin}>
+                  <DossiersPage />
+                </InboxAccessGate>
+              )
+            }
+          />
+          <Route
+            path="/dossier/:id"
+            element={
+              !user ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <InboxAccessGate user={user} isAdmin={isAdmin}>
+                  <DossierPage />
+                </InboxAccessGate>
+              )
+            }
+          />
           <Route
             path="/inbox"
             element={

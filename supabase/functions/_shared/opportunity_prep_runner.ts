@@ -87,12 +87,14 @@ async function getCurrentPrepIds(
   sb: ReturnType<typeof sbAdmin>,
   opportunityId: string,
   userId: string,
+  outputLocale: "en" | "fr" | "it",
 ): Promise<string[]> {
   const { data, error } = await sb
     .from("opportunity_preps")
     .select("id")
     .eq("opportunity_id", opportunityId)
     .eq("user_id", userId)
+    .eq("output_locale", outputLocale)
     .eq("is_current", true);
 
   if (error) throw new Error(`failed to load current preps: ${error.message}`);
@@ -174,6 +176,7 @@ export async function generateOpportunityPrep(
     .from("opportunity_briefs")
     .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action")
     .eq("opportunity_id", args.opportunityId)
+    .eq("output_locale", outputLocale)
     .maybeSingle();
 
   const { data: score } = await sb
@@ -181,6 +184,7 @@ export async function generateOpportunityPrep(
     .select("score_band, rationale_summary")
     .eq("opportunity_id", args.opportunityId)
     .eq("user_id", args.userId)
+    .eq("output_locale", outputLocale)
     .eq("is_current", true)
     .maybeSingle();
 
@@ -340,7 +344,7 @@ export async function generateOpportunityPrep(
     const response_plan = String(raw.response_plan ?? "");
     const prep: PrepResult = { checklist, missing_docs, effort_days, blockers, response_plan };
 
-    const previousCurrentIds = await getCurrentPrepIds(sb, args.opportunityId, args.userId);
+    const previousCurrentIds = await getCurrentPrepIds(sb, args.opportunityId, args.userId, outputLocale);
     await setPrepsCurrentState(sb, previousCurrentIds, false);
 
     let prepRowId = "";

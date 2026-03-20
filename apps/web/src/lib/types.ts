@@ -98,6 +98,15 @@ export type WorkflowStatus =
   | "SUBMITTED"
   | "EXPIRED";
 
+export type DossierStatus =
+  | "NEW"
+  | "REVIEW"
+  | "GO"
+  | "HOLD"
+  | "BLOCKED"
+  | "READY"
+  | "SUBMITTED";
+
 export type DecisionRecord = {
   opportunityId: Uuid;
   decision: Decision;
@@ -109,4 +118,12 @@ export type WorkspaceRecord = {
   id: string; // local id
   opportunityId: Uuid;
   createdAt: string;
+};
+
+export type DossierTaskRecord = {
+  id: Uuid;
+  dossier_id: Uuid;
+  label: string;
+  is_done: boolean;
+  created_at: string;
 };

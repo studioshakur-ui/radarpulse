@@ -148,7 +148,12 @@ export function useOpportunityBrief() {
         });
 
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok || !data.brief) throw new Error((data.error as string) ?? "Request failed");
+        if (!res.ok || !data.brief) {
+          if (res.status === 401) {
+            throw new AuthTokenError();
+          }
+          throw new Error((data.error as string) ?? "Request failed");
+        }
 
         const brief: OpportunityBrief = {
           ...(data.brief as Omit<OpportunityBrief, "generatedAt">),

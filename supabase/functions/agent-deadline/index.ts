@@ -30,6 +30,7 @@ type DecisionRow = {
 type PrepRow = {
   opportunity_id: string;
   user_id: string;
+  created_at: string;
   checklist: unknown;
   missing_docs: string[] | null;
   effort_days: number | null;
@@ -158,10 +159,11 @@ Deno.serve(async (req) => {
   const userIds = Array.from(new Set(decisions.map((row) => row.user_id)));
   const { data: preps, error: prepsErr } = await sb
     .from("opportunity_preps")
-    .select("opportunity_id, user_id, checklist, missing_docs, effort_days, blockers")
+    .select("opportunity_id, user_id, created_at, checklist, missing_docs, effort_days, blockers")
     .in("opportunity_id", opportunityIds)
     .in("user_id", userIds)
     .eq("is_current", true)
+    .order("created_at", { ascending: false })
     .returns<PrepRow[]>();
 
   if (prepsErr) {
@@ -171,7 +173,10 @@ Deno.serve(async (req) => {
 
   const prepMap = new Map<string, PrepRow>();
   for (const prep of preps ?? []) {
-    prepMap.set(`${prep.opportunity_id}:${prep.user_id}`, prep);
+    const key = `${prep.opportunity_id}:${prep.user_id}`;
+    if (!prepMap.has(key)) {
+      prepMap.set(key, prep);
+    }
   }
 
   const prefMap = new Map<string, Record<string, unknown>>();

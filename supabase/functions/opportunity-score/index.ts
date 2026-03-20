@@ -1,5 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
-import { sbAdmin } from "../_shared/db.ts";
+import { sbAdmin, sbAdminForRequest } from "../_shared/db.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("opportunity-score");
@@ -226,12 +226,14 @@ async function getCurrentScoreIds(
   sb: ReturnType<typeof sbAdmin>,
   opportunityId: string,
   userId: string,
+  outputLocale: "en" | "fr" | "it",
 ): Promise<string[]> {
   const { data, error } = await sb
     .from("opportunity_scores")
     .select("id")
     .eq("opportunity_id", opportunityId)
     .eq("user_id", userId)
+    .eq("output_locale", outputLocale)
     .eq("is_current", true);
 
   if (error) throw new Error(`failed to load current scores: ${error.message}`);
@@ -267,7 +269,7 @@ Deno.serve(async (req) => {
   let sb: ReturnType<typeof sbAdmin>;
   let userId: string;
   try {
-    sb = sbAdmin();
+    sb = sbAdminForRequest(req);
     const { data, error: authErr } = await sb.auth.getUser(token);
     if (authErr || !data?.user?.id) return json(401, { ok: false, error: "UNAUTHORIZED" });
     userId = data.user.id;
@@ -481,7 +483,7 @@ Deno.serve(async (req) => {
     };
 
     // ─── 5. Persist to DB ─────────────────────────────────────────────────
-    const previousCurrentIds = await getCurrentScoreIds(sb, body.id, userId);
+    const previousCurrentIds = await getCurrentScoreIds(sb, body.id, userId, outputLocale);
     await setScoresCurrentState(sb, previousCurrentIds, false);
 
     let scoreRowId = "";

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { cn, fmtRelative } from "@/lib/utils";
 import {
   DeadlinePill,
@@ -17,6 +18,7 @@ import { useInboxData } from "./useInboxData";
 import { useDecisions } from "./useDecisions";
 import { useOpportunityBrief, type BriefInput, type OpportunityBrief } from "./useOpportunityBrief";
 import { useOpportunityScore, type OpportunityScore } from "@/features/workspace/useOpportunityScore";
+import { createDossier } from "@/features/dossiers/dossierApi";
 
 type InboxItem = ReturnType<typeof useInboxData>["items"][number];
 
@@ -183,6 +185,8 @@ function InboxDetail({
   daySuffix,
   onDecide,
   onGenerateBrief,
+  onOpenDossier,
+  openingDossier,
 }: {
   item: InboxItem;
   decision: Decision | null;
@@ -195,6 +199,8 @@ function InboxDetail({
   daySuffix: string;
   onDecide: (id: string, d: Decision) => void;
   onGenerateBrief: () => void;
+  onOpenDossier: (item: InboxItem, decision: Decision | null) => void;
+  openingDossier: boolean;
 }) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-line/25 bg-surface shadow-soft">
@@ -273,12 +279,14 @@ function InboxDetail({
           >
             {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
           </button>
-          <Link
-            to={`/workspace/${item.id}`}
-            className="ml-auto rounded-lg border border-line/25 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext transition hover:bg-elevated"
+          <button
+            type="button"
+            onClick={() => onOpenDossier(item, decision)}
+            disabled={openingDossier}
+            className="ml-auto rounded-lg border border-line/25 bg-bg px-2 py-0.5 text-[11px] font-semibold text-subtext transition hover:bg-elevated disabled:cursor-wait disabled:opacity-70"
           >
-            {t("workspace.openBtn")}
-          </Link>
+            {openingDossier ? t("dossiers.opening") : t("dossiers.open")}
+          </button>
         </div>
 
         {/* Brief content */}
@@ -312,6 +320,7 @@ type DecisionFilter = "all" | "undecided" | "GO" | "HOLD" | "NO_GO";
 
 export default function InboxPage() {
   const { t, locale } = useLocale();
+  const navigate = useNavigate();
   const fmtLocale = LOCALE_MAP[locale] ?? "en-US";
   const daySuffix = t("inbox.deadline.daysSuffix");
 
@@ -322,6 +331,7 @@ export default function InboxPage() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedBriefs, setExpandedBriefs] = useState<Record<string, boolean>>({});
+  const [openingDossierId, setOpeningDossierId] = useState<string | null>(null);
 
   const minQuality = useMemo(() => {
     const parsed = Number(minQualityInput);
@@ -384,9 +394,9 @@ export default function InboxPage() {
   // Auto-generate brief when selected item changes
   useEffect(() => {
     if (!selectedBriefInput) return;
-    if (getBrief(selectedBriefInput.id) || isBriefLoading(selectedBriefInput.id)) return;
+    if (getBrief(selectedBriefInput.id) || isBriefLoading(selectedBriefInput.id) || getBriefError(selectedBriefInput.id)) return;
     void generate(selectedBriefInput);
-  }, [generate, getBrief, isBriefLoading, selectedBriefInput]);
+  }, [generate, getBrief, getBriefError, isBriefLoading, selectedBriefInput]);
 
   const statusLabel: Record<string, string> = {
     active: t("inbox.filter.status.active"),
@@ -434,6 +444,19 @@ export default function InboxPage() {
       void generate(item);
     }
     setExpandedBriefs((prev) => ({ ...prev, [id]: !isExpanded }));
+  }
+
+  async function handleOpenDossier(item: InboxItem, decision: Decision | null) {
+    setOpeningDossierId(item.id);
+    try {
+      const dossier = await createDossier(item.id, decision === "GO" ? "GO" : undefined);
+      navigate(`/dossier/${dossier.id}`);
+    } catch {
+      toast.error(t("dossiers.openFallback"));
+      navigate(`/workspace/${item.id}`);
+    } finally {
+      setOpeningDossierId((current) => (current === item.id ? null : current));
+    }
   }
 
   return (
@@ -643,6 +666,8 @@ export default function InboxPage() {
                 daySuffix={daySuffix}
                 onDecide={decide}
                 onGenerateBrief={() => void generate(selectedBriefInput)}
+                onOpenDossier={handleOpenDossier}
+                openingDossier={openingDossierId === selectedItem.id}
               />
             ) : (
               <StatePanel
@@ -749,12 +774,14 @@ export default function InboxPage() {
                   >
                     {briefLoading ? t("inbox.card.brief.generating") : t("inbox.card.brief")}
                   </button>
-                  <Link
-                    to={`/workspace/${item.id}`}
-                    className="rounded-xl border border-line/25 bg-bg px-3 py-2.5 text-center text-sm font-semibold text-subtext transition hover:bg-elevated"
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenDossier(item, decision)}
+                    disabled={openingDossierId === item.id}
+                    className="rounded-xl border border-line/25 bg-bg px-3 py-2.5 text-center text-sm font-semibold text-subtext transition hover:bg-elevated disabled:cursor-wait disabled:opacity-70"
                   >
-                    {t("workspace.openBtn")}
-                  </Link>
+                    {openingDossierId === item.id ? t("dossiers.opening") : t("dossiers.open")}
+                  </button>
                 </div>
 
                 {briefExpanded ? (

@@ -6,7 +6,7 @@ import { MetricBlock, SurfaceSection } from "@/components/ds/surfacePrimitives";
 import { DeadlinePill, SemanticPill, SignalBadge } from "@/components/ds/statusPrimitives";
 import { cn, daysLeft, fmtDateTime } from "@/lib/utils";
 import { useLocale, type TFn } from "@/lib/i18n";
-import type { GeoFeedBreakdownItem, GeoOpportunity } from "@/features/geo/geoData";
+import { displayOriginLabel, sourceLabel, type GeoFeedBreakdownItem, type GeoOpportunity } from "@/features/geo/geoData";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -168,7 +168,7 @@ export function GeoShell({
                 </div>
                 <div className={cn("mt-3 inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold shadow-soft", theme.cardAccentClass)}>
                   {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
-                  <span className={theme.accentTextClass}>{themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}</span>
+                  <span className={theme.accentTextClass}>{marketLabel}</span>
                   <span className="text-subtext">{themeCountryCode ? t("geo.hero.countryMode") : t("geo.hero.globalMode")}</span>
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
@@ -397,12 +397,12 @@ export function GeoOpportunityList({
                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                   {item.source_key ? (
                     <SignalBadge size="sm">
-                      {item.source_key}
+                      {sourceLabel(item.source_key)}
                     </SignalBadge>
                   ) : null}
                   {item.origin_type ? (
                     <SignalBadge size="sm" tone="brand" uppercase>
-                      {item.origin_type}
+                      {displayOriginLabel(item.origin_type, item.source_key)}
                     </SignalBadge>
                   ) : null}
                   {item.geo_resolution_confidence ? (

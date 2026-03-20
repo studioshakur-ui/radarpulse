@@ -7,6 +7,8 @@ import { makeFingerprint, safeStr } from "../_utils.ts";
 const log = createLogger("worker/it_eappalti_fvg");
 const FVG_REGION_NAME = "Friuli-Venezia Giulia";
 const FVG_PORTAL_BOOT_URL = "https://eappalti.regione.fvg.it/web/index.html";
+const FVG_PUBLIC_LISTING_URL =
+  "https://eappalti.regione.fvg.it/esop/guest/go/public/opportunity/current?customLoginPage=%2Fweb%2Findex.html&locale=it_IT";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
 
@@ -100,7 +102,8 @@ function detailMeta(rowHtml: string) {
 
 export async function apiEappaltiFvgFetch(source: SourceRow): Promise<ConnectorResult> {
   const fetched_at = new Date().toISOString();
-  const res = await fetchWithSession(source.url);
+  const listingUrl = source.url.includes("customLoginPage=") ? source.url : FVG_PUBLIC_LISTING_URL;
+  const res = await fetchWithSession(listingUrl);
 
   if (!res.ok) {
     throw new Error(`FVG listing fetch failed: ${res.status} ${res.statusText}`);

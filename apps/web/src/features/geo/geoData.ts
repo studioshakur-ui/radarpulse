@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-const FEED_LIMIT = 12;
+const FEED_LIMIT = 24;
 const COUNTRY_REGION_ALIAS_MAP: Record<string, Record<string, string[]>> = {
   IT: {
     abruzzo: ["abruzzo", "l aquila", "laquila", "pescara", "chieti", "teramo"],
@@ -34,12 +34,17 @@ const COUNTRY_REGION_ALIAS_MAP: Record<string, Record<string, string[]>> = {
   },
   GB: {
     london: ["london", "greater london"],
-    "south-east": ["south east", "kent", "surrey", "oxford", "oxfordshire", "brighton", "hampshire"],
-    "north-west": ["north west", "manchester", "liverpool", "cumbria", "cheshire", "bolton"],
-    "west-midlands": ["west midlands", "birmingham", "coventry", "wolverhampton"],
-    scotland: ["scotland", "edinburgh", "glasgow", "aberdeen", "dundee"],
-    wales: ["wales", "cardiff", "swansea", "newport"],
-    "northern-ireland": ["northern ireland", "belfast", "derry", "londonderry"],
+    "south-west": ["south west", "bristol", "bath", "plymouth", "exeter", "cornwall", "devon", "somerset", "dorset", "gloucestershire"],
+    "south-east": ["south east", "kent", "surrey", "oxford", "oxfordshire", "brighton", "hampshire", "sussex", "littlehampton", "portsmouth", "southampton"],
+    "east-of-england": ["east of england", "cambridge", "cambridgeshire", "norfolk", "suffolk", "essex", "luton", "hertfordshire", "bedfordshire", "peterborough"],
+    "east-midlands": ["east midlands", "nottingham", "derby", "leicester", "lincoln", "northampton", "rutland", "derbyshire", "nottinghamshire"],
+    "yorkshire-and-the-humber": ["yorkshire and the humber", "yorkshire", "leeds", "sheffield", "bradford", "hull", "wakefield", "york", "north yorkshire", "south yorkshire", "west yorkshire", "east riding"],
+    "north-east": ["north east", "newcastle", "sunderland", "durham", "middlesbrough", "northumberland", "tyne and wear", "tees valley", "hartlepool", "stockton", "darlington", "redcar"],
+    "north-west": ["north west", "manchester", "liverpool", "cumbria", "cheshire", "bolton", "merseyside", "lancashire"],
+    "west-midlands": ["west midlands", "birmingham", "coventry", "wolverhampton", "sandwell", "dudley", "staffordshire", "walsall", "solihull"],
+    scotland: ["scotland", "edinburgh", "glasgow", "aberdeen", "dundee", "historic environment scotland"],
+    wales: ["wales", "cardiff", "swansea", "newport", "gwynedd", "carmarthenshire", "powys", "conwy", "bridgend", "monmouthshire", "anglesey", "wrexham"],
+    "northern-ireland": ["northern ireland", "belfast", "derry", "londonderry", "newry", "mourne", "armagh", "causeway", "antrim"],
   },
 };
 
@@ -140,6 +145,8 @@ export type GeoFeedInsights = {
 export type GlobalGeoPageData = {
   zones: GeoZone[];
   countries: GeoCountry[];
+  sourceOpportunityCounts: Record<string, number>;
+  countryOpportunityCounts: Record<string, number>;
   feed: GeoFeed;
 };
 
@@ -154,6 +161,7 @@ export type CountryGeoPageData = {
   zone: GeoZone;
   regions: GeoRegion[];
   regionOpportunityCounts: Record<string, number>;
+  sourceOpportunityCounts: Record<string, number>;
   feed: GeoFeed;
 };
 
@@ -178,8 +186,16 @@ function normalizeLabel(value: string | null | undefined, fallback: string) {
   return next || fallback;
 }
 
-function sourceLabel(sourceKey: string | null | undefined) {
+export function sourceLabel(sourceKey: string | null | undefined) {
   const next = normalizeLabel(sourceKey, "unknown_source");
+  if (next === "uk_find_a_tender") return "Find a Tender";
+  if (next === "uk_contracts_finder_active") return "Contracts Finder";
+  if (next === "uk_sell2wales_active") return "Sell2Wales";
+  if (next === "fr_boamp_active") return "BOAMP";
+  if (next === "eu_ted_fr_active") return "TED France";
+  if (next === "it_anac_ocds") return "ANAC";
+  if (next === "it_roma_bandi_rss") return "Roma buyer feed";
+  if (next === "it_aria_lombardia_rss") return "ARIA Lombardia";
   return next
     .split("_")
     .filter(Boolean)
@@ -187,7 +203,11 @@ function sourceLabel(sourceKey: string | null | undefined) {
     .join(" ");
 }
 
-function originLabel(originType: string | null | undefined) {
+export function displayOriginLabel(originType: string | null | undefined, sourceKey?: string | null | undefined) {
+  const key = String(sourceKey ?? "").toLowerCase();
+  if (key.startsWith("uk_")) return "UK native";
+  if (key.startsWith("fr_")) return "FR native";
+  if (key.startsWith("it_")) return "IT native";
   const next = normalizeLabel(originType, "other");
   if (next === "IT_NATIVE") return "IT native";
   if (next === "EU") return "EU";
@@ -225,10 +245,17 @@ function normalizeGeoText(value: string | null | undefined) {
   const next = String(value ?? "")
     .trim()
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replaceAll("’", " ")
     .replaceAll("'", " ")
     .replaceAll("-", " ")
     .replaceAll("_", " ")
+    .replaceAll("/", " ")
+    .replaceAll(".", " ")
+    .replaceAll(",", " ")
+    .replaceAll("(", " ")
+    .replaceAll(")", " ")
     .replace(/\s+/g, " ")
     .trim();
   return next;
@@ -236,6 +263,7 @@ function normalizeGeoText(value: string | null | undefined) {
 
 function isActiveOpportunity(item: Pick<GeoOpportunity, "deadline_at" | "status">) {
   if (String(item.status ?? "").toLowerCase() === "expired") return false;
+  if (!item.deadline_at) return false;
   return !isExpired(item.deadline_at);
 }
 
@@ -265,6 +293,54 @@ function findRegionSlugByText(text: string, aliasIndex: Map<string, string>) {
     if (alias && text.includes(alias)) return slug;
   }
   return "";
+}
+
+function sourcePriority(sourceKey: string | null | undefined, countryCode: string) {
+  const key = String(sourceKey ?? "").toLowerCase();
+  if (!key) return 0;
+  if (countryCode === "IT") {
+    if (key.startsWith("it_anac_ocds")) return 5;
+    if (key.includes("roma") || key.includes("lombardia")) return 4;
+    if (key.startsWith("eu_ted")) return 1;
+  }
+  if (countryCode === "FR") {
+    if (key.startsWith("fr_boamp")) return 5;
+    if (key.startsWith("eu_ted")) return 2;
+  }
+  if (countryCode === "GB") {
+    if (key.startsWith("uk_find_a_tender") || key.startsWith("uk_contracts_finder") || key.startsWith("uk_sell2wales")) return 5;
+  }
+  if (key.startsWith("eu_ted")) return 1;
+  return 2;
+}
+
+function publishedPriority(publishedAt: string | null | undefined) {
+  const ts = Date.parse(String(publishedAt ?? ""));
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function qualityPriority(item: Pick<GeoOpportunity, "quality_score" | "completeness_score">) {
+  const quality = typeof item.quality_score === "number" ? item.quality_score : -1;
+  const completeness = typeof item.completeness_score === "number" ? item.completeness_score : -1;
+  return quality + completeness;
+}
+
+function prioritizeCountryFeed(items: GeoOpportunity[], countryCode: string, regions: GeoRegion[]) {
+  return [...items].sort((a, b) => {
+    const aResolved = resolveOpportunityRegionSlug(a, countryCode, regions) ? 1 : 0;
+    const bResolved = resolveOpportunityRegionSlug(b, countryCode, regions) ? 1 : 0;
+    if (bResolved !== aResolved) return bResolved - aResolved;
+
+    const aSource = sourcePriority(a.source_key, countryCode);
+    const bSource = sourcePriority(b.source_key, countryCode);
+    if (bSource !== aSource) return bSource - aSource;
+
+    const aQuality = qualityPriority(a);
+    const bQuality = qualityPriority(b);
+    if (bQuality !== aQuality) return bQuality - aQuality;
+
+    return publishedPriority(b.published_at) - publishedPriority(a.published_at);
+  });
 }
 
 export function resolveOpportunityRegionSlug(
@@ -321,8 +397,8 @@ export function buildGeoFeedInsights(
       hint: item.source_key,
       value: 1,
     });
-    pushCount(originMix, item.origin_type ?? "other", {
-      label: originLabel(item.origin_type),
+    pushCount(originMix, `${item.origin_type ?? "other"}:${item.source_key ?? ""}`, {
+      label: displayOriginLabel(item.origin_type, item.source_key),
       hint: item.origin_type,
       value: 1,
     });
@@ -388,10 +464,57 @@ function opportunitiesQuery() {
       { count: "exact" },
     )
     .eq("is_public", true)
-    .or(`deadline_at.is.null,deadline_at.gte.${nowIso}`)
+    .not("deadline_at", "is", null)
+    .gte("deadline_at", nowIso)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
     .limit(FEED_LIMIT);
+}
+
+async function listGlobalSourceCounts(): Promise<Record<string, number>> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("opportunities_geo_scope_v1")
+    .select("source_key")
+    .eq("is_public", true)
+    .not("deadline_at", "is", null)
+    .gte("deadline_at", nowIso)
+    .limit(5000);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const sourceKey = normalizeLabel((row as { source_key?: string | null }).source_key, "");
+    if (!sourceKey) continue;
+    counts[sourceKey] = (counts[sourceKey] ?? 0) + 1;
+  }
+
+  return counts;
+}
+
+async function listGlobalCountryCounts(): Promise<Record<string, number>> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("opportunities_geo_scope_v1")
+    .select("country_code,geo_country_name")
+    .eq("is_public", true)
+    .not("deadline_at", "is", null)
+    .gte("deadline_at", nowIso)
+    .limit(5000);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const countryCode = normalizeLabel((row as { country_code?: string | null }).country_code, "");
+    const countryName = normalizeLabel((row as { geo_country_name?: string | null }).geo_country_name, "");
+    const key = countryCode || countryName;
+    if (!key) continue;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  return counts;
 }
 
 async function listScopedOpportunities(scope: {
@@ -431,7 +554,7 @@ async function listScopedOpportunities(scope: {
 async function listCountryRegionCounts(countryCode: string, regions: GeoRegion[]): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from("opportunities_geo_scope_v1")
-    .select("geo_region_slug,geo_region_name,region,locality,title,buyer_name,deadline_at,status")
+    .select("geo_region_slug,geo_region_name,region,locality,title,buyer_name,deadline_at,status,source_key")
     .eq("is_public", true)
     .eq("country_code", countryCode)
     .limit(5000);
@@ -460,8 +583,29 @@ async function listCountryRegionCounts(countryCode: string, regions: GeoRegion[]
   return counts;
 }
 
+async function listCountrySourceCounts(countryCode: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("opportunities_geo_scope_v1")
+    .select("source_key,deadline_at,status")
+    .eq("is_public", true)
+    .eq("country_code", countryCode)
+    .limit(5000);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    if (!isActiveOpportunity(row as Pick<GeoOpportunity, "deadline_at" | "status">)) continue;
+    const sourceKey = normalizeLabel((row as { source_key?: string | null }).source_key, "");
+    if (!sourceKey) continue;
+    counts[sourceKey] = (counts[sourceKey] ?? 0) + 1;
+  }
+
+  return counts;
+}
+
 export async function loadGlobalGeoPage(): Promise<GlobalGeoPageData> {
-  const [zonesRes, countriesRes, feed] = await Promise.all([
+  const [zonesRes, countriesRes, sourceOpportunityCounts, countryOpportunityCounts, feed] = await Promise.all([
     supabase
       .from("geo_zones")
       .select("id,parent_zone_id,slug,name,kind,description,sort_order")
@@ -473,6 +617,8 @@ export async function loadGlobalGeoPage(): Promise<GlobalGeoPageData> {
       .select("id,zone_id,country_code,slug,name,territory_kind,flag_emoji,sort_order")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
+    listGlobalSourceCounts(),
+    listGlobalCountryCounts(),
     listScopedOpportunities({}),
   ]);
 
@@ -482,6 +628,8 @@ export async function loadGlobalGeoPage(): Promise<GlobalGeoPageData> {
   return {
     zones: (zonesRes.data ?? []) as GeoZone[],
     countries: (countriesRes.data ?? []) as GeoCountry[],
+    sourceOpportunityCounts,
+    countryOpportunityCounts,
     feed,
   };
 }
@@ -545,14 +693,22 @@ export async function loadCountryGeoPage(countryCode: string): Promise<CountryGe
   if (zoneRes.error) throw zoneRes.error;
   if (regionsRes.error) throw regionsRes.error;
   const regionRows = (regionsRes.data ?? []) as GeoRegion[];
-  const regionOpportunityCounts = await listCountryRegionCounts(countryCode, regionRows);
+  const [regionOpportunityCounts, sourceOpportunityCounts] = await Promise.all([
+    listCountryRegionCounts(countryCode, regionRows),
+    listCountrySourceCounts(countryCode),
+  ]);
+  const prioritizedFeed = {
+    items: prioritizeCountryFeed(feed.items, countryCode, regionRows),
+    total: feed.total,
+  };
 
   return {
     country: country as GeoCountry,
     zone: zoneRes.data as GeoZone,
     regions: regionRows,
     regionOpportunityCounts,
-    feed,
+    sourceOpportunityCounts,
+    feed: prioritizedFeed,
   };
 }
 

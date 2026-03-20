@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ThemeMenu } from "@/components/ThemeMenu";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/state/theme";
 import { Link } from "react-router-dom";
@@ -32,19 +31,19 @@ function AnnouncementBar() {
 
 const HERO_CYCLES: Record<Locale, Array<{ strong: string; accent: string }>> = {
   en: [
-    { strong: "Win more", accent: "public tenders." },
-    { strong: "Never miss", accent: "a deadline." },
-    { strong: "Track 20+ countries", accent: "live." },
+    { strong: "Find the right", accent: "public opportunities." },
+    { strong: "Turn signal into", accent: "qualified dossiers." },
+    { strong: "Move faster with", accent: "clear next actions." },
   ],
   fr: [
-    { strong: "Remportez plus", accent: "d'appels d'offres." },
-    { strong: "Ne manquez plus", accent: "une échéance." },
-    { strong: "Suivez 20+ pays", accent: "en direct." },
+    { strong: "Identifiez les bonnes", accent: "opportunités publiques." },
+    { strong: "Transformez le signal en", accent: "dossiers qualifiés." },
+    { strong: "Avancez avec des", accent: "prochaines actions claires." },
   ],
   it: [
-    { strong: "Vinci più", accent: "gare d'appalto." },
-    { strong: "Non perdere", accent: "nessuna scadenza." },
-    { strong: "Monitora 20+ paesi", accent: "in tempo reale." },
+    { strong: "Trova le giuste", accent: "opportunita pubbliche." },
+    { strong: "Trasforma il segnale in", accent: "dossier qualificati." },
+    { strong: "Avanza con", accent: "prossime azioni chiare." },
   ],
 };
 
@@ -72,7 +71,7 @@ function TypewriterHero() {
     return () => window.clearInterval(interval);
   }, [cycles.length, prefersReducedMotion]);
 
-  const line = cycles[idx] ?? { strong: "Win more", accent: "public tenders." };
+  const line = cycles[idx] ?? { strong: "Find the right", accent: "public opportunities." };
 
   return (
     <h1
@@ -143,37 +142,85 @@ function HeroBackground() {
 // ─── Hero browser mockup ──────────────────────────────────────────────────────
 
 function HeroBrowserMockup() {
-  const { t, lang } = useT();
+  const { lang } = useT();
   const MOCKUP_LABELS: Record<
-    string,
+    Locale,
     {
-      allStatuses: string;
-      results: string;
-      loadMore: string;
-      highRelevance: string;
-      minutesAgo: string;
+      live: string;
+      stage: string;
+      source: string;
+      readiness: string;
+      signal: string;
+      deadline: string;
+      blockerTitle: string;
+      blockerA: string;
+      blockerB: string;
+      nextAction: string;
+      nextActionBody: string;
+      updated: string;
+      open: string;
+      sideTitle: string;
+      sideReview: string;
+      sideChecklist: string;
+      sideReady: string;
     }
   > = {
     en: {
-      allStatuses: "All statuses",
-      results: "3 results",
-      loadMore: "Load more →",
-      highRelevance: "High relevance",
-      minutesAgo: "3 min ago",
+      live: "ACTIVE DOSSIER",
+      stage: "Needs review",
+      source: "UK · Find a Tender",
+      readiness: "Readiness",
+      signal: "Signal",
+      deadline: "Deadline",
+      blockerTitle: "Current blockers",
+      blockerA: "Security appendix missing",
+      blockerB: "Partner confirmation pending",
+      nextAction: "Next action",
+      nextActionBody: "Validate go or hold, then open the task checklist and assign the first document pull.",
+      updated: "Updated 3 min ago",
+      open: "Open dossier →",
+      sideTitle: "Workflow",
+      sideReview: "Qualification",
+      sideChecklist: "Checklist",
+      sideReady: "Ready",
     },
     fr: {
-      allStatuses: "Tous les statuts",
-      results: "3 résultats",
-      loadMore: "Charger plus →",
-      highRelevance: "Haute pertinence",
-      minutesAgo: "il y a 3 min",
+      live: "DOSSIER ACTIF",
+      stage: "A qualifier",
+      source: "UK · Find a Tender",
+      readiness: "Preparation",
+      signal: "Signal",
+      deadline: "Echeance",
+      blockerTitle: "Blocages actuels",
+      blockerA: "Annexe securite manquante",
+      blockerB: "Confirmation partenaire en attente",
+      nextAction: "Prochaine action",
+      nextActionBody: "Valider go ou hold, puis ouvrir la checklist et lancer la premiere collecte documentaire.",
+      updated: "Mis a jour il y a 3 min",
+      open: "Ouvrir le dossier →",
+      sideTitle: "Workflow",
+      sideReview: "Qualification",
+      sideChecklist: "Checklist",
+      sideReady: "Pret",
     },
     it: {
-      allStatuses: "Tutti gli stati",
-      results: "3 risultati",
-      loadMore: "Carica altro →",
-      highRelevance: "Alta pertinenza",
-      minutesAgo: "3 min fa",
+      live: "DOSSIER ATTIVO",
+      stage: "Da rivedere",
+      source: "UK · Find a Tender",
+      readiness: "Prontezza",
+      signal: "Segnale",
+      deadline: "Scadenza",
+      blockerTitle: "Blocchi correnti",
+      blockerA: "Appendice sicurezza mancante",
+      blockerB: "Conferma partner in attesa",
+      nextAction: "Prossima azione",
+      nextActionBody: "Valida go o hold, poi apri la checklist e assegna il primo recupero documentale.",
+      updated: "Aggiornato 3 min fa",
+      open: "Apri dossier →",
+      sideTitle: "Workflow",
+      sideReview: "Qualifica",
+      sideChecklist: "Checklist",
+      sideReady: "Pronto",
     },
   };
   const ml = MOCKUP_LABELS[lang] ?? MOCKUP_LABELS.en;
@@ -184,36 +231,7 @@ function HeroBrowserMockup() {
     const t = window.setInterval(() => setTick((n) => n + 1), 5600);
     return () => window.clearInterval(t);
   }, [prefersReducedMotion]);
-
-  const cards = [
-    {
-      flag: "🇮🇹",
-      src: "ANAC",
-      title: "Sistema informatico integrato — Min. Istruzione",
-      score: 88,
-      tag: "GO",
-      tagCls: "bg-emerald-100 text-emerald-700",
-      budget: "€ 4.2M",
-    },
-    {
-      flag: "🇪🇺",
-      src: "TED",
-      title: "Framework IT consulting — European Commission DG DIGIT",
-      score: 71,
-      tag: "GO",
-      tagCls: "bg-emerald-100 text-emerald-700",
-      budget: "€ 50M",
-    },
-    {
-      flag: "🇬🇧",
-      src: "FindTender",
-      title: "Cloud infrastructure modernisation — NHS England",
-      score: 54,
-      tag: "HOLD",
-      tagCls: "bg-amber-100 text-amber-700",
-      budget: "£ 8.5M",
-    },
-  ];
+  const stages = [ml.sideReview, ml.sideChecklist, ml.sideReady];
 
   return (
     <div className="relative mx-auto flex w-full max-w-xl items-center justify-center lg:max-w-[35rem] lg:justify-end">
@@ -233,74 +251,103 @@ function HeroBrowserMockup() {
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
           </div>
           <div className="mx-3 flex-1 rounded-md bg-white/70 px-3 py-1 text-center text-xs text-subtext/50">
-            app.radarpulse.io/inbox
+            app.radarpulse.io/dossiers
           </div>
         </div>
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 border-b border-border/10 bg-[#faf8ff] px-4 py-3">
-          <span className="rounded-full bg-brand/12 px-3 py-1 text-[11px] font-semibold text-brand">
-            {ml.allStatuses}
-          </span>
-          <span className="rounded-full border border-border/25 px-3 py-1 text-[11px] text-subtext/65">
-            {t("landing.mockup.sort")}
-          </span>
-          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-subtext/50">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {ml.minutesAgo}
-          </span>
+        <div className="border-b border-border/10 bg-[#faf8ff] px-5 py-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand/70">
+                {ml.stage}
+              </p>
+              <h3 className="mt-2 text-lg font-semibold tracking-tight text-text">
+                NHS England cloud modernisation
+              </h3>
+              <p className="mt-1 text-xs text-subtext/70">{ml.source}</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {ml.live}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
+                {ml.signal}
+              </p>
+              <p className="mt-1 text-2xl font-bold text-text">84</p>
+              <p className="text-[11px] text-emerald-600">shortlisted</p>
+            </div>
+            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
+                {ml.readiness}
+              </p>
+              <p className="mt-1 text-2xl font-bold text-text">62%</p>
+              <p className="text-[11px] text-amber-600">awaiting review</p>
+            </div>
+            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
+                {ml.deadline}
+              </p>
+              <p className="mt-1 text-2xl font-bold text-text">6d</p>
+              <p className="text-[11px] text-subtext/65">29 Mar 2026</p>
+            </div>
+          </div>
         </div>
-        {/* Cards */}
-        <div className="divide-y divide-border/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,244,255,0.9)_100%)]">
-          {cards.map((c, i) => (
-            <div
-              key={c.title}
-              className="flex items-start justify-between gap-3 px-5 py-4 transition-colors hover:bg-white/45"
-              style={{
-                opacity: tick % cards.length === i ? 1 : 0.74,
-                transition: prefersReducedMotion ? "none" : "opacity 1.2s ease",
-              }}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="mb-1.5 flex items-center gap-1.5">
-                  <span className="text-xs">{c.flag}</span>
-                  <span className="rounded-full bg-border/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-subtext/60">
-                    {c.src}
-                  </span>
+        <div className="grid gap-4 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,244,255,0.9)_100%)] px-5 py-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
+          <div>
+            <div className="rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
+                {ml.blockerTitle}
+              </p>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <span>{ml.blockerA}</span>
                 </div>
-                <p className="line-clamp-2 text-sm font-semibold leading-snug text-text">{c.title}</p>
-                <p className="mt-1 text-[11px] text-subtext/70">{c.budget}</p>
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-1.5">
-                <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-brand">
-                  AI {c.score}
-                </span>
-                <span className={"rounded-full px-2.5 py-1 text-[10px] font-bold " + c.tagCls}>
-                  {c.tag}
-                </span>
+                <div className="flex items-start gap-2 rounded-xl border border-border/20 bg-bg/70 px-3 py-2 text-sm text-subtext/80">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/50" />
+                  <span>{ml.blockerB}</span>
+                </div>
               </div>
             </div>
-          ))}
+            <div className="mt-4 rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
+                {ml.nextAction}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-text/85">{ml.nextActionBody}</p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
+              {ml.sideTitle}
+            </p>
+            <div className="mt-3 space-y-2">
+              {stages.map((stage, index) => (
+                <div
+                  key={stage}
+                  className={
+                    "rounded-xl border px-3 py-2 text-sm transition-colors " +
+                    (tick % stages.length === index
+                      ? "border-brand/30 bg-brand/10 font-semibold text-brand"
+                      : "border-border/15 bg-bg/65 text-subtext/75")
+                  }
+                >
+                  {stage}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        {/* Footer bar */}
         <div className="flex items-center justify-between border-t border-border/10 bg-white/65 px-5 py-3">
-          <span className="text-[11px] text-subtext/50">{ml.results}</span>
-          <span className="text-[11px] font-medium text-brand/80">{ml.loadMore}</span>
+          <span className="text-[11px] text-subtext/50">{ml.updated}</span>
+          <span className="text-[11px] font-medium text-brand/80">{ml.open}</span>
         </div>
       </div>
-      {/* Live badge */}
-      <div className="absolute right-4 top-4 hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-white/88 px-3 py-1.5 text-[11px] font-bold text-emerald-500 shadow-lg backdrop-blur sm:flex">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        {t("landing.mockup.live")}
-      </div>
-      {/* AI Score floating badge */}
       <div className="absolute -left-6 bottom-10 hidden rounded-2xl border border-brand/20 bg-white/92 px-4 py-3 shadow-xl backdrop-blur xl:block">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtext/50">
-          {t("landing.mockup.aiScore")}
-        </p>
-        <p className="mt-0.5 text-2xl font-bold text-text">
-          88 <span className="text-sm font-normal text-subtext/40">/ 100</span>
-        </p>
-        <p className="mt-0.5 text-[10px] text-emerald-500">↑ {ml.highRelevance}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtext/50">UK + FR</p>
+        <p className="mt-0.5 text-2xl font-bold text-text">Dossier</p>
+        <p className="mt-0.5 text-[10px] text-brand/80">market qualification workflow</p>
       </div>
     </div>
   );
@@ -310,19 +357,37 @@ function HeroBrowserMockup() {
 
 const HERO_STATS: Record<Locale, Array<{ value: string; label: string }>> = {
   en: [
-    { value: "15 min", label: "Refresh cycle" },
-    { value: "20+", label: "Countries monitored" },
-    { value: "AI 0–100", label: "Opportunity score" },
+    { value: "UK + FR", label: "Live market coverage" },
+    { value: "2 core markets", label: "Commercial focus" },
+    { value: "Dossiers", label: "Core work object" },
   ],
   fr: [
-    { value: "15 min", label: "Actualisation" },
-    { value: "20+", label: "Pays couverts" },
-    { value: "IA 0–100", label: "Score opportunité" },
+    { value: "UK + FR", label: "Couverture live" },
+    { value: "2 marches cles", label: "Focus commercial" },
+    { value: "Dossiers", label: "Objet de travail central" },
   ],
   it: [
-    { value: "15 min", label: "Aggiornamento" },
-    { value: "20+", label: "Paesi monitorati" },
-    { value: "IA 0–100", label: "Score opportunità" },
+    { value: "UK + FR", label: "Copertura live" },
+    { value: "2 mercati chiave", label: "Focus commerciale" },
+    { value: "Dossier", label: "Oggetto operativo centrale" },
+  ],
+};
+
+const HERO_CHIPS: Record<Locale, string[]> = {
+  en: [
+    "UK and France qualification flow",
+    "Decision-ready brief and score",
+    "Dossier workflow with next actions",
+  ],
+  fr: [
+    "Flux de qualification UK et France",
+    "Brief et score orientés decision",
+    "Workflow dossier avec prochaines actions",
+  ],
+  it: [
+    "Flusso di qualifica UK e Francia",
+    "Brief e score orientati alla decisione",
+    "Workflow dossier con prossime azioni",
   ],
 };
 
@@ -780,22 +845,22 @@ function Footer() {
               </li>
               <li>
                 <a
-                  href="https://ted.europa.eu"
+                  href="https://www.find-tender.service.gov.uk/Search"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition-colors hover:text-text"
                 >
-                  TED OJEU
+                  Find a Tender
                 </a>
               </li>
               <li>
                 <a
-                  href="https://www.anticorruzione.it"
+                  href="https://www.boamp.fr"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition-colors hover:text-text"
                 >
-                  ANAC
+                  BOAMP
                 </a>
               </li>
             </ul>
@@ -835,98 +900,86 @@ function getPricingPlans(lang: Locale) {
   if (lang === "fr")
     return {
       free: {
-        name: "Gratuit",
-        price: "0 €",
-        period: "/ mois",
-        description: "Pour explorer RadarPulse et découvrir les marchés.",
+        name: "Pilot",
+        price: "Sur revue",
+        period: "",
+        description: "Pour les equipes qui valident RadarPulse sur du flux reel UK et France.",
         features: [
-          "20 opportunités / mois",
-          "TED EU inclus",
-          "Score IA basique",
-          "Mise à jour quotidienne",
+          "Intake UK et France",
+          "Qualification rapide",
+          "Brief et score de signal",
         ],
-        cta: "Commencer gratuitement",
+        cta: "Demander l'acces",
         ctaHref: "/request-access",
       },
       pro: {
-        name: "Pro",
-        price: "49 €",
-        period: "/ mois",
-        description: "Pour les équipes qui veulent gagner plus de marchés.",
+        name: "Team",
+        price: "Personnalise",
+        period: "",
+        description: "Pour les equipes qui veulent operer des dossiers en continu.",
         features: [
-          "Opportunités illimitées",
-          "TED + ANAC + FindTender + SAM.gov",
-          "Score IA avancé + GO / HOLD / NON",
-          "Actualisation toutes les 15 min",
-          "Analyse IA par appel d'offres",
-          "Alertes e-mail",
+          "Board dossiers et checklist",
+          "Decision support et prep",
+          "Couverture live UK et France",
         ],
-        cta: "Démarrer l'essai Pro",
+        cta: "Demander l'acces",
         ctaHref: "/request-access",
       },
     };
   if (lang === "it")
     return {
       free: {
-        name: "Gratuito",
-        price: "€ 0",
-        period: "/ mese",
-        description: "Per esplorare RadarPulse e scoprire i bandi.",
+        name: "Pilot",
+        price: "Su valutazione",
+        period: "",
+        description: "Per i team che validano RadarPulse su flusso reale UK e Francia.",
         features: [
-          "20 opportunità / mese",
-          "TED EU incluso",
-          "Score IA base",
-          "Aggiornamento giornaliero",
+          "Intake UK e Francia",
+          "Qualifica rapida",
+          "Brief e score di segnale",
         ],
-        cta: "Inizia gratis",
+        cta: "Richiedi accesso",
         ctaHref: "/request-access",
       },
       pro: {
-        name: "Pro",
-        price: "€ 49",
-        period: "/ mese",
-        description: "Per i team che vogliono vincere più gare.",
+        name: "Team",
+        price: "Custom",
+        period: "",
+        description: "Per i team che vogliono operare dossier in continuita.",
         features: [
-          "Opportunità illimitate",
-          "TED + ANAC + FindTender + SAM.gov",
-          "Score IA avanzato + GO/HOLD/NO",
-          "Aggiornamento ogni 15 min",
-          "Analisi IA per bando",
-          "Avvisi e-mail",
+          "Board dossier e checklist",
+          "Decision support e prep",
+          "Copertura live UK e Francia",
         ],
-        cta: "Avvia prova Pro",
+        cta: "Richiedi accesso",
         ctaHref: "/request-access",
       },
     };
   return {
     free: {
-      name: "Free",
-      price: "€ 0",
-      period: "/ month",
-      description: "Explore RadarPulse and discover public tenders.",
+      name: "Pilot",
+      price: "By review",
+      period: "",
+      description: "For teams validating RadarPulse on live UK and France opportunity flow.",
       features: [
-        "20 opportunities / month",
-        "TED EU included",
-        "Basic AI score",
-        "Daily refresh",
+        "UK and France intake",
+        "Fast qualification",
+        "Brief and signal score",
       ],
-      cta: "Start free",
+      cta: "Request access",
       ctaHref: "/request-access",
     },
     pro: {
-      name: "Pro",
-      price: "€ 49",
-      period: "/ month",
-      description: "For teams who want to win more public contracts.",
+      name: "Team",
+      price: "Custom",
+      period: "",
+      description: "For teams operating dossiers across qualification and action.",
       features: [
-        "Unlimited opportunities",
-        "TED + ANAC + FindTender + SAM.gov",
-        "Advanced AI score + GO/HOLD decisions",
-        "15-min refresh",
-        "AI brief per tender",
-        "Email alerts",
+        "Dossier board and checklist",
+        "Decision support and prep",
+        "UK and France live coverage",
       ],
-      cta: "Start Pro trial",
+      cta: "Request access",
       ctaHref: "/request-access",
     },
   };
@@ -948,77 +1001,77 @@ export function LandingPage() {
 
   const mockTenders = [
     {
-      flag: "🇮🇹",
-      country: "Italy · ANAC",
-      title: "Sistema informatico integrato per la gestione delle pratiche scolastiche",
-      buyer: "Ministero dell'Istruzione",
-      budget: "€ 4.2M",
-      deadline: "Apr 15, 2026",
+      flag: "🇬🇧",
+      country: "UK · Find a Tender",
+      title: "Cloud infrastructure modernisation and managed services",
+      buyer: "NHS England",
+      budget: "£ 8.5M",
+      deadline: "Mar 29, 2026",
       score: 88,
       decision: "GO" as const,
     },
     {
-      flag: "🇪🇺",
-      country: "EU · TED",
-      title: "Framework agreement for IT consulting and digital transformation services",
-      buyer: "European Commission — DG DIGIT",
-      budget: "€ 50M",
-      deadline: "May 2, 2026",
+      flag: "🇫🇷",
+      country: "France · BOAMP",
+      title: "Digital services framework for territorial procurement support",
+      buyer: "Ministere de la Transition numerique",
+      budget: "€ 6.1M",
+      deadline: "Apr 11, 2026",
       score: 71,
-      decision: "GO" as const,
+      decision: "HOLD" as const,
     },
     {
       flag: "🇬🇧",
       country: "UK · FindTender",
-      title: "Cloud infrastructure modernisation and managed services",
-      buyer: "NHS England",
-      budget: "£ 8.5M",
-      deadline: "Apr 28, 2026",
+      title: "Commercial due diligence support for regional transport expansion",
+      buyer: "Transport for Greater Manchester",
+      budget: "£ 3.4M",
+      deadline: "Apr 6, 2026",
       score: 54,
-      decision: "HOLD" as const,
+      decision: "NO" as const,
     },
   ];
 
   const PRICING_LABEL: Record<Locale, string> = {
-    en: "Pricing",
-    fr: "Tarifs",
-    it: "Prezzi",
+    en: "Access",
+    fr: "Acces",
+    it: "Accesso",
   };
   const PRICING_TITLE: Record<Locale, string> = {
-    en: "Simple. Transparent. No surprises.",
-    fr: "Simple. Transparent. Sans surprise.",
-    it: "Semplice. Trasparente. Senza sorprese.",
+    en: "Controlled access, aligned to your operating model.",
+    fr: "Un acces controle, aligne a votre mode operatoire.",
+    it: "Accesso controllato, allineato al tuo modello operativo.",
   };
   const PRICING_SUB: Record<Locale, string> = {
-    en: "Start free. Upgrade to Pro when you're ready.",
-    fr: "Commencez gratuitement. Passez au Pro quand vous êtes prêt.",
-    it: "Inizia gratis. Passa al Pro quando sei pronto.",
+    en: "RadarPulse is currently onboarded through reviewed access while the dossier system hardens.",
+    fr: "RadarPulse est actuellement ouvert via un acces revu pendant que le systeme dossier se consolide.",
+    it: "RadarPulse viene attualmente aperto tramite accesso valutato mentre il sistema dossier si consolida.",
   };
   const HERO_PILL: Record<Locale, string> = {
-    en: "Public procurement intelligence · AI",
-    fr: "Intelligence marché public · IA",
-    it: "Intelligence appalti · IA",
+    en: "Public opportunity intelligence",
+    fr: "Intelligence opportunites publiques",
+    it: "Intelligence opportunita pubbliche",
   };
   const NO_CARD: Record<Locale, string> = {
-    en: "No credit card required · Cancel anytime",
-    fr: "Sans carte bancaire · Annulez à tout moment",
-    it: "Nessuna carta richiesta · Cancella in qualsiasi momento",
+    en: "Access is reviewed with each team before rollout.",
+    fr: "L'acces est revu avec chaque equipe avant ouverture.",
+    it: "L'accesso viene valutato con ogni team prima dell'apertura.",
   };
   const TIMELINE_ROWS: Record<Locale, Array<{ time: string; label: string; active: boolean }>> = {
     en: [
-      { time: "09:00", label: "TED scan", active: false },
-      { time: "09:15", label: "12 new tenders", active: true },
-      { time: "09:30", label: "AI scores ready", active: false },
+      { time: "08:40", label: "New market signal captured", active: false },
+      { time: "09:00", label: "Qualification updated", active: true },
+      { time: "09:15", label: "Dossier ready for review", active: false },
     ],
     fr: [
-      { time: "09:00", label: "Scan TED", active: false },
-      { time: "09:15", label: "12 nouvelles offres", active: true },
-      { time: "09:30", label: "Scores IA calculés", active: false },
+      { time: "08:40", label: "Nouveau signal marche capte", active: false },
+      { time: "09:00", label: "Qualification mise a jour", active: true },
+      { time: "09:15", label: "Dossier pret pour revue", active: false },
     ],
     it: [
-      { time: "09:00", label: "Scansione TED", active: false },
-      { time: "09:15", label: "12 nuovi bandi", active: true },
-      { time: "09:30", label: "Score IA calcolati", active: false },
+      { time: "08:40", label: "Nuovo segnale mercato acquisito", active: false },
+      { time: "09:00", label: "Qualifica aggiornata", active: true },
+      { time: "09:15", label: "Dossier pronto per revisione", active: false },
     ],
   };
 
@@ -1038,7 +1091,6 @@ export function LandingPage() {
             <Logo size={24} />
           </Link>
           <nav className="flex items-center gap-2">
-            <ThemeMenu />
             <Link
               to="/login"
               className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-4 py-2 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
@@ -1074,15 +1126,14 @@ export function LandingPage() {
                   <HeroBrowserMockup />
                 </div>
                 <div className="mt-7 flex flex-wrap gap-2 text-sm text-subtext/80">
-                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
-                    20+ live markets
-                  </span>
-                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
-                    AI scoring and briefs
-                  </span>
-                  <span className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5">
-                    Inbox to workspace workflow
-                  </span>
+                  {(HERO_CHIPS[lang] ?? HERO_CHIPS.en).map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full border border-line/20 bg-surface/70 px-3 py-1.5"
+                    >
+                      {chip}
+                    </span>
+                  ))}
                 </div>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
@@ -1118,12 +1169,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Sources strip */}
-        <SourcesStrip />
-
-        {/* Signal Rail */}
-        <SignalRail />
-
         {/* Bento features */}
         <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
           <div className="mb-10 max-w-3xl">
@@ -1132,8 +1177,7 @@ export function LandingPage() {
               {t("landing.diff.title")}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-subtext">
-              RadarPulse is strongest when the story is obvious at a glance: scan, qualify, decide,
-              then move into action.
+              {t("landing.diff.subtitle")}
             </p>
           </div>
           <div ref={bentoRef} className="grid grid-cols-1 gap-4 md:grid-cols-12">

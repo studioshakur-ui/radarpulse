@@ -54,6 +54,42 @@ export default function GlobalPage() {
     next.countryHotspots = next.countryHotspots.filter((item) => item.slug !== "US");
     return next;
   }, [data]);
+  const globalSourceMix = useMemo(() => {
+    const counts = data?.sourceOpportunityCounts ?? {};
+    return Object.entries(counts)
+      .map(([sourceKey, value]) => ({
+        label:
+          sourceKey === "uk_find_a_tender"
+            ? "Find a Tender"
+            : sourceKey === "uk_contracts_finder_active"
+              ? "Contracts Finder"
+              : sourceKey === "uk_sell2wales_active"
+                ? "Sell2Wales"
+                : sourceKey === "fr_boamp_active"
+                  ? "BOAMP"
+                  : sourceKey === "it_anac_ocds"
+                    ? "ANAC"
+                    : sourceKey,
+        hint: sourceKey,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+      .slice(0, 8);
+  }, [data]);
+  const globalCountryHotspots = useMemo(() => {
+    const counts = data?.countryOpportunityCounts ?? {};
+    const countryNameByCode = new globalThis.Map(visibleCountries.map((country) => [country.country_code, country.name]));
+    return Object.entries(counts)
+      .filter(([code]) => code !== "US")
+      .map(([code, value]) => ({
+        label: countryNameByCode.get(code) ?? code,
+        hint: code,
+        slug: code,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+      .slice(0, 8);
+  }, [data, visibleCountries]);
 
   return (
     <GeoShell
@@ -69,7 +105,7 @@ export default function GlobalPage() {
             { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.global.metrics.publicOppsHint") },
             { label: t("geo.labels.zones"), value: String(visibleZones.length), hint: t("geo.global.metrics.zonesHint") },
             { label: t("geo.labels.countries"), value: String(visibleCountries.length), hint: t("geo.global.metrics.countriesHint") },
-            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.global.metrics.sourcesHint") },
+            { label: t("geo.insights.sources"), value: String(globalSourceMix.length), hint: t("geo.global.metrics.sourcesHint") },
           ]}
         />
 
@@ -133,14 +169,14 @@ export default function GlobalPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <GeoSection title={t("geo.insights.hotCountries")} subtitle={t("geo.global.hotCountriesSubtitle")}>
             <GeoInsightList
-              items={insights.countryHotspots}
+              items={globalCountryHotspots}
               emptyLabel={t("geo.feed.empty")}
               linkBuilder={(item) => (item.slug ? `/countries/${item.slug}` : null)}
             />
           </GeoSection>
 
           <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.global.sourceCoverageSubtitle")}>
-            <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
+            <GeoInsightList items={globalSourceMix} emptyLabel={t("geo.feed.empty")} />
           </GeoSection>
         </div>
 

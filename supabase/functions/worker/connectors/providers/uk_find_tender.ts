@@ -8,6 +8,49 @@ type FindTenderApiResponse = {
   next_page?: string | null;
 };
 
+function firstRegionHint(r: any): string | null {
+  const buyerRegion = safeStr(r?.buyer?.address?.region).trim();
+  if (buyerRegion) return buyerRegion;
+
+  const items = Array.isArray(r?.tender?.items) ? r.tender.items : [];
+  for (const item of items) {
+    const region = safeStr(item?.deliveryAddresses?.[0]?.region ?? item?.deliveryAddress?.region).trim();
+    if (region) return region;
+  }
+
+  const parties = Array.isArray(r?.parties) ? r.parties : [];
+  for (const p of parties) {
+    const region = safeStr(p?.address?.region).trim();
+    if (region) return region;
+  }
+
+  return null;
+}
+
+function firstLocalityHint(r: any): string | null {
+  const buyerLocality = safeStr(r?.buyer?.address?.locality ?? r?.buyer?.address?.city).trim();
+  if (buyerLocality) return buyerLocality;
+
+  const items = Array.isArray(r?.tender?.items) ? r.tender.items : [];
+  for (const item of items) {
+    const locality = safeStr(
+      item?.deliveryAddresses?.[0]?.locality
+        ?? item?.deliveryAddresses?.[0]?.city
+        ?? item?.deliveryAddress?.locality
+        ?? item?.deliveryAddress?.city,
+    ).trim();
+    if (locality) return locality;
+  }
+
+  const parties = Array.isArray(r?.parties) ? r.parties : [];
+  for (const p of parties) {
+    const locality = safeStr(p?.address?.locality ?? p?.address?.city).trim();
+    if (locality) return locality;
+  }
+
+  return null;
+}
+
 function buyerNameFromRelease(r: any): string | null {
   const direct = safeStr(r?.buyer?.name).trim();
   if (direct) return direct;
@@ -83,6 +126,8 @@ export async function apiFindTenderFetch(source: SourceRow): Promise<ConnectorRe
         status: "active",
         is_public: true,
         country_code: "GB",
+        region: firstRegionHint(rel),
+        locality: firstLocalityHint(rel),
         buyer_name,
         title,
         summary: desc ? desc.slice(0, 2000) : null,

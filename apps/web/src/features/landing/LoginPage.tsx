@@ -3,31 +3,49 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { getValidAccessToken } from "@/lib/authToken";
 import { Logo } from "@/components/Logo";
-
-function friendlyAuthError(error: unknown): string {
-  if (error instanceof Error && /Failed to fetch|NetworkError|ERR_NAME_NOT_RESOLVED/i.test(error.message)) {
-    return "RadarPulse cannot reach the authentication service right now. Check your connection or Supabase configuration.";
-  }
-  return error instanceof Error ? error.message : "An error occurred. Please try again.";
-}
+import { useT } from "@/i18n";
 
 export default function LoginPage() {
+  const { t } = useT();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // "forgot password" mode
   const [forgotMode, setForgotMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  // If already logged in, go straight to inbox
+  const trustPills = [t("login.trust.secure"), t("login.trust.uk"), t("login.trust.dossiers")];
+
+  const friendlyAuthError = (authError: unknown): string => {
+    if (
+      authError instanceof Error &&
+      /Failed to fetch|NetworkError|ERR_NAME_NOT_RESOLVED/i.test(authError.message)
+    ) {
+      return t("login.error.network");
+    }
+    if (authError instanceof Error && /Invalid login credentials/i.test(authError.message)) {
+      return t("login.error.invalid");
+    }
+    return authError instanceof Error ? authError.message : t("login.error.generic");
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/inbox", { replace: true });
+    let mounted = true;
+    void supabase.auth.getUser().then(async ({ data, error: authError }) => {
+      if (!mounted) return;
+      if (authError || !data.user) {
+        await supabase.auth.signOut({ scope: "local" });
+        return;
+      }
+      navigate("/dossiers", { replace: true });
     });
+
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -41,9 +59,10 @@ export default function LoginPage() {
         password,
       });
       if (signInError) throw signInError;
-      navigate("/inbox", { replace: true });
-    } catch (err) {
-      setError(friendlyAuthError(err));
+      await getValidAccessToken({ forceRefresh: true });
+      navigate("/dossiers", { replace: true });
+    } catch (authError) {
+      setError(friendlyAuthError(authError));
     } finally {
       setSubmitting(false);
     }
@@ -60,8 +79,8 @@ export default function LoginPage() {
       });
       if (resetError) throw resetError;
       setResetSent(true);
-    } catch (err) {
-      setError(friendlyAuthError(err));
+    } catch (authError) {
+      setError(friendlyAuthError(authError));
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +94,7 @@ export default function LoginPage() {
             <Logo size={24} showWordmark={false} />
             <div className="leading-tight">
               <div className="text-sm font-semibold text-text">RadarPulse</div>
-              <div className="text-[11px] text-subtext/80">Sign in</div>
+              <div className="text-[11px] text-subtext/80">{t("login.header.eyebrow")}</div>
             </div>
           </div>
           <Link
@@ -85,43 +104,59 @@ export default function LoginPage() {
               "hover:bg-elevated/70",
             )}
           >
-            Home
+            {t("nav.home")}
           </Link>
         </div>
       </div>
 
-      <main className="mx-auto max-w-md px-4 pt-24">
-        <div className="rounded-2xl border border-border/25 bg-surface/70 p-6 shadow-soft">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {forgotMode ? "Reset password" : "Sign in"}
+      <main className="mx-auto max-w-md px-4 pb-10 pt-24">
+        <div className="rounded-2xl border border-border/25 bg-surface/75 p-6 shadow-soft">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand/70">
+            {t("login.header.eyebrow")}
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+            {forgotMode ? t("login.mode.reset") : t("login.header.title")}
           </h1>
-          <p className="mt-2 text-sm text-subtext">
-            {forgotMode
-              ? "Enter your email to receive a reset link."
-              : "Enter your email and password."}
+          <p className="mt-2 text-sm leading-relaxed text-subtext">
+            {forgotMode ? t("login.mode.resetSubtitle") : t("login.header.subtitle")}
           </p>
 
-          {/* ── Forgot password mode ── */}
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-subtext/80">
+            {trustPills.map((pill) => (
+              <span
+                key={pill}
+                className="rounded-full border border-line/20 bg-bg/60 px-3 py-1.5"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
+
           {forgotMode ? (
             resetSent ? (
               <div className="mt-6 rounded-2xl border border-good/20 bg-good/10 p-4">
-                <div className="text-sm font-semibold text-good">Reset link sent ✓</div>
+                <div className="text-sm font-semibold text-good">{t("login.reset.sentTitle")}</div>
                 <div className="mt-1 text-sm text-muted">
-                  Check <strong>{email}</strong> — click the link to set a new password.
+                  {t("login.reset.sentLead")} <strong>{email}</strong>{" "}
+                  {t("login.reset.sentTrail")}
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setForgotMode(false); setResetSent(false); setError(null); }}
+                  onClick={() => {
+                    setForgotMode(false);
+                    setResetSent(false);
+                    setError(null);
+                  }}
                   className="mt-3 text-xs text-brand hover:underline"
                 >
-                  ← Back to sign in
+                  {t("login.back")}
                 </button>
               </div>
             ) : (
               <form className="mt-6 space-y-4" onSubmit={(e) => void handleForgot(e)}>
                 <div>
                   <label htmlFor="reset-email" className="text-xs font-medium text-subtext">
-                    Email
+                    {t("login.field.email")}
                   </label>
                   <input
                     id="reset-email"
@@ -129,7 +164,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
+                    placeholder={t("login.placeholder.email")}
                     className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                   />
                 </div>
@@ -146,27 +181,34 @@ export default function LoginPage() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {submitting ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("login.reset.submitting")}
+                    </>
                   ) : (
-                    <>Send reset link <ArrowRight className="h-4 w-4" /></>
+                    <>
+                      {t("login.reset.submit")} <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
                 </button>
 
-              <button
-                type="button"
-                onClick={() => { setForgotMode(false); setError(null); }}
-                className="w-full text-center text-xs text-subtext hover:text-text"
-              >
-                ← Back to sign in
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMode(false);
+                    setError(null);
+                  }}
+                  className="w-full text-center text-xs text-subtext hover:text-text"
+                >
+                  {t("login.back")}
+                </button>
               </form>
             )
           ) : (
-            /* ── Sign in mode ── */
             <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
               <div>
                 <label htmlFor="login-email" className="text-xs font-medium text-subtext">
-                  Email
+                  {t("login.field.email")}
                 </label>
                 <input
                   id="login-email"
@@ -174,7 +216,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
+                  placeholder={t("login.placeholder.email")}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                 />
               </div>
@@ -182,14 +224,17 @@ export default function LoginPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <label htmlFor="login-password" className="text-xs font-medium text-subtext">
-                    Password
+                    {t("login.field.password")}
                   </label>
                   <button
                     type="button"
-                    onClick={() => { setForgotMode(true); setError(null); }}
+                    onClick={() => {
+                      setForgotMode(true);
+                      setError(null);
+                    }}
                     className="text-xs text-brand hover:underline"
                   >
-                    Forgot password?
+                    {t("login.forgot")}
                   </button>
                 </div>
                 <input
@@ -198,7 +243,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t("login.placeholder.password")}
                   className="mt-1 w-full rounded-2xl border border-border/25 bg-bg/60 px-4 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
                 />
               </div>
@@ -215,18 +260,23 @@ export default function LoginPage() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {submitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Signing in…</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("login.submitting")}
+                  </>
                 ) : (
-                  <>Sign in <ArrowRight className="h-4 w-4" /></>
+                  <>
+                    {t("login.submit")} <ArrowRight className="h-4 w-4" />
+                  </>
                 )}
               </button>
             </form>
           )}
 
           <div className="mt-5 text-xs text-subtext">
-            No account yet?{" "}
+            {t("login.accessPrompt")}{" "}
             <Link className="text-brand hover:underline" to="/request-access">
-              Request access
+              {t("login.accessLink")}
             </Link>
           </div>
         </div>

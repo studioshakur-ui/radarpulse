@@ -4,11 +4,43 @@ import { ArrowUpRight, Landmark, MapPinned, RadioTower, ShieldCheck } from "luci
 import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip } from "@/features/geo/GeoShell";
 import {
   buildGeoFeedInsights,
+  displayOriginLabel,
   loadCountryGeoPage,
   resolveOpportunityRegionName,
   type CountryGeoPageData,
 } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
+
+function strategicSources(countryCode: string, t: (key: string) => string) {
+  if (countryCode === "GB") {
+    return [
+      { key: "uk_find_a_tender", label: t("geo.country.sources.gb.fts") },
+      { key: "uk_contracts_finder_active", label: t("geo.country.sources.gb.cf") },
+      { key: "uk_sell2wales_active", label: t("geo.country.sources.gb.s2w") },
+    ];
+  }
+
+  if (countryCode === "FR") {
+    return [
+      { key: "fr_boamp_active", label: t("geo.country.sources.fr.boamp") },
+      { key: "eu_ted_fr_active", label: t("geo.country.sources.fr.ted") },
+    ];
+  }
+
+  return [
+    { key: "it_anac_ocds", label: t("geo.country.sources.it.anac") },
+    { key: "it_roma_bandi_rss", label: t("geo.country.sources.it.roma") },
+    { key: "it_aria_lombardia_rss", label: t("geo.country.sources.it.lombardia") },
+  ];
+}
+
+function isCountryNativeSource(countryCode: string, sourceKey: string | null | undefined, originType: string | null | undefined) {
+  const label = displayOriginLabel(originType, sourceKey);
+  if (countryCode === "IT") return label === "IT native";
+  if (countryCode === "FR") return label === "FR native";
+  if (countryCode === "GB") return label === "UK native";
+  return label.toLowerCase().endsWith("native");
+}
 
 function countryStory(countryCode: string, t: (key: string) => string) {
   switch (countryCode) {
@@ -60,11 +92,45 @@ export default function CountryPage() {
     [countryCode, data],
   );
   const story = useMemo(() => countryStory(countryCode, t), [countryCode, t]);
-  const leadSource = insights.sourceMix[0] ?? null;
-  const leadRegion = insights.regionHotspots[0] ?? null;
+  const countrySourceMix = useMemo(
+    () =>
+      Object.entries(data?.sourceOpportunityCounts ?? {})
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([key, value]) => {
+          const strategic = strategicSources(countryCode, t).find((row) => row.key === key);
+          return {
+            label: strategic?.label ?? key,
+            hint: key,
+            value,
+          };
+        }),
+    [countryCode, data, t],
+  );
+  const regionHotspots = useMemo(
+    () =>
+      [...(data?.regions ?? [])]
+        .map((region) => ({
+          label: region.name,
+          hint: data?.country.country_code ?? countryCode,
+          value: data?.regionOpportunityCounts?.[region.slug] ?? 0,
+          slug: region.slug,
+        }))
+        .filter((item) => item.value > 0)
+        .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+        .slice(0, 6),
+    [countryCode, data],
+  );
+  const leadSource = countrySourceMix[0] ?? null;
+  const leadRegion = regionHotspots[0] ?? null;
   const qualityValue = insights.avgQuality === null ? "—" : `${Math.round(insights.avgQuality * 100)}%`;
+  const strategicSourceRows = useMemo(() => strategicSources(countryCode, t), [countryCode, t]);
+  const sourceCountMap = useMemo(() => new Map(Object.entries(data?.sourceOpportunityCounts ?? {})), [data]);
   const nativeVisibleCount = useMemo(
-    () => (data?.feed.items ?? []).filter((item) => item.origin_type === "IT_NATIVE").length,
+    () => (data?.feed.items ?? []).filter((item) => isCountryNativeSource(countryCode, item.source_key, item.origin_type)).length,
+    [countryCode, data],
+  );
+  const countryOnlyVisibleCount = useMemo(
+    () => (data?.feed.items ?? []).filter((item) => item.geo_resolution_confidence === "country_only").length,
     [data],
   );
   const resolvedRegionalCount = useMemo(
@@ -74,7 +140,24 @@ export default function CountryPage() {
       ).length,
     [countryCode, data],
   );
-  const isCoverageThin = (data?.feed.total ?? 0) <= 20 || insights.activeSources <= 1 || leadRegion?.label === "Unassigned";
+  const litRegionCount = useMemo(
+    () => Object.values(data?.regionOpportunityCounts ?? {}).filter((value) => value > 0).length,
+    [data],
+  );
+  const sortedRegions = useMemo(
+    () =>
+      [...(data?.regions ?? [])].sort((a, b) => {
+        const aCount = data?.regionOpportunityCounts?.[a.slug] ?? 0;
+        const bCount = data?.regionOpportunityCounts?.[b.slug] ?? 0;
+        return bCount - aCount || a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+      }),
+    [data],
+  );
+  const isCoverageThin =
+    (data?.feed.total ?? 0) <= 20
+    || countrySourceMix.length <= 1
+    || !leadRegion
+    || ((data?.feed.items.length ?? 0) > 0 && countryOnlyVisibleCount >= Math.ceil((data?.feed.items.length ?? 0) * 0.6));
   const storyTitle = isCoverageThin ? t(`geo.country.reality.${countryCode === "FR" ? "fr" : countryCode === "GB" ? "gb" : "it"}.title`) : story.title;
   const storyBody = isCoverageThin ? t(`geo.country.reality.${countryCode === "FR" ? "fr" : countryCode === "GB" ? "gb" : "it"}.body`) : story.body;
 
@@ -139,8 +222,8 @@ export default function CountryPage() {
                   items={[
                     {
                       label: t("geo.country.reality.visibleSources"),
-                      value: String(insights.activeSources),
-                      tone: insights.activeSources >= 3 ? "good" : "warn",
+                      value: String(countrySourceMix.length),
+                      tone: countrySourceMix.length >= 3 ? "good" : "warn",
                     },
                     {
                       label: t("geo.country.reality.nativeVisible"),
@@ -151,6 +234,16 @@ export default function CountryPage() {
                       label: t("geo.country.reality.regionResolved"),
                       value: `${resolvedRegionalCount}/${data?.feed.items.length ?? 0}`,
                       tone: resolvedRegionalCount > 0 ? "default" : "warn",
+                    },
+                    {
+                      label: t("geo.country.reality.countryOnly"),
+                      value: `${countryOnlyVisibleCount}/${data?.feed.items.length ?? 0}`,
+                      tone: countryOnlyVisibleCount > 0 ? "warn" : "good",
+                    },
+                    {
+                      label: t("geo.country.reality.regionsLit"),
+                      value: `${litRegionCount}/${data?.regions.length ?? 0}`,
+                      tone: litRegionCount >= 3 ? "good" : litRegionCount > 0 ? "default" : "warn",
                     },
                   ]}
                 />
@@ -209,9 +302,29 @@ export default function CountryPage() {
                     items={insights.originMix.slice(0, 3).map((item) => ({
                       label: item.label,
                       value: String(item.value),
-                      tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+                      tone: item.label.toLowerCase().endsWith("native") ? "good" : item.label === "EU" ? "default" : "warn",
                     }))}
                   />
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.country.sources.eyebrow")}</div>
+                <div className="mt-4 grid gap-3">
+                  {strategicSourceRows.map((row) => {
+                    const count = sourceCountMap.get(row.key) ?? 0;
+                    return (
+                      <div key={row.key} className="flex items-center justify-between gap-3 rounded-2xl border border-border/20 bg-white/60 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-text">{row.label}</div>
+                          <div className="truncate text-xs text-subtext">{row.key}</div>
+                        </div>
+                        <span className="rounded-full border border-border/20 bg-bg/70 px-2.5 py-1 text-xs font-semibold text-text">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -220,10 +333,11 @@ export default function CountryPage() {
 
         <GeoMetricGrid
           items={[
-            { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.country.metrics.publicOppsHint") },
-            { label: t("geo.labels.regions"), value: String(data?.regions.length ?? 0), hint: t("geo.country.metrics.regionsHint") },
-            { label: t("geo.labels.scope"), value: data?.country.country_code ?? "—", hint: t("geo.country.metrics.scopeHint") },
-            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.country.metrics.sourcesHint") },
+                    { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.country.metrics.publicOppsHint") },
+                    { label: t("geo.labels.regions"), value: String(data?.regions.length ?? 0), hint: t("geo.country.metrics.regionsHint") },
+                    { label: t("geo.country.metrics.regionsLit"), value: String(litRegionCount), hint: t("geo.country.metrics.regionsLitHint") },
+                    { label: t("geo.labels.scope"), value: data?.country.country_code ?? "—", hint: t("geo.country.metrics.scopeHint") },
+            { label: t("geo.insights.sources"), value: String(countrySourceMix.length), hint: t("geo.country.metrics.sourcesHint") },
           ]}
         />
 
@@ -241,7 +355,7 @@ export default function CountryPage() {
 
         <GeoSection title={t("geo.labels.regions")} subtitle={t("geo.country.regionsSubtitle")}>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {(data?.regions ?? []).map((region) => (
+            {sortedRegions.map((region) => (
               <GeoChildCard
                 key={region.id}
                 title={region.name}
@@ -257,14 +371,14 @@ export default function CountryPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <GeoSection title={t("geo.insights.hotRegions")} subtitle={t("geo.country.hotRegionsSubtitle")}>
             <GeoInsightList
-              items={insights.regionHotspots}
+              items={regionHotspots}
               emptyLabel={t("geo.feed.empty")}
               linkBuilder={(item) => (item.slug ? `/countries/${countryCode}/regions/${item.slug}` : null)}
             />
           </GeoSection>
 
           <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.country.sourceCoverageSubtitle")}>
-            <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
+            <GeoInsightList items={countrySourceMix} emptyLabel={t("geo.feed.empty")} />
           </GeoSection>
         </div>
 
@@ -273,7 +387,7 @@ export default function CountryPage() {
             items={insights.originMix.map((item) => ({
               label: item.label,
               value: String(item.value),
-              tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+              tone: item.label.toLowerCase().endsWith("native") ? "good" : item.label === "EU" ? "default" : "warn",
             }))}
           />
         </GeoSection>

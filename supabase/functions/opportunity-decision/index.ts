@@ -1,5 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
-import { sbAdmin } from "../_shared/db.ts";
+import { sbAdmin, sbAdminForRequest } from "../_shared/db.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { generateOpportunityPrep } from "../_shared/opportunity_prep_runner.ts";
 
@@ -14,6 +14,12 @@ type DecisionRequest = {
   decision_value?: DecisionValue;
   note?: string | null;
   locale?: "en" | "fr" | "it";
+};
+
+type DecisionRow = {
+  id: string;
+  decision: DecisionValue;
+  decided_at: string;
 };
 
 function normalizeLocale(value: unknown): "en" | "fr" | "it" {
@@ -40,6 +46,25 @@ function isDecisionValue(value: unknown): value is DecisionValue {
   return value === "GO" || value === "HOLD" || value === "NO_GO";
 }
 
+function firstDecisionRow(value: unknown): DecisionRow | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const row = value[0];
+  if (!row || typeof row !== "object") return null;
+  const record = row as Record<string, unknown>;
+  if (
+    typeof record.id !== "string" ||
+    !isDecisionValue(record.decision) ||
+    typeof record.decided_at !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: record.id,
+    decision: record.decision,
+    decided_at: record.decided_at,
+  };
+}
+
 async function triggerServerPrep(
   sb: ReturnType<typeof sbAdmin>,
   args: { opportunityId: string; userId: string; decisionId: string; outputLocale: "en" | "fr" | "it" },
@@ -50,6 +75,7 @@ async function triggerServerPrep(
       .select("id, created_at")
       .eq("opportunity_id", args.opportunityId)
       .eq("user_id", args.userId)
+      .eq("output_locale", args.outputLocale)
       .eq("is_current", true)
       .maybeSingle();
 
@@ -91,7 +117,7 @@ Deno.serve(async (req) => {
   let sb: ReturnType<typeof sbAdmin>;
   let userId = "";
   try {
-    sb = sbAdmin();
+    sb = sbAdminForRequest(req);
     const { data, error } = await sb.auth.getUser(token);
     if (error || !data?.user?.id) return json(401, { ok: false, error: "UNAUTHORIZED" });
     userId = data.user.id;
@@ -129,7 +155,7 @@ Deno.serve(async (req) => {
 
     if (existingError) {
       log.error("load_decision_failed", { error: existingError.message });
-      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      return json(500, { ok: false, error: "DECISION_LOAD_FAILED", detail: existingError.message });
     }
 
     if (action === "clear") {
@@ -153,7 +179,7 @@ Deno.serve(async (req) => {
           decision_id: existingRow.id,
           error: deleteError.message,
         });
-        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+        return json(500, { ok: false, error: "DECISION_DELETE_FAILED", detail: deleteError.message });
       }
 
       const { error: historyError } = await sb.from("decision_history").insert({
@@ -197,7 +223,11 @@ Deno.serve(async (req) => {
           decision_id: existingRow.id,
           error: historyError.message,
         });
-        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+        return json(500, {
+          ok: false,
+          error: "DECISION_HISTORY_CLEAR_FAILED",
+          detail: historyError.message,
+        });
       }
 
       return json(200, {
@@ -211,7 +241,7 @@ Deno.serve(async (req) => {
 
     if (!existingRow?.id) {
       const decidedAt = nowIso();
-      const { data: insertedRow, error: insertError } = await sb
+      const { data: insertedRows, error: insertError } = await sb
         .from("opportunity_decisions")
         .insert({
           opportunity_id: opportunityId,
@@ -222,7 +252,34 @@ Deno.serve(async (req) => {
           updated_at: decidedAt,
         })
         .select("id, decision, decided_at")
-        .single();
+        ;
+
+      let insertedRow = firstDecisionRow(insertedRows);
+      if (!insertedRow && !insertError) {
+        const { data: fetchedRow, error: fetchError } = await sb
+          .from("opportunity_decisions")
+          .select("id, decision, decided_at")
+          .eq("opportunity_id", opportunityId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (fetchError) {
+          log.error("fetch_decision_after_insert_failed", {
+            opportunity_id: opportunityId,
+            user_id: userId,
+            error: fetchError.message,
+          });
+        } else if (
+          fetchedRow?.id &&
+          isDecisionValue(fetchedRow.decision) &&
+          typeof fetchedRow.decided_at === "string"
+        ) {
+          insertedRow = {
+            id: String(fetchedRow.id),
+            decision: fetchedRow.decision,
+            decided_at: fetchedRow.decided_at,
+          };
+        }
+      }
 
       if (insertError || !insertedRow?.id) {
         log.error("insert_decision_failed", {
@@ -231,7 +288,7 @@ Deno.serve(async (req) => {
           decision_value: decisionValue,
           error: insertError?.message,
         });
-        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+        return json(500, { ok: false, error: "DECISION_INSERT_FAILED", detail: insertError?.message ?? null });
       }
 
       const { error: historyError } = await sb.from("decision_history").insert({
@@ -266,7 +323,11 @@ Deno.serve(async (req) => {
           decision_id: insertedRow.id,
           error: historyError.message,
         });
-        return json(500, { ok: false, error: "INTERNAL_ERROR" });
+        return json(500, {
+          ok: false,
+          error: "DECISION_HISTORY_SET_FAILED",
+          detail: historyError.message,
+        });
       }
 
       if (decisionValue === "GO") {
@@ -299,7 +360,7 @@ Deno.serve(async (req) => {
     }
 
     const decidedAt = nowIso();
-    const { data: updatedRow, error: updateError } = await sb
+    const { data: updatedRows, error: updateError } = await sb
       .from("opportunity_decisions")
       .update({
         decision: decisionValue,
@@ -309,7 +370,34 @@ Deno.serve(async (req) => {
       })
       .eq("id", existingRow.id)
       .select("id, decision, decided_at")
-      .single();
+      ;
+
+    let updatedRow = firstDecisionRow(updatedRows);
+    if (!updatedRow && !updateError) {
+      const { data: fetchedRow, error: fetchError } = await sb
+        .from("opportunity_decisions")
+        .select("id, decision, decided_at")
+        .eq("id", existingRow.id)
+        .maybeSingle();
+      if (fetchError) {
+        log.error("fetch_decision_after_update_failed", {
+          opportunity_id: opportunityId,
+          user_id: userId,
+          decision_id: existingRow.id,
+          error: fetchError.message,
+        });
+      } else if (
+        fetchedRow?.id &&
+        isDecisionValue(fetchedRow.decision) &&
+        typeof fetchedRow.decided_at === "string"
+      ) {
+        updatedRow = {
+          id: String(fetchedRow.id),
+          decision: fetchedRow.decision,
+          decided_at: fetchedRow.decided_at,
+        };
+      }
+    }
 
     if (updateError || !updatedRow?.id) {
       log.error("update_decision_failed", {
@@ -319,7 +407,11 @@ Deno.serve(async (req) => {
         decision_value: decisionValue,
         error: updateError?.message,
       });
-      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      return json(500, {
+        ok: false,
+        error: "DECISION_UPDATE_FAILED",
+        detail: updateError?.message ?? "Decision update returned no row",
+      });
     }
 
     const eventType = previousDecisionValue === null ? "set" : "change";
@@ -360,7 +452,11 @@ Deno.serve(async (req) => {
         decision_id: updatedRow.id,
         error: historyError.message,
       });
-      return json(500, { ok: false, error: "INTERNAL_ERROR" });
+      return json(500, {
+        ok: false,
+        error: "DECISION_HISTORY_CHANGE_FAILED",
+        detail: historyError.message,
+      });
     }
 
     if (decisionValue === "GO" && previousDecisionValue !== "GO") {
@@ -379,10 +475,11 @@ Deno.serve(async (req) => {
       decision: decisionValue,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     log.error("handler_error", {
       user_id: userId,
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
-    return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    return json(500, { ok: false, error: "DECISION_INTERNAL_ERROR", detail: message });
   }
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
 import {
   callOpportunitiesSearch,
   EdgeFunctionRequestError,
@@ -71,36 +72,6 @@ function decodeJwtPayloadUnverified(jwt: string): JwtForensicPayload | null {
   }
 }
 
-// BUG-24 FIX: throw if JWT is null — the caller will surface a proper auth error
-// instead of sending an empty token that triggers a confusing 401 from the server
-async function readJwt(): Promise<string> {
-  // Authoritative server-side validation: do not trust local session storage alone.
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
-  }
-
-  let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  let session = sessionData.session;
-  const nowEpoch = Math.floor(Date.now() / 1000);
-  const isExpiring = typeof session?.expires_at === "number" && session.expires_at <= nowEpoch + 10;
-
-  if (sessionError || !session?.access_token || isExpiring) {
-    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError || !refreshData.session?.access_token) {
-      throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
-    }
-    session = refreshData.session;
-  }
-
-  const token = session.access_token;
-  if (!token || session.user?.id !== userData.user.id) {
-    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
-  }
-
-  return token;
-}
-
 export function useInboxData(filters: InboxFilters): UseInboxDataResult {
   const [items, setItems] = useState<OpportunitiesSearchItem[]>([]);
   const [nextCursor, setNextCursor] = useState<OpportunitiesSearchCursor | null>(null);
@@ -149,7 +120,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
       }
 
       try {
-        const jwt = await readJwt();
+        const jwt = await getValidAccessToken();
         const shouldLogForensics = shouldLogJwtForensicsLocalOnly();
         if (shouldLogForensics) {
           const payload = decodeJwtPayloadUnverified(jwt);
@@ -198,6 +169,11 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
       } catch (unknownError) {
         if (requestVersion !== requestVersionRef.current) return;
 
+        if (unknownError instanceof AuthTokenError) {
+          setError("Session expired. Please sign in again.");
+          return;
+        }
+
         if (unknownError instanceof EdgeFunctionRequestError) {
           if (unknownError.code === "SUBSCRIPTION_REQUIRED") {
             setSubscriptionRequired(true);
@@ -208,7 +184,7 @@ export function useInboxData(filters: InboxFilters): UseInboxDataResult {
             return;
           }
           if (unknownError.code === "GATEWAY_INVALID_JWT") {
-            setError("Your sign-in token is invalid. Please sign in again.");
+            setError("The search service rejected the current token. Please retry in a moment.");
             return;
           }
           if (unknownError.code === "HANDLER_UNAUTHORIZED") {

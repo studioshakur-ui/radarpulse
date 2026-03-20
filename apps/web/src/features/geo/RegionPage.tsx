@@ -156,7 +156,7 @@ export default function RegionPage() {
                     items={insights.originMix.slice(0, 3).map((item) => ({
                       label: item.label,
                       value: String(item.value),
-                      tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+                      tone: item.label.toLowerCase().endsWith("native") ? "good" : item.label === "EU" ? "default" : "warn",
                     }))}
                   />
                 </div>
@@ -213,7 +213,7 @@ export default function RegionPage() {
               items={insights.originMix.map((item) => ({
                 label: item.label,
                 value: String(item.value),
-                tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+                tone: item.label.toLowerCase().endsWith("native") ? "good" : item.label === "EU" ? "default" : "warn",
               }))}
             />
           </GeoSection>

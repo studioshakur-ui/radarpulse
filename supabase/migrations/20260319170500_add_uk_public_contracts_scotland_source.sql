@@ -10,17 +10,20 @@ insert into public.sources (
   origin_type
 )
 values (
-  'it_eappalti_fvg_active',
-  'eAppaltiFVG - Bandi/Avvisi attivi',
+  'uk_public_contracts_scotland_active',
+  'Public Contracts Scotland - Notices',
   'api',
-  'https://eappalti.regione.fvg.it/esop/guest/go/public/opportunity/current?customLoginPage=%2Fweb%2Findex.html&locale=it_IT',
-  'IT',
+  'https://api.publiccontractsscotland.gov.uk/v1/Notices',
+  'GB',
   true,
-  90,
+  60,
   jsonb_build_object(
-    'provider', 'it_eappalti_fvg'
+    'provider', 'uk_public_contracts_scotland',
+    'notice_types', jsonb_build_array(2, 102),
+    'output_type', 0,
+    'months_back', 1
   ),
-  'IT_NATIVE'
+  'OTHER'
 )
 on conflict (key) do update
 set
