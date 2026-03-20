@@ -39,18 +39,20 @@
  - `public.brief_versions` — size: 184 kB — RLS: on — cols: 19
  - `public.buyers` — size: 24 kB — RLS: on — cols: 5
  - `public.decision_history` — size: 64 kB — RLS: on — cols: 12
+ - `public.dossier_tasks` — size: 24 kB — RLS: on — cols: 5
+ - `public.dossiers` — size: 48 kB — RLS: on — cols: 6
  - `public.geo_countries` — size: 80 kB — RLS: on — cols: 10
  - `public.geo_localities` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_regions` — size: 80 kB — RLS: on — cols: 9
  - `public.geo_zones` — size: 64 kB — RLS: on — cols: 9
- - `public.ingestion_jobs` — size: 296 kB — RLS: on — cols: 11
- - `public.ingestion_runs` — size: 304 kB — RLS: off — cols: 12
+ - `public.ingestion_jobs` — size: 304 kB — RLS: on — cols: 11
+ - `public.ingestion_runs` — size: 328 kB — RLS: off — cols: 12
  - `public.magic_link_tokens` — size: 80 kB — RLS: on — cols: 7
  - `public.notification_logs` — size: 16 kB — RLS: on — cols: 8
  - `public.notification_preferences` — size: 32 kB — RLS: on — cols: 6
  - `public.notification_queue` — size: 24 kB — RLS: on — cols: 11
- - `public.opportunities` — size: 5904 kB — RLS: on — cols: 21
- - `public.opportunities_raw` — size: 5624 kB — RLS: off — cols: 19
+ - `public.opportunities` — size: 6016 kB — RLS: on — cols: 21
+ - `public.opportunities_raw` — size: 5864 kB — RLS: off — cols: 19
  - `public.opportunity_ai` — size: 624 kB — RLS: off — cols: 34
  - `public.opportunity_ai_evidence` — size: 200 kB — RLS: off — cols: 8
  - `public.opportunity_briefs` — size: 96 kB — RLS: on — cols: 13
@@ -59,7 +61,7 @@
  - `public.opportunity_events` — size: 80 kB — RLS: on — cols: 5
  - `public.opportunity_extractions` — size: 2832 kB — RLS: on — cols: 41
  - `public.opportunity_preps` — size: 200 kB — RLS: on — cols: 17
- - `public.opportunity_scores` — size: 904 kB — RLS: on — cols: 18
+ - `public.opportunity_scores` — size: 896 kB — RLS: on — cols: 18
  - `public.opportunity_workflows` — size: 40 kB — RLS: on — cols: 6
  - `public.rp_ai_runs` — size: 632 kB — RLS: off — cols: 11
  - `public.sources` — size: 104 kB — RLS: on — cols: 15
@@ -75,6 +77,8 @@
  #### Table: `public.brief_versions`
  #### Table: `public.buyers`
  #### Table: `public.decision_history`
+ #### Table: `public.dossier_tasks`
+ #### Table: `public.dossiers`
  #### Table: `public.geo_countries`
  #### Table: `public.geo_localities`
  #### Table: `public.geo_regions`
@@ -113,6 +117,8 @@
  - **RLS**: `on`
  - **RLS**: `on`
  - **RLS**: `on`
+ - **RLS**: `on`
+ - **RLS**: `on`
  - **RLS**: `off`
  - **RLS**: `on`
  - **RLS**: `on`
@@ -141,18 +147,20 @@
  - **Size**: `184 kB`
  - **Size**: `24 kB`
  - **Size**: `64 kB`
+ - **Size**: `24 kB`
+ - **Size**: `48 kB`
  - **Size**: `80 kB`
  - **Size**: `80 kB`
  - **Size**: `80 kB`
  - **Size**: `64 kB`
- - **Size**: `296 kB`
  - **Size**: `304 kB`
+ - **Size**: `328 kB`
  - **Size**: `80 kB`
  - **Size**: `16 kB`
  - **Size**: `32 kB`
  - **Size**: `24 kB`
- - **Size**: `5904 kB`
- - **Size**: `5624 kB`
+ - **Size**: `6016 kB`
+ - **Size**: `5864 kB`
  - **Size**: `624 kB`
  - **Size**: `200 kB`
  - **Size**: `96 kB`
@@ -161,7 +169,7 @@
  - **Size**: `80 kB`
  - **Size**: `2832 kB`
  - **Size**: `200 kB`
- - **Size**: `904 kB`
+ - **Size**: `896 kB`
  - **Size**: `40 kB`
  - **Size**: `632 kB`
  - **Size**: `104 kB`
@@ -202,6 +210,8 @@
  
  
  
+ 
+ 
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
@@ -235,6 +245,10 @@
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
  | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ | Column | Type | Nullable | Default |
+ |---|---|---|---|
+ |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
  |---|---|---|---|
@@ -313,7 +327,7 @@
  | `input_snapshot` | `jsonb` | `yes` | — |
  | `generation_ms` | `integer` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
- | `output_locale` | `text` | `yes` | 'en'::text |
+ | `output_locale` | `text` | `no` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `country_code` | `text` | `yes` | — |
  | `name` | `text` | `no` | — |
@@ -331,6 +345,17 @@
  | `source` | `text` | `no` | — |
  | `is_backfilled` | `boolean` | `no` | false |
  | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `dossier_id` | `uuid` | `no` | — |
+ | `label` | `text` | `no` | — |
+ | `is_done` | `boolean` | `no` | false |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `id` | `uuid` | `no` | gen_random_uuid() |
+ | `opportunity_id` | `uuid` | `no` | — |
+ | `user_id` | `uuid` | `no` | — |
+ | `status` | `text` | `no` | — |
+ | `created_at` | `timestamp with time zone` | `no` | now() |
+ | `updated_at` | `timestamp with time zone` | `no` | now() |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `zone_id` | `uuid` | `no` | — |
  | `country_code` | `text` | `no` | — |
@@ -517,7 +542,7 @@
  | `generation_ms` | `integer` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `updated_at` | `timestamp with time zone` | `no` | now() |
- | `output_locale` | `text` | `yes` | 'en'::text |
+ | `output_locale` | `text` | `no` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `user_id` | `uuid` | `no` | — |
@@ -596,7 +621,7 @@
  | `response_plan` | `text` | `no` | — |
  | `input_snapshot` | `jsonb` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
- | `output_locale` | `text` | `yes` | 'en'::text |
+ | `output_locale` | `text` | `no` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `agent_run_id` | `uuid` | `no` | — |
@@ -614,7 +639,7 @@
  | `input_extraction_id` | `uuid` | `yes` | — |
  | `created_at` | `timestamp with time zone` | `no` | now() |
  | `recommendation` | `text` | `yes` | — |
- | `output_locale` | `text` | `yes` | 'en'::text |
+ | `output_locale` | `text` | `no` | 'en'::text |
  | `id` | `uuid` | `no` | gen_random_uuid() |
  | `opportunity_id` | `uuid` | `no` | — |
  | `user_id` | `uuid` | `no` | — |
@@ -710,6 +735,10 @@
  
  
  
+ 
+ 
+ ##### Indexes
+ ##### Indexes
  ##### Indexes
  ##### Indexes
  ##### Indexes
@@ -751,7 +780,7 @@
  - `CREATE INDEX agent_runs_source_agent_started_at_idx ON public.agent_runs USING btree (source_id, agent_type, started_at DESC) WHERE (source_id IS NOT NULL)`
  - `CREATE INDEX agent_runs_status_started_at_idx ON public.agent_runs USING btree (status, started_at DESC)`
  - `CREATE UNIQUE INDEX brief_versions_agent_run_id_key ON public.brief_versions USING btree (agent_run_id)`
- - `CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_idx ON public.brief_versions USING btree (opportunity_id) WHERE (is_current = true)`
+ - `CREATE UNIQUE INDEX brief_versions_one_current_per_opportunity_locale_idx ON public.brief_versions USING btree (opportunity_id, output_locale) WHERE (is_current = true)`
  - `CREATE INDEX brief_versions_opportunity_created_at_idx ON public.brief_versions USING btree (opportunity_id, created_at DESC)`
  - `CREATE UNIQUE INDEX brief_versions_pkey ON public.brief_versions USING btree (id)`
  - `CREATE UNIQUE INDEX buyers_pkey ON public.buyers USING btree (id)`
@@ -759,6 +788,13 @@
  - `CREATE INDEX decision_history_opportunity_user_created_at_idx ON public.decision_history USING btree (opportunity_id, user_id, created_at DESC)`
  - `CREATE UNIQUE INDEX decision_history_pkey ON public.decision_history USING btree (id)`
  - `CREATE INDEX decision_history_user_created_at_idx ON public.decision_history USING btree (user_id, created_at DESC)`
+ - `CREATE INDEX dossier_tasks_dossier_id_idx ON public.dossier_tasks USING btree (dossier_id)`
+ - `CREATE UNIQUE INDEX dossier_tasks_pkey ON public.dossier_tasks USING btree (id)`
+ - `CREATE INDEX dossiers_opportunity_id_idx ON public.dossiers USING btree (opportunity_id)`
+ - `CREATE UNIQUE INDEX dossiers_opportunity_id_user_id_key ON public.dossiers USING btree (opportunity_id, user_id)`
+ - `CREATE UNIQUE INDEX dossiers_pkey ON public.dossiers USING btree (id)`
+ - `CREATE INDEX dossiers_status_idx ON public.dossiers USING btree (status)`
+ - `CREATE INDEX dossiers_user_id_idx ON public.dossiers USING btree (user_id)`
  - `CREATE UNIQUE INDEX geo_countries_country_code_key ON public.geo_countries USING btree (country_code)`
  - `CREATE UNIQUE INDEX geo_countries_pkey ON public.geo_countries USING btree (id)`
  - `CREATE UNIQUE INDEX geo_countries_slug_key ON public.geo_countries USING btree (slug)`
@@ -816,7 +852,7 @@
  - `CREATE INDEX opportunity_ai_evidence_field_idx ON public.opportunity_ai_evidence USING btree (field)`
  - `CREATE UNIQUE INDEX opportunity_ai_evidence_pkey ON public.opportunity_ai_evidence USING btree (id)`
  - `CREATE INDEX opportunity_briefs_opportunity_id_idx ON public.opportunity_briefs USING btree (opportunity_id)`
- - `CREATE UNIQUE INDEX opportunity_briefs_opportunity_id_key ON public.opportunity_briefs USING btree (opportunity_id)`
+ - `CREATE UNIQUE INDEX opportunity_briefs_opportunity_id_output_locale_key ON public.opportunity_briefs USING btree (opportunity_id, output_locale)`
  - `CREATE UNIQUE INDEX opportunity_briefs_pkey ON public.opportunity_briefs USING btree (id)`
  - `CREATE INDEX opportunity_decisions_opportunity_id_idx ON public.opportunity_decisions USING btree (opportunity_id)`
  - `CREATE UNIQUE INDEX opportunity_decisions_opportunity_id_user_id_key ON public.opportunity_decisions USING btree (opportunity_id, user_id)`
@@ -836,12 +872,12 @@
  - `CREATE UNIQUE INDEX opportunity_extractions_pkey ON public.opportunity_extractions USING btree (id)`
  - `CREATE INDEX opportunity_extractions_raw_created_at_idx ON public.opportunity_extractions USING btree (raw_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_preps_agent_run_id_key ON public.opportunity_preps USING btree (agent_run_id)`
- - `CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_idx ON public.opportunity_preps USING btree (opportunity_id, user_id) WHERE (is_current = true)`
+ - `CREATE UNIQUE INDEX opportunity_preps_one_current_per_user_opportunity_locale_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, output_locale) WHERE (is_current = true)`
  - `CREATE INDEX opportunity_preps_opportunity_user_created_at_idx ON public.opportunity_preps USING btree (opportunity_id, user_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_preps_pkey ON public.opportunity_preps USING btree (id)`
  - `CREATE INDEX opportunity_preps_user_current_created_at_idx ON public.opportunity_preps USING btree (user_id, is_current, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_scores_agent_run_id_key ON public.opportunity_scores USING btree (agent_run_id)`
- - `CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_idx ON public.opportunity_scores USING btree (opportunity_id, user_id) WHERE (is_current = true)`
+ - `CREATE UNIQUE INDEX opportunity_scores_one_current_per_user_opportunity_locale_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, output_locale) WHERE (is_current = true)`
  - `CREATE INDEX opportunity_scores_opportunity_user_created_at_idx ON public.opportunity_scores USING btree (opportunity_id, user_id, created_at DESC)`
  - `CREATE UNIQUE INDEX opportunity_scores_pkey ON public.opportunity_scores USING btree (id)`
  - `CREATE INDEX opportunity_scores_user_current_created_at_idx ON public.opportunity_scores USING btree (user_id, is_current, created_at DESC)`
@@ -897,6 +933,8 @@
  ##### RLS Policies
  ##### RLS Policies
  ##### RLS Policies
+ ##### RLS Policies
+ ##### RLS Policies
  - `anon can insert access_requests` (cmd: INSERT, roles: {anon,authenticated})
  - `service_role can read access_requests` (cmd: SELECT, roles: {service_role})
  - `Authenticated read workspace timeline agent runs` (cmd: SELECT, roles: {authenticated})
@@ -904,6 +942,10 @@
  - `buyers_public_read` (cmd: SELECT, roles: {anon})
  - `Service role manages decision history` (cmd: ALL, roles: {service_role})
  - `Users read own decision history` (cmd: SELECT, roles: {authenticated})
+ - `Service role manages dossier tasks` (cmd: ALL, roles: {service_role})
+ - `Users read own dossier tasks` (cmd: SELECT, roles: {authenticated})
+ - `Service role manages dossiers` (cmd: ALL, roles: {service_role})
+ - `Users read own dossiers` (cmd: SELECT, roles: {authenticated})
  - `geo_countries_public_read` (cmd: SELECT, roles: {public})
  - `geo_localities_public_read` (cmd: SELECT, roles: {public})
  - `geo_regions_public_read` (cmd: SELECT, roles: {public})
@@ -975,6 +1017,9 @@
  ##### Triggers
  ##### Triggers
  ##### Triggers
+ ##### Triggers
+ ##### Triggers
+ - `trg_dossiers_updated_at`: CREATE TRIGGER trg_dossiers_updated_at BEFORE UPDATE ON dossiers FOR EACH ROW EXECUTE FUNCTION set_updated_at_dossiers()
  - `trg_jobs_updated_at`: CREATE TRIGGER trg_jobs_updated_at BEFORE UPDATE ON ingestion_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at()
  - `trg_rp_set_updated_at_opportunities_raw`: CREATE TRIGGER trg_rp_set_updated_at_opportunities_raw BEFORE UPDATE ON opportunities_raw FOR EACH ROW EXECUTE FUNCTION rp_set_updated_at()
  - `trg_compute_opportunity_quality`: CREATE TRIGGER trg_compute_opportunity_quality BEFORE INSERT OR UPDATE ON opportunity_ai FOR EACH ROW EXECUTE FUNCTION compute_opportunity_quality()
@@ -1010,6 +1055,9 @@
  - (none)
  - (none)
  - (none)
+ - (none)
+ 
+ 
  
  
  
@@ -1058,8 +1106,9 @@
  - `public.rp_set_updated_at()` → `trigger` (lang: plpgsql)
  - `public.set_opportunity_ai_fingerprint_from_raw()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at()` → `trigger` (lang: plpgsql)
+ - `public.set_updated_at_dossiers()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_briefs()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_decisions()` → `trigger` (lang: plpgsql)
  - `public.set_updated_at_opportunity_workflows()` → `trigger` (lang: plpgsql)
-(1061 rows)
+(1110 rows)
 

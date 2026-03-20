@@ -1,6 +1,6 @@
 # DB diff summary
 
-- Generated (UTC): `2026-03-20 07:13:31Z`
+- Generated (UTC): `2026-03-20 09:27:29Z`
 - Schemas: `public`
 
 This file summarizes changes detected between the previous and current `schema_snapshot.sql`.
@@ -15,7 +15,16 @@ This file summarizes changes detected between the previous and current `schema_s
 
 ## Modified
 
-- (none)
+- FUNCTION public.set_updated_at_dossiers
+- INDEX dossier_tasks_dossier_id_idx
+- INDEX dossiers_opportunity_id_idx
+- INDEX dossiers_status_idx
+- INDEX dossiers_user_id_idx
+- POLICY "Service
+- POLICY "Users
+- TABLE public.dossier_tasks
+- TABLE public.dossiers
+- TRIGGER trg_dossiers_updated_at
 
 ## Notes
 
