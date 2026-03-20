@@ -200,6 +200,11 @@ export default function DossierPage() {
           />
         ) : null}
         {opportunity.country_code ? <SignalBadge>{opportunity.country_code}</SignalBadge> : null}
+        {opportunity.language?.toLowerCase().startsWith("cy") ? (
+          <SignalBadge>
+            Bilingual
+          </SignalBadge>
+        ) : null}
         <span className="inline-flex items-center gap-1.5 text-sm text-subtext">
           <CalendarDays className="h-4 w-4" />
           {fmtRelative(opportunity.deadline_at, fmtLocale)}

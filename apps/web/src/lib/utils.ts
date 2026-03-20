@@ -54,3 +54,16 @@ export function fmtRelative(value: string | number | Date | null | undefined, lo
   const diffDay = Math.round(diffSec / 86400);
   return rtf.format(diffDay, "day");
 }
+
+const ORIGIN_TYPE_LABELS: Record<string, Record<string, string>> = {
+  WORKS:    { en: "Works",    fr: "Travaux",     it: "Lavori" },
+  SERVICES: { en: "Services", fr: "Services",    it: "Servizi" },
+  SUPPLIES: { en: "Supplies", fr: "Fournitures", it: "Forniture" },
+  OTHER:    { en: "Other",    fr: "Non classé",  it: "Altro" },
+};
+
+export function formatOriginType(value: string | null, lang = "en"): string | null {
+  if (!value) return null;
+  const key = value.toUpperCase();
+  return ORIGIN_TYPE_LABELS[key]?.[lang] ?? ORIGIN_TYPE_LABELS[key]?.["en"] ?? value;
+}

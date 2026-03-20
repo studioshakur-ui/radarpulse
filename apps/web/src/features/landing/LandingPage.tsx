@@ -1,49 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Logo } from "@/components/Logo";
 import { useTheme } from "@/state/theme";
 import { Link } from "react-router-dom";
 import { ArrowRight, Brain, Globe, CheckCircle, Clock } from "lucide-react";
 import { CoreCard } from "@/components/ds/CoreCard";
 import { useT } from "@/i18n";
 import type { Locale } from "@/lib/i18n";
-
-// ─── Announcement bar ─────────────────────────────────────────────────────────
-
-function AnnouncementBar() {
-  const { t } = useT();
-  return (
-    <div className="border-b border-brand/70 bg-brand px-4 py-2 text-center text-xs">
-      <span className="inline-flex items-center gap-2 text-white/85">
-        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-        {t("landing.announcement.body")} —&nbsp;
-        <Link
-          to="/request-access"
-          className="font-bold text-white underline-offset-2 hover:underline"
-        >
-          {t("landing.announcement.link")}
-        </Link>
-      </span>
-    </div>
-  );
-}
+import { MarketingShell } from "./marketingPrimitives";
 
 // ─── Hero typewriter ──────────────────────────────────────────────────────────
 
 const HERO_CYCLES: Record<Locale, Array<{ strong: string; accent: string }>> = {
   en: [
-    { strong: "Find the right", accent: "public opportunities." },
-    { strong: "Turn signal into", accent: "qualified dossiers." },
-    { strong: "Move faster with", accent: "clear next actions." },
+    { strong: "Qualify faster,", accent: "pursue less." },
+    { strong: "Catch blockers", accent: "before bid cost builds." },
+    { strong: "Move the right", accent: "opportunities forward." },
   ],
   fr: [
-    { strong: "Identifiez les bonnes", accent: "opportunités publiques." },
-    { strong: "Transformez le signal en", accent: "dossiers qualifiés." },
-    { strong: "Avancez avec des", accent: "prochaines actions claires." },
+    { strong: "Qualifiez plus vite,", accent: "poursuivez moins." },
+    { strong: "Détectez les blockers", accent: "avant que le bid coûte." },
+    { strong: "Faites avancer les", accent: "bonnes opportunités." },
   ],
   it: [
-    { strong: "Trova le giuste", accent: "opportunita pubbliche." },
-    { strong: "Trasforma il segnale in", accent: "dossier qualificati." },
-    { strong: "Avanza con", accent: "prossime azioni chiare." },
+    { strong: "Qualifica più veloce,", accent: "pursuit più mirato." },
+    { strong: "Intercetta i blocchi", accent: "prima del bid effort." },
+    { strong: "Sposta avanti", accent: "le opportunità giuste." },
   ],
 };
 
@@ -344,11 +324,6 @@ function HeroBrowserMockup() {
           <span className="text-[11px] font-medium text-brand/80">{ml.open}</span>
         </div>
       </div>
-      <div className="absolute -left-6 bottom-10 hidden rounded-2xl border border-brand/20 bg-white/92 px-4 py-3 shadow-xl backdrop-blur xl:block">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtext/50">UK + FR</p>
-        <p className="mt-0.5 text-2xl font-bold text-text">Dossier</p>
-        <p className="mt-0.5 text-[10px] text-brand/80">market qualification workflow</p>
-      </div>
     </div>
   );
 }
@@ -357,86 +332,39 @@ function HeroBrowserMockup() {
 
 const HERO_STATS: Record<Locale, Array<{ value: string; label: string }>> = {
   en: [
-    { value: "UK + FR", label: "Live market coverage" },
-    { value: "2 core markets", label: "Commercial focus" },
-    { value: "Dossiers", label: "Core work object" },
+    { value: "GO / NO", label: "Qualified per opportunity" },
+    { value: "Blockers", label: "Exposed before bid effort" },
+    { value: "UK live", label: "Primary market coverage" },
   ],
   fr: [
-    { value: "UK + FR", label: "Couverture live" },
-    { value: "2 marches cles", label: "Focus commercial" },
-    { value: "Dossiers", label: "Objet de travail central" },
+    { value: "GO / NO", label: "Qualifie par opportunite" },
+    { value: "Blockers", label: "Identifies avant le bid effort" },
+    { value: "UK live", label: "Couverture marche principale" },
   ],
   it: [
-    { value: "UK + FR", label: "Copertura live" },
-    { value: "2 mercati chiave", label: "Focus commerciale" },
-    { value: "Dossier", label: "Oggetto operativo centrale" },
+    { value: "GO / NO", label: "Qualificato per opportunita" },
+    { value: "Blockers", label: "Identificati prima del bid effort" },
+    { value: "UK live", label: "Copertura mercato principale" },
   ],
 };
 
 const HERO_CHIPS: Record<Locale, string[]> = {
   en: [
-    "UK and France qualification flow",
-    "Decision-ready brief and score",
-    "Dossier workflow with next actions",
+    "Qualify before pursuit cost compounds",
+    "Blockers exposed in qualification",
+    "Tracked pipeline per market",
   ],
   fr: [
-    "Flux de qualification UK et France",
-    "Brief et score orientés decision",
-    "Workflow dossier avec prochaines actions",
+    "Qualifiez avant que le cout s'accumule",
+    "Blocages identifies en qualification",
+    "Pipeline suivi par marche",
   ],
   it: [
-    "Flusso di qualifica UK e Francia",
-    "Brief e score orientati alla decisione",
-    "Workflow dossier con prossime azioni",
+    "Qualifica prima che il costo si accumuli",
+    "Blocchi identificati in qualifica",
+    "Pipeline tracciato per mercato",
   ],
 };
-
-// ─── Sources strip ────────────────────────────────────────────────────────────
-
-const SOURCES = [
-  { label: "TED / OJEU", flag: "🇪🇺", cls: "text-violet-400 border-violet-400/20 bg-violet-400/5" },
-  { label: "ANAC", flag: "🇮🇹", cls: "text-emerald-400 border-emerald-400/20 bg-emerald-400/5" },
-  { label: "FindTender", flag: "🇬🇧", cls: "text-blue-400 border-blue-400/20 bg-blue-400/5" },
-  { label: "SAM.gov", flag: "🇺🇸", cls: "text-amber-400 border-amber-400/20 bg-amber-400/5" },
-];
-
-const SOURCES_LABEL: Record<Locale, string> = {
-  en: "Connected sources",
-  fr: "Sources connectées",
-  it: "Fonti collegate",
-};
-const SOURCES_COMING: Record<Locale, string> = {
-  en: "+ 16 coming soon",
-  fr: "+ 16 à venir",
-  it: "+ 16 in arrivo",
-};
-
-function SourcesStrip() {
-  const { lang } = useT();
-  return (
-    <section className="border-y border-border/15 bg-surface/20 py-6">
-      <div className="mx-auto max-w-6xl px-4">
-        <p className="mb-4 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext/40">
-          {SOURCES_LABEL[lang]}
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {SOURCES.map((s) => (
-            <span
-              key={s.label}
-              className={"inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold " + s.cls}
-            >
-              <span>{s.flag}</span>
-              {s.label}
-            </span>
-          ))}
-          <span className="inline-flex items-center gap-2 rounded-full border border-border/20 px-4 py-1.5 text-sm text-subtext/40">
-            {SOURCES_COMING[lang]}
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 // ─── Section label ────────────────────────────────────────────────────────────
 
@@ -466,145 +394,6 @@ function useInView<T extends Element>(ref: React.RefObject<T | null>, threshold 
     return () => obs.disconnect();
   }, [ref, threshold]);
   return inView;
-}
-
-// ─── Signal Rail ─────────────────────────────────────────────────────────────
-
-type SignalEntry =
-  | { kind: "signal"; text: string; flag: string; country: string }
-  | { kind: "metric"; text: string };
-
-const SIGNALS: Record<Locale, SignalEntry[]> = {
-  en: [
-    { kind: "signal", text: "New energy procurement", flag: "🇪🇸", country: "Spain" },
-    { kind: "metric", text: "142 new signals indexed today" },
-    { kind: "signal", text: "Healthcare demand rising", flag: "🇷🇴", country: "Romania" },
-    { kind: "signal", text: "Transport funding updated", flag: "🇵🇹", country: "Portugal" },
-    { kind: "metric", text: "23 countries monitored live" },
-    { kind: "signal", text: "New TED notices detected", flag: "🇪🇺", country: "EU" },
-    { kind: "signal", text: "Infrastructure market activity", flag: "🇵🇱", country: "Poland" },
-    { kind: "signal", text: "IT modernization signal", flag: "🇫🇷", country: "France" },
-    { kind: "metric", text: "47 market updates this hour" },
-    { kind: "signal", text: "Digital transformation opportunity", flag: "🇩🇪", country: "Germany" },
-    { kind: "signal", text: "Public health framework", flag: "🇮🇹", country: "Italy" },
-    { kind: "signal", text: "Defense market activity", flag: "🇸🇪", country: "Sweden" },
-    { kind: "signal", text: "New SAM.gov opportunities", flag: "🇺🇸", country: "USA" },
-    { kind: "signal", text: "Rail infrastructure signal", flag: "🇬🇧", country: "UK" },
-    { kind: "metric", text: "Energy, transport, healthcare — live" },
-    { kind: "signal", text: "Water & utilities market", flag: "🇳🇱", country: "Netherlands" },
-    { kind: "signal", text: "Edtech opportunity", flag: "🇧🇪", country: "Belgium" },
-    { kind: "signal", text: "Smart city market", flag: "🇳🇴", country: "Norway" },
-    { kind: "signal", text: "Environmental services signal", flag: "🇨🇿", country: "Czechia" },
-    { kind: "signal", text: "Public-sector IT renewal", flag: "🇦🇹", country: "Austria" },
-    { kind: "metric", text: "Fresh market intelligence — live" },
-    { kind: "signal", text: "Logistics & supply chain signal", flag: "🇩🇰", country: "Denmark" },
-    { kind: "signal", text: "Renewable energy tender", flag: "🇫🇮", country: "Finland" },
-    { kind: "signal", text: "Healthcare infrastructure update", flag: "🇬🇷", country: "Greece" },
-  ],
-  fr: [
-    { kind: "signal", text: "Nouveau marché énergie", flag: "🇪🇸", country: "Espagne" },
-    { kind: "metric", text: "142 nouveaux signaux indexés aujourd'hui" },
-    { kind: "signal", text: "Hausse demande santé", flag: "🇷🇴", country: "Roumanie" },
-    { kind: "signal", text: "Mise à jour financement transport", flag: "🇵🇹", country: "Portugal" },
-    { kind: "metric", text: "23 pays surveillés en temps réel" },
-    { kind: "signal", text: "Nouveaux avis TED détectés", flag: "🇪🇺", country: "UE" },
-    { kind: "signal", text: "Activité marchés infrastructure", flag: "🇵🇱", country: "Pologne" },
-    { kind: "signal", text: "Signal modernisation IT", flag: "🇫🇷", country: "France" },
-    { kind: "metric", text: "47 mises à jour marchés cette heure" },
-    { kind: "signal", text: "Opportunité transformation digitale", flag: "🇩🇪", country: "Allemagne" },
-    { kind: "signal", text: "Cadre santé publique", flag: "🇮🇹", country: "Italie" },
-    { kind: "signal", text: "Activité marchés défense", flag: "🇸🇪", country: "Suède" },
-    { kind: "signal", text: "Nouvelles opportunités SAM.gov", flag: "🇺🇸", country: "USA" },
-    { kind: "signal", text: "Signal infrastructure ferroviaire", flag: "🇬🇧", country: "Royaume-Uni" },
-    { kind: "metric", text: "Énergie, transport, santé — live" },
-    { kind: "signal", text: "Marchés eau & utilities", flag: "🇳🇱", country: "Pays-Bas" },
-    { kind: "signal", text: "Opportunité edtech", flag: "🇧🇪", country: "Belgique" },
-    { kind: "signal", text: "Marché ville intelligente", flag: "🇳🇴", country: "Norvège" },
-    { kind: "signal", text: "Signal services environnementaux", flag: "🇨🇿", country: "Tchéquie" },
-    { kind: "signal", text: "Renouvellement IT secteur public", flag: "🇦🇹", country: "Autriche" },
-    { kind: "metric", text: "Intelligence marché fraîche — live" },
-    { kind: "signal", text: "Signal logistique & supply chain", flag: "🇩🇰", country: "Danemark" },
-    { kind: "signal", text: "Appel d'offres énergie renouvelable", flag: "🇫🇮", country: "Finlande" },
-    { kind: "signal", text: "Mise à jour infrastructure santé", flag: "🇬🇷", country: "Grèce" },
-  ],
-  it: [
-    { kind: "signal", text: "Nuova gara energia", flag: "🇪🇸", country: "Spagna" },
-    { kind: "metric", text: "142 nuovi segnali indicizzati oggi" },
-    { kind: "signal", text: "Crescita domanda sanità", flag: "🇷🇴", country: "Romania" },
-    { kind: "signal", text: "Aggiornamento fondi trasporti", flag: "🇵🇹", country: "Portogallo" },
-    { kind: "metric", text: "23 paesi monitorati live" },
-    { kind: "signal", text: "Nuovi avvisi TED rilevati", flag: "🇪🇺", country: "UE" },
-    { kind: "signal", text: "Attività mercato infrastrutture", flag: "🇵🇱", country: "Polonia" },
-    { kind: "signal", text: "Segnale modernizzazione IT", flag: "🇫🇷", country: "Francia" },
-    { kind: "metric", text: "47 aggiornamenti mercato in quest'ora" },
-    { kind: "signal", text: "Opportunità trasformazione digitale", flag: "🇩🇪", country: "Germania" },
-    { kind: "signal", text: "Framework sanità pubblica", flag: "🇮🇹", country: "Italia" },
-    { kind: "signal", text: "Attività mercato difesa", flag: "🇸🇪", country: "Svezia" },
-    { kind: "signal", text: "Nuove opportunità SAM.gov", flag: "🇺🇸", country: "USA" },
-    { kind: "signal", text: "Segnale infrastruttura ferroviaria", flag: "🇬🇧", country: "Regno Unito" },
-    { kind: "metric", text: "Energia, trasporti, sanità — live" },
-    { kind: "signal", text: "Mercato acqua & utilities", flag: "🇳🇱", country: "Paesi Bassi" },
-    { kind: "signal", text: "Opportunità edtech", flag: "🇧🇪", country: "Belgio" },
-    { kind: "signal", text: "Mercato smart city", flag: "🇳🇴", country: "Norvegia" },
-    { kind: "signal", text: "Segnale servizi ambientali", flag: "🇨🇿", country: "Cechia" },
-    { kind: "signal", text: "Rinnovo IT settore pubblico", flag: "🇦🇹", country: "Austria" },
-    { kind: "metric", text: "Market intelligence fresca — live" },
-    { kind: "signal", text: "Segnale logistica & supply chain", flag: "🇩🇰", country: "Danimarca" },
-    { kind: "signal", text: "Bando energia rinnovabile", flag: "🇫🇮", country: "Finlandia" },
-    { kind: "signal", text: "Aggiornamento infrastruttura sanitaria", flag: "🇬🇷", country: "Grecia" },
-  ],
-};
-
-function SignalRail() {
-  const { lang } = useT();
-  const signals = SIGNALS[lang] ?? SIGNALS.en;
-  const doubled = [...signals, ...signals];
-  return (
-    <div className="signal-rail-wrap overflow-hidden border-b border-border/15 bg-surface/40 py-2.5">
-      <div
-        className="signal-rail-track flex items-center whitespace-nowrap"
-        style={{ width: "max-content", willChange: "transform" }}
-      >
-        {doubled.map((s, i) =>
-          s.kind === "signal" ? (
-            <span
-              key={i}
-              className="flex items-center gap-1.5 px-5 text-xs"
-              aria-hidden={i >= signals.length ? "true" : undefined}
-            >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand/50" />
-              <span className="text-subtext">{s.text}</span>
-              <span className="text-subtext/40">·</span>
-              <span className="font-medium text-text/60">
-                {s.flag} {s.country}
-              </span>
-            </span>
-          ) : (
-            <span
-              key={i}
-              className="flex items-center gap-1.5 px-5 text-xs"
-              aria-hidden={i >= signals.length ? "true" : undefined}
-            >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60" />
-              <span className="font-semibold text-text/50">{s.text}</span>
-            </span>
-          ),
-        )}
-      </div>
-      <style>{`
-        @keyframes rp-marquee {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-        .signal-rail-track {
-          animation: rp-marquee 80s linear infinite;
-        }
-        .signal-rail-wrap:hover .signal-rail-track {
-          animation-play-state: paused;
-        }
-      `}</style>
-    </div>
-  );
 }
 
 // ─── Mock tender card ────────────────────────────────────────────────────────
@@ -791,109 +580,6 @@ function PricingCard({
   );
 }
 
-// ─── Footer ───────────────────────────────────────────────────────────────────
-
-function Footer() {
-  const { t } = useT();
-  return (
-    <footer className="border-t border-border/20 bg-bg">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
-            <p className="text-base font-bold text-text">RadarPulse</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-subtext/60">
-              {t("landing.footer.tagline.line1")}
-              <br />
-              {t("landing.footer.tagline.line2")}
-            </p>
-            <div className="mt-4 flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              <span className="text-xs text-subtext/50">{t("landing.footer.status")}</span>
-            </div>
-          </div>
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              {t("landing.footer.product")}
-            </p>
-            <ul className="space-y-2 text-sm text-subtext/70">
-              <li>
-                <Link to="/login" className="transition-colors hover:text-text">
-                  {t("landing.footer.product.inbox")}
-                </Link>
-              </li>
-              <li>
-                <Link to="/request-access" className="transition-colors hover:text-text">
-                  {t("landing.footer.product.access")}
-                </Link>
-              </li>
-              <li>
-                <Link to="/login" className="transition-colors hover:text-text">
-                  {t("landing.footer.product.signin")}
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              {t("landing.footer.resources")}
-            </p>
-            <ul className="space-y-2 text-sm text-subtext/70">
-              <li>
-                <Link to="/guides" className="transition-colors hover:text-text">
-                  {t("landing.footer.resources.guides")}
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="https://www.find-tender.service.gov.uk/Search"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors hover:text-text"
-                >
-                  Find a Tender
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://www.boamp.fr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors hover:text-text"
-                >
-                  BOAMP
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-subtext/50">
-              {t("landing.footer.legal")}
-            </p>
-            <ul className="space-y-2 text-sm text-subtext/70">
-              <li>
-                <Link to="/privacy" className="transition-colors hover:text-text">
-                  {t("landing.footer.legal.privacy")}
-                </Link>
-              </li>
-              <li>
-                <Link to="/terms" className="transition-colors hover:text-text">
-                  {t("landing.footer.legal.terms")}
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-10 flex items-center justify-between border-t border-border/10 pt-6">
-          <p className="text-xs text-subtext/40">
-            © 2026 RadarPulse · {t("landing.footer.madeInEurope")} 🇪🇺
-          </p>
-          <p className="text-xs text-subtext/30">v2.0</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 // ─── Pricing data helper ──────────────────────────────────────────────────────
 
 function getPricingPlans(lang: Locale) {
@@ -1011,13 +697,13 @@ export function LandingPage() {
       decision: "GO" as const,
     },
     {
-      flag: "🇫🇷",
-      country: "France · BOAMP",
-      title: "Digital services framework for territorial procurement support",
-      buyer: "Ministere de la Transition numerique",
-      budget: "€ 6.1M",
+      flag: "🇬🇧",
+      country: "UK · Contracts Finder",
+      title: "Data and analytics advisory — regional transport authority",
+      buyer: "Transport for the North",
+      budget: "£ 2.4M",
       deadline: "Apr 11, 2026",
-      score: 71,
+      score: 67,
       decision: "HOLD" as const,
     },
     {
@@ -1048,9 +734,9 @@ export function LandingPage() {
     it: "RadarPulse viene attualmente aperto tramite accesso valutato mentre il sistema dossier si consolida.",
   };
   const HERO_PILL: Record<Locale, string> = {
-    en: "Public opportunity intelligence",
-    fr: "Intelligence opportunites publiques",
-    it: "Intelligence opportunita pubbliche",
+    en: "UK public opportunity qualification",
+    fr: "Qualification d'opportunités publiques UK",
+    it: "Qualifica opportunità pubbliche UK",
   };
   const NO_CARD: Record<Locale, string> = {
     en: "Access is reviewed with each team before rollout.",
@@ -1082,32 +768,15 @@ export function LandingPage() {
   });
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      {/* Nav */}
-      <header className="sticky top-0 z-30 border-b border-border/30 bg-bg/90 backdrop-blur">
-        <AnnouncementBar />
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-          <Link to="/" aria-label="RadarPulse">
-            <Logo size={24} />
-          </Link>
-          <nav className="flex items-center gap-2">
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-surface/60 px-4 py-2 text-sm font-semibold text-text shadow-soft hover:bg-surface/75"
-            >
-              {t("landing.nav.signin")}
-            </Link>
-            <Link
-              to="/request-access"
-              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-glow hover:opacity-95"
-            >
-              {t("landing.nav.primaryCta")} <ArrowRight className="h-4 w-4" />
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      <main>
+    <MarketingShell
+      locale={lang}
+      activeMarket="uk"
+      banner={{
+        text: t("landing.announcement.body"),
+        linkLabel: t("landing.announcement.link"),
+        linkTo: "/request-access",
+      }}
+    >
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/20">
           <HeroBackground />
@@ -1274,37 +943,26 @@ export function LandingPage() {
                 accent="bg-blue-500/10"
                 iconColor="text-blue-400"
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-1.5 rounded-2xl bg-bg/60 p-3">
                   {[
-                    ["EU", "🇪🇺"],
-                    ["IT", "🇮🇹"],
-                    ["UK", "🇬🇧"],
-                    ["US", "🇺🇸"],
-                    ["FR", "🇫🇷"],
-                    ["DE", "🇩🇪"],
-                    ["ES", "🇪🇸"],
-                    ["PL", "🇵🇱"],
-                    ["NL", "🇳🇱"],
-                    ["BE", "🇧🇪"],
-                    ["SE", "🇸🇪"],
-                    ["NO", "🇳🇴"],
-                  ].map(([name, flag]) => (
-                    <span
-                      key={name}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/20 bg-bg/60 px-3 py-1.5 text-xs font-medium text-text/70"
-                    >
-                      {flag} {name}
-                    </span>
+                    { label: "Security appendix", done: true },
+                    { label: "Partner sign-off", done: true },
+                    { label: "Budget review", done: false, active: true },
+                    { label: "Final submission", done: false },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-2 text-xs">
+                      <span className={item.done ? "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" : item.active ? "h-1.5 w-1.5 shrink-0 rounded-full animate-pulse bg-amber-500" : "h-1.5 w-1.5 shrink-0 rounded-full bg-border/40"} />
+                      <span className={item.done ? "line-through text-subtext/40" : item.active ? "font-medium text-text" : "text-subtext/60"}>
+                        {item.label}
+                      </span>
+                      {item.done ? <CheckCircle className="ml-auto h-3 w-3 text-emerald-500/70" /> : null}
+                    </div>
                   ))}
-                  <span className="inline-flex items-center rounded-xl border border-border/10 bg-bg/40 px-3 py-1.5 text-xs text-subtext/40">
-                    +8
-                  </span>
                 </div>
               </BentoCard>
             </div>
           </div>
         </section>
-
         {/* How it works */}
         <section className="border-y border-border/20 bg-surface/20">
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
@@ -1416,9 +1074,6 @@ export function LandingPage() {
             <p className="mt-6 text-xs text-subtext/50">{NO_CARD[lang]}</p>
           </div>
         </section>
-      </main>
-
-      <Footer />
-    </div>
+    </MarketingShell>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ArrowUpRight, Landmark, MapPinned, RadioTower, ShieldCheck } from "lucide-react";
 import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip } from "@/features/geo/GeoShell";
 import {
@@ -397,6 +397,14 @@ export default function CountryPage() {
             items={data?.feed.items ?? []}
             locationResolver={(item) => resolveOpportunityRegionName(item, countryCode, data?.regions ?? [])}
           />
+          <div className="mt-4 flex justify-end">
+            <Link
+              to="/inbox"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface px-4 py-2 text-sm font-semibold text-text transition hover:bg-elevated"
+            >
+              {t("geo.country.viewInbox")} <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
         </GeoSection>
       </div>
     </GeoShell>

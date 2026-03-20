@@ -372,7 +372,7 @@ function Shell({ children, canSeeDevApp, user }: { children: React.ReactNode; ca
 
   const isMarketing = useMemo(() => {
     const p = loc.pathname || "/";
-    return p === "/" || p.startsWith("/login") || p.startsWith("/auth/callback") || p.startsWith("/reset-password") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides") || p.startsWith("/global") || p.startsWith("/zones/") || p.startsWith("/countries/");
+    return p === "/" || p === "/uk" || p.startsWith("/eu") || p.startsWith("/login") || p.startsWith("/auth/callback") || p.startsWith("/reset-password") || p.startsWith("/request-access") || p.startsWith("/italie") || p.startsWith("/guides") || p.startsWith("/global") || p.startsWith("/zones/") || p.startsWith("/countries/");
   }, [loc.pathname]);
 
   if (isMarketing) return <>{children}</>;
@@ -422,6 +422,7 @@ export default function App() {
       <Shell canSeeDevApp={canSeeDevApp} user={user}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/uk" element={<LandingPage />} />
           <Route path="/request-access" element={<RequestAccessPage />} />
           <Route path="/abbonamento" element={<SubscribePage />} />
           <Route path="/subscribe" element={<Navigate to="/abbonamento" replace />} />

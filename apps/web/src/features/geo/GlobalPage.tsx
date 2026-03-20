@@ -98,6 +98,7 @@ export default function GlobalPage() {
       breadcrumbs={[{ label: t("geo.nav.global") }]}
     >
       {error ? <div className="rounded-2xl border border-bad/25 bg-bad/10 p-4 text-sm text-bad">{error}</div> : null}
+      {!data && !error ? <div className="text-sm text-subtext/60">{t("geo.loading")}</div> : null}
 
       <div className="grid gap-6">
         <GeoMetricGrid

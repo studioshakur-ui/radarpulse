@@ -348,17 +348,6 @@ export default function SettingsPage() {
         </form>
       </SurfaceSection>
 
-      <SurfaceSection title={t("settings.uiStandards")} subtitle={t("settings.uiStandards.subtitle")}>
-        <ul className="space-y-2 text-sm text-subtext">
-          <li>• {t("settings.standard1")}</li>
-          <li>• {t("settings.standard2")}</li>
-          <li>• {t("settings.standard3")}</li>
-        </ul>
-        <div className="mt-4 text-xs text-subtext">
-          {t("settings.language")}: {t("settings.language.helper")}
-        </div>
-      </SurfaceSection>
-
       <div className="flex items-center justify-end gap-3 pb-2">
         {saveStatus === "saved" ? <SemanticPill tone="good">{t("settings.saved")}</SemanticPill> : null}
         <button

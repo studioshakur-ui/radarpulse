@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, CalendarDays, CircleGauge, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { cn, fmtRelative } from "@/lib/utils";
+import { cn, fmtRelative, formatOriginType } from "@/lib/utils";
 import {
   DeadlinePill,
   DecisionControl,
@@ -159,11 +159,11 @@ function InboxRow({
             {formatQualityShort(item.quality_score)}
           </SemanticPill>
         ) : null}
-        {decision ? <DecisionStateBadge decision={decision} noGoLabel="NO" size="sm" /> : null}
+        {decision ? <DecisionStateBadge decision={decision} noGoLabel="NO-GO" size="sm" /> : null}
         <span className="truncate">{item.buyer_name || t("inbox.card.buyerUnavailable")}</span>
         {item.origin_type ? (
           <SignalBadge className="shrink-0" size="sm">
-            {item.origin_type}
+            {formatOriginType(item.origin_type)}
           </SignalBadge>
         ) : null}
         <span className="ml-auto shrink-0">{fmtRelative(item.published_at, fmtLocale)}</span>
@@ -252,7 +252,7 @@ function InboxDetail({
           </span>
           {item.origin_type ? (
             <SignalBadge size="sm">
-              {item.origin_type}
+              {formatOriginType(item.origin_type)}
             </SignalBadge>
           ) : null}
         </div>
@@ -263,7 +263,7 @@ function InboxDetail({
             value={decision}
             onChange={(nextDecision) => onDecide(item.id, nextDecision)}
             size="sm"
-            noGoLabel="NO"
+            noGoLabel="NO-GO"
           />
           <button
             type="button"
@@ -355,6 +355,8 @@ export default function InboxPage() {
     if (decisionFilter === "undecided") return items.filter((item) => !store[item.id]);
     return items.filter((item) => store[item.id]?.decision === decisionFilter);
   }, [items, decisionFilter, store]);
+
+  const hasActiveFilters = q.trim() !== "" || status !== "all" || minQualityInput.trim() !== "" || decisionFilter !== "all";
 
   const undecidedCount = useMemo(
     () => filteredItems.filter((item) => !store[item.id]).length,
@@ -614,7 +616,20 @@ export default function InboxPage() {
       ) : null}
 
       {!loading && filteredItems.length === 0 ? (
-        <StatePanel description={t("inbox.empty")} className="mt-5 p-6" />
+        <StatePanel
+          description={hasActiveFilters ? t("inbox.empty.filtered") : t("inbox.empty")}
+          className="mt-5 p-6"
+        >
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="mt-1 inline-flex items-center rounded-xl border border-line/25 bg-surface px-4 py-2 text-sm font-medium text-subtext transition hover:bg-elevated"
+            >
+              {t("inbox.filter.resetAll")}
+            </button>
+          ) : null}
+        </StatePanel>
       ) : null}
 
       {/* Desktop split-pane (lg+) */}
@@ -730,7 +745,7 @@ export default function InboxPage() {
                     <SemanticPill>{formatQuality(item.quality_score, t)}</SemanticPill>
                     {item.origin_type ? (
                       <SignalBadge uppercase size="md">
-                        {item.origin_type}
+                        {formatOriginType(item.origin_type)}
                       </SignalBadge>
                     ) : null}
                   </div>
@@ -740,7 +755,7 @@ export default function InboxPage() {
                   <DecisionControl
                     value={decision}
                     onChange={(nextDecision) => decide(item.id, nextDecision)}
-                    noGoLabel="NO"
+                    noGoLabel="NO-GO"
                   />
                 </div>
 
