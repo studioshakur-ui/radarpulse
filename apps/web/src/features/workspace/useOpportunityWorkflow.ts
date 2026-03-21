@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 import type { WorkflowStatus } from "@/lib/types";
 
 export type OpportunityWorkflow = {
@@ -63,21 +65,43 @@ export function useOpportunityWorkflow(opportunityId: string | null) {
     setWorkflow(optimistic);
 
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke("opportunity-workflow", {
-        body: {
+      const jwt = await getValidAccessToken();
+
+      const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-workflow`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+          apikey: ENV.SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
           opportunity_id: opportunityId,
           workflow_status: nextStatus,
-        },
+        }),
       });
 
-      if (invokeError) throw invokeError;
+      const response = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new AuthTokenError();
+        }
+        const errorCode = typeof response.error === "string" ? response.error : "WORKFLOW_REQUEST_FAILED";
+        const details = typeof response.detail === "string"
+          ? response.detail
+          : typeof response.details === "string"
+            ? response.details
+            : null;
+        throw new Error(details ? `${errorCode}: ${details}` : errorCode);
+      }
 
-      const response = data as Record<string, unknown> | null;
       setWorkflow({
         workflow_status: String(response?.workflow_status ?? nextStatus) as WorkflowStatus,
         updated_at: String(response?.updated_at ?? optimistic.updated_at),
       });
     } catch (e) {
+      if (e instanceof AuthTokenError) {
+        void recoverInvalidSession();
+      }
       setWorkflow(previous);
       setError(e instanceof Error ? e.message : "Error");
     } finally {

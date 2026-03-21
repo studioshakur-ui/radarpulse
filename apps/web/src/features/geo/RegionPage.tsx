@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ArrowUpRight, Building2, Clock3, RadioTower, Sparkles } from "lucide-react";
+import { ArrowUpRight, Building2 } from "lucide-react";
 import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip } from "@/features/geo/GeoShell";
 import { buildGeoFeedInsights, loadRegionGeoPage, type RegionGeoPageData } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
@@ -69,7 +69,7 @@ export default function RegionPage() {
         themeCountryName={countryCode}
         breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode, to: `/countries/${countryCode}` }, { label: regionSlug }]}
       >
-        <div className="rounded-2xl border border-border/25 bg-white/45 p-5 text-sm text-muted">{t("geo.errors.notFoundBody")}</div>
+        <div className="rounded-2xl border border-line/15 bg-surface/92 p-5 text-sm text-muted shadow-soft">{t("geo.errors.notFoundBody")}</div>
       </GeoShell>
     );
   }
@@ -91,40 +91,43 @@ export default function RegionPage() {
       {error ? <div className="rounded-2xl border border-bad/25 bg-bad/10 p-4 text-sm text-bad">{error}</div> : null}
 
       <div className="grid gap-6">
-        <section className="overflow-hidden rounded-[32px] border border-border/30 bg-white/72 shadow-soft">
-          <div className="grid gap-0 lg:grid-cols-[1.25fr_0.95fr]">
-            <div className="border-b border-border/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.82))] p-6 sm:p-8 lg:border-b-0 lg:border-r">
+        <section className="overflow-hidden rounded-[32px] border border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,242,255,0.92))] shadow-soft">
+          <div className="grid gap-0 xl:grid-cols-[1.25fr_0.95fr]">
+            <div className="border-b border-line/15 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_28%),linear-gradient(140deg,rgba(255,255,255,0.98),rgba(247,243,255,0.92))] p-6 sm:p-8 xl:border-b-0 xl:border-r">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">{story.eyebrow}</div>
               <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl">{story.title}</h2>
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-subtext">{story.body}</p>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                    <RadioTower className="h-4 w-4 text-brand" />
-                    {t("geo.region.hero.panel1.title")}
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-subtext">{t("geo.region.hero.panel1.body")}</p>
-                </div>
-                <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                    <Clock3 className="h-4 w-4 text-brand" />
-                    {t("geo.region.hero.panel2.title")}
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-subtext">{t("geo.region.hero.panel2.body")}</p>
-                </div>
-                <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                    <Sparkles className="h-4 w-4 text-brand" />
-                    {t("geo.region.hero.panel3.title")}
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-subtext">{t("geo.region.hero.panel3.body")}</p>
-                </div>
+              <div className="mt-5">
+                <GeoSignalStrip
+                  items={[
+                    {
+                      label: t("geo.metrics.publicOpps"),
+                      value: String(data?.feed.total ?? 0),
+                      tone: (data?.feed.total ?? 0) > 0 ? "good" : "default",
+                    },
+                    {
+                      label: t("geo.labels.localities"),
+                      value: String(data?.localities.length ?? 0),
+                      tone: (data?.localities.length ?? 0) > 0 ? "default" : "warn",
+                    },
+                    {
+                      label: t("geo.insights.sources"),
+                      value: String(insights.activeSources),
+                      tone: insights.activeSources > 1 ? "good" : "default",
+                    },
+                    {
+                      label: t("geo.insights.urgent"),
+                      value: String(insights.urgentCount),
+                      tone: insights.urgentCount > 0 ? "warn" : "default",
+                    },
+                  ]}
+                />
               </div>
             </div>
 
-            <div className="grid gap-4 bg-[linear-gradient(160deg,rgba(246,248,252,0.96),rgba(255,255,255,0.78))] p-6 sm:p-8">
-              <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
+            <div className="grid gap-4 bg-[linear-gradient(165deg,rgba(244,240,255,0.94),rgba(255,255,255,0.78))] p-6 sm:p-8">
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.region.intelligence.eyebrow")}</div>
                 <div className="mt-3 flex items-end justify-between gap-4">
                   <div>
@@ -137,19 +140,19 @@ export default function RegionPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
+                <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.hotLocalities")}</div>
                   <div className="mt-2 text-xl font-semibold text-text">{leadLocality?.label ?? "—"}</div>
                   <div className="mt-1 text-sm text-subtext">{leadLocality ? `${leadLocality.value} ${t("geo.region.intelligence.visibleItems")}` : t("geo.feed.empty")}</div>
                 </div>
-                <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
+                <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.urgent")}</div>
                   <div className="mt-2 text-xl font-semibold text-text">{insights.urgentCount}</div>
                   <div className="mt-1 text-sm text-subtext">{t("geo.region.intelligence.urgencyHint")}</div>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-border/25 bg-bg/55 p-5 shadow-soft">
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.originMix")}</div>
                 <div className="mt-4">
                   <GeoSignalStrip
@@ -165,15 +168,6 @@ export default function RegionPage() {
           </div>
         </section>
 
-        <GeoMetricGrid
-          items={[
-            { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.region.metrics.publicOppsHint") },
-            { label: t("geo.labels.localities"), value: String(data?.localities.length ?? 0), hint: t("geo.region.metrics.localitiesHint") },
-            { label: t("geo.labels.scope"), value: data?.region.name ?? "—", hint: t("geo.region.metrics.scopeHint") },
-            { label: t("geo.insights.sources"), value: String(insights.activeSources), hint: t("geo.region.metrics.sourcesHint") },
-          ]}
-        />
-
         <GeoSignalStrip
           items={[
             { label: t("geo.insights.urgent"), value: String(insights.urgentCount), tone: insights.urgentCount > 0 ? "warn" : "default" },
@@ -188,7 +182,7 @@ export default function RegionPage() {
 
         {data && data.localities.length > 0 ? (
           <GeoSection title={t("geo.labels.localities")} subtitle={t("geo.region.localitiesSubtitle")}>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {data.localities.map((locality) => (
                 <GeoChildCard
                   key={locality.id}
@@ -203,18 +197,17 @@ export default function RegionPage() {
           </GeoSection>
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2">
           <GeoSection title={t("geo.insights.sourceCoverage")} subtitle={t("geo.region.sourceCoverageSubtitle")}>
             <GeoInsightList items={insights.sourceMix} emptyLabel={t("geo.feed.empty")} />
           </GeoSection>
 
-          <GeoSection title={t("geo.insights.originMix")} subtitle={t("geo.region.originMixSubtitle")}>
-            <GeoSignalStrip
-              items={insights.originMix.map((item) => ({
-                label: item.label,
-                value: String(item.value),
-                tone: item.label.toLowerCase().endsWith("native") ? "good" : item.label === "EU" ? "default" : "warn",
-              }))}
+          <GeoSection title={t("geo.labels.scope")} subtitle={t("geo.region.metrics.scopeHint")}>
+            <GeoMetricGrid
+              items={[
+                { label: t("geo.labels.scope"), value: data?.region.name ?? "—", hint: t("geo.region.metrics.scopeHint") },
+                { label: t("geo.labels.localities"), value: String(data?.localities.length ?? 0), hint: t("geo.region.metrics.localitiesHint") },
+              ]}
             />
           </GeoSection>
         </div>

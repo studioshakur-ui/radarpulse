@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { extractJsonObject } from "../_shared/openai_json.ts";
 
 const log = createLogger("opportunity-brief");
 
@@ -291,9 +292,8 @@ Deno.serve(async (req) => {
     }
 
     const generation_ms = Date.now() - t0;
-    const openaiData = (await openaiRes.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = openaiData.choices?.[0]?.message?.content ?? "{}";
-    const raw = JSON.parse(content) as Record<string, unknown>;
+    const openaiData = (await openaiRes.json()) as { choices?: { message?: { content?: unknown } }[] };
+    const raw = extractJsonObject(openaiData.choices?.[0]?.message?.content ?? "");
 
     const brief: Brief = {
       executive_summary: String(raw.executive_summary ?? ""),
@@ -422,6 +422,9 @@ Deno.serve(async (req) => {
     log.error("handler_error", { error: serializeError(originalError) });
     if (originalError instanceof BriefHttpError) {
       return json(originalError.status, { ok: false, error: originalError.code });
+    }
+    if (originalError.message === "AI_EMPTY_RESPONSE" || originalError.message === "AI_INVALID_JSON") {
+      return json(502, { ok: false, error: originalError.message });
     }
     return json(500, { ok: false, error: "INTERNAL_ERROR" });
   }

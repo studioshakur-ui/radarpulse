@@ -172,9 +172,44 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageIntro title={t("settings.title")} subtitle={t("settings.subtitle")} eyebrow="RadarPulse" />
+      <PageIntro title={t("settings.title")} subtitle={t("settings.subtitle")} />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <section className="overflow-hidden rounded-[28px] border border-line/25 bg-surface/96 shadow-soft">
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="border-b border-line/15 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.82))] p-5 sm:p-6 xl:border-b-0 xl:border-r">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">Profile control</div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              Tune identity, delivery preferences and access posture.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-subtext">
+              Settings stays intentionally quiet. Use it to shape how RadarPulse behaves around your team, not as another workflow surface.
+            </p>
+          </div>
+
+          <div className="grid gap-4 bg-[linear-gradient(160deg,rgba(246,248,252,0.96),rgba(255,255,255,0.78))] p-5 sm:p-6">
+            <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Current market focus</div>
+              <div className="mt-2 text-2xl font-semibold text-text">{marketLabel(profile.country_focus)}</div>
+              <div className="mt-1 text-sm text-subtext">{profile.organization || userEmail || t("settings.profile.subtitle")}</div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Digest</div>
+                <div className="mt-2 text-xl font-semibold text-text">{digestLabel()}</div>
+                <div className="mt-1 text-sm text-subtext">Notification cadence currently applied to this workspace account.</div>
+              </div>
+              <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Subscription</div>
+                <div className="mt-2 text-xl font-semibold text-text">{subLabel()}</div>
+                <div className="mt-1 text-sm text-subtext">{subscriptionHint()}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-3">
         <MetricBlock
           label={t("settings.profile.countryFocus")}
           value={marketLabel(profile.country_focus)}
@@ -183,7 +218,6 @@ export default function SettingsPage() {
         <MetricBlock
           label={t("settings.notifications.emailDigest")}
           value={digestLabel()}
-          hint={t("settings.notifications.subtitle")}
           tone={notif.email_digest_enabled ? "brand" : "default"}
         />
         <MetricBlock
@@ -275,7 +309,6 @@ export default function SettingsPage() {
 
       <SurfaceSection
         title={t("settings.subscription")}
-        subtitle={t("settings.subscription.subtitle")}
         action={
           !sub || sub.status !== "active" ? (
             <NavLink

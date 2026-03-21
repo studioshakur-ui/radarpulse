@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-const FEED_LIMIT = 24;
+const FEED_LIMIT = 2000;
 const COUNTRY_REGION_ALIAS_MAP: Record<string, Record<string, string[]>> = {
   IT: {
     abruzzo: ["abruzzo", "l aquila", "laquila", "pescara", "chieti", "teramo"],
@@ -95,6 +95,9 @@ export type GeoOpportunity = {
   buyer_name: string | null;
   region: string | null;
   locality: string | null;
+  sector: string | null;
+  content_type: string | null;
+  buyer_type: string | null;
   budget_amount: number | null;
   budget_currency: string | null;
   deadline_at: string | null;
@@ -460,7 +463,7 @@ function opportunitiesQuery() {
   return supabase
     .from("opportunities_geo_scope_v1")
     .select(
-      "id,title,buyer_name,region,locality,budget_amount,budget_currency,deadline_at,published_at,source_key,status,is_public,country_code,quality_score,completeness_score,origin_type,geo_zone_slug,geo_zone_name,geo_country_slug,geo_country_code,geo_country_name,geo_region_slug,geo_region_name,geo_locality_slug,geo_locality_name,geo_resolution_confidence",
+      "id,title,buyer_name,region,locality,sector,content_type,buyer_type,budget_amount,budget_currency,deadline_at,published_at,source_key,status,is_public,country_code,quality_score,completeness_score,origin_type,geo_zone_slug,geo_zone_name,geo_country_slug,geo_country_code,geo_country_name,geo_region_slug,geo_region_name,geo_locality_slug,geo_locality_name,geo_resolution_confidence",
       { count: "exact" },
     )
     .eq("is_public", true)

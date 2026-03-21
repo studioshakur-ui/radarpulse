@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
-import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 import { useLocale } from "@/lib/i18n";
 
 export type ChecklistItem = {
@@ -83,11 +83,16 @@ export function useOpportunityPrep(opportunityId: string | null) {
       });
 
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok || !data.prep) throw new Error((data.error as string) ?? "Request failed");
+      if (!res.ok || !data.prep) {
+        const errorCode = typeof data.error === "string" ? data.error : "Request failed";
+        const details = typeof data.details === "string" ? data.details : null;
+        throw new Error(details ? `${errorCode}: ${details}` : errorCode);
+      }
 
       setPrep(data.prep as OpportunityPrep);
     } catch (e) {
       if (e instanceof AuthTokenError) {
+        void recoverInvalidSession();
         setError(e.message);
       } else {
         setError(e instanceof Error ? e.message : "Error");

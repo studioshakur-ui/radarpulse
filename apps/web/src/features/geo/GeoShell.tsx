@@ -1,7 +1,6 @@
 import React from "react";
-import { Link, NavLink } from "react-router-dom";
-import { ChevronRight, Globe2, Map, MapPinned, Building2, CalendarDays } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { Link } from "react-router-dom";
+import { ChevronRight, Globe2, Map as MapIcon, MapPinned, Building2, CalendarDays, ArrowUpRight, Radar } from "lucide-react";
 import { MetricBlock, SurfaceSection } from "@/components/ds/surfacePrimitives";
 import { DeadlinePill, SemanticPill, SignalBadge } from "@/components/ds/statusPrimitives";
 import { cn, daysLeft, fmtDateTime } from "@/lib/utils";
@@ -84,23 +83,6 @@ function cleanGeoOpportunityTitle(title: string) {
     .trim();
 }
 
-function GeoNavItem({ to, label, end }: { to: string; label: string; end?: boolean }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        cn(
-          "rounded-xl px-3 py-2 text-sm font-semibold transition",
-          isActive ? "bg-elevated text-text shadow-soft" : "text-subtext hover:bg-elevated/80 hover:text-text",
-        )
-      }
-    >
-      {label}
-    </NavLink>
-  );
-}
-
 export function GeoShell({
   title,
   subtitle,
@@ -125,67 +107,42 @@ export function GeoShell({
     : t("geo.nav.global");
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg text-text">
-      <div aria-hidden className={cn("pointer-events-none absolute inset-0", theme.haloClass)} />
+    <div className="relative overflow-hidden text-text">
+      <div aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-[36px]", theme.haloClass)} />
 
-      <div className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-bg/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-3">
-            <Logo size={30} />
-          </Link>
-
-          <div className="hidden items-center gap-2 md:flex">
-            <GeoNavItem to="/" label={t("nav.home")} end />
-            <GeoNavItem to="/global" label={t("geo.nav.global")} end />
-            <GeoNavItem to="/countries/FR" label={`FR ${t("geo.nav.france")}`} />
-            <GeoNavItem to="/countries/IT" label={`IT ${t("geo.nav.italy")}`} />
-            <GeoNavItem to="/countries/GB" label={`GB ${t("geo.nav.uk")}`} />
-          </div>
-
-          <Link
-            to="/inbox"
-            className="inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-semibold text-brand shadow-soft transition hover:bg-brand/16"
-          >
-            {t("nav.inbox")}
-          </Link>
-        </div>
-      </div>
-
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-24">
-        <header className="rounded-3xl border border-line/25 bg-surface/92 p-6 shadow-soft sm:p-8">
-          <div className="flex flex-col gap-4">
-            <GeoBreadcrumbs items={breadcrumbs} />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">
-                    {t("geo.shell.eyebrow")}
-                  </div>
-                  <SignalBadge className={cn("gap-2", theme.chipClass)} uppercase>
-                    {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
-                    {themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}
-                  </SignalBadge>
+      <header className="relative rounded-3xl border border-line/25 bg-surface/92 p-6 shadow-soft sm:p-8">
+        <div className="flex flex-col gap-4">
+          <GeoBreadcrumbs items={breadcrumbs} />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">
+                  {t("geo.shell.eyebrow")}
                 </div>
-                <div className={cn("mt-3 inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold shadow-soft", theme.cardAccentClass)}>
+                <SignalBadge className={cn("gap-2", theme.chipClass)} uppercase>
                   {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
-                  <span className={theme.accentTextClass}>{marketLabel}</span>
-                  <span className="text-subtext">{themeCountryCode ? t("geo.hero.countryMode") : t("geo.hero.globalMode")}</span>
-                </div>
-                <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-subtext">{subtitle}</p>
+                  {themeCountryCode ? `${themeCountryCode} ${marketLabel}` : marketLabel}
+                </SignalBadge>
               </div>
-              <Link
-                to="/inbox"
-                className="inline-flex items-center gap-2 rounded-xl border border-border/30 bg-surface/70 px-3 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated/70"
-              >
-                {t("nav.inbox")} <ChevronRight className="h-4 w-4" />
-              </Link>
+              <div className={cn("mt-3 inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold shadow-soft", theme.cardAccentClass)}>
+                {themeCountryCode ? <CountryFlagMark countryCode={themeCountryCode} label={themeCountryName} /> : null}
+                <span className={theme.accentTextClass}>{marketLabel}</span>
+                <span className="text-subtext">{themeCountryCode ? t("geo.hero.countryMode") : t("geo.hero.globalMode")}</span>
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-subtext">{subtitle}</p>
             </div>
+            <Link
+              to="/workspaces"
+              className="inline-flex items-center gap-2 rounded-xl border border-border/30 bg-surface/70 px-3 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated/70"
+            >
+              {t("nav.dossiers")} <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
-        </header>
+        </div>
+      </header>
 
-        <div className="mt-8">{children}</div>
-      </main>
+      <div className="relative mt-8">{children}</div>
     </div>
   );
 }
@@ -327,7 +284,7 @@ export function GeoSignalStrip({
     <div className="flex flex-wrap gap-3">
       {items.map((item) => (
         <div
-          key={item.label}
+          key={`${item.label}-${item.value}-${item.tone ?? "default"}`}
           className={cn(
             "rounded-2xl border px-4 py-3 shadow-soft",
             toneClass[item.tone ?? "default"],
@@ -337,6 +294,77 @@ export function GeoSignalStrip({
           <div className="mt-1 text-lg font-semibold">{item.value}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+const CONTENT_TYPE_LABELS: Record<string, Record<string, string>> = {
+  en: { tender: "Tender", grant: "Grant", news: "News", other: "Other" },
+  fr: { tender: "Appel d'offres", grant: "Subvention", news: "Actualité", other: "Autre" },
+  it: { tender: "Gara d'appalto", grant: "Bando", news: "Notizia", other: "Altro" },
+};
+
+function contentTypeLabel(value: string, locale: string): string {
+  return CONTENT_TYPE_LABELS[locale]?.[value] ?? CONTENT_TYPE_LABELS.en[value] ?? value;
+}
+
+function FilterChipBar({
+  label,
+  options,
+  selected,
+  onSelect,
+  allLabel,
+}: {
+  label: string;
+  options: Array<{ value: string; displayLabel: string; count: number }>;
+  selected: string | null;
+  onSelect: (value: string | null) => void;
+  allLabel: string;
+}) {
+  const total = options.reduce((sum, o) => sum + o.count, 0);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/60">
+        {label}
+      </span>
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition",
+            selected === null
+              ? "border-brand/40 bg-brand/12 text-brand"
+              : "border-line/25 bg-surface/80 text-text/70 hover:border-brand/25 hover:text-text",
+          )}
+        >
+          {allLabel}
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", selected === null ? "bg-brand/20 text-brand" : "bg-line/20 text-text/50")}>
+            {total}
+          </span>
+        </button>
+        {options.map((opt) => {
+          const isActive = selected === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onSelect(opt.value)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition",
+                isActive
+                  ? "border-brand/40 bg-brand/12 text-brand"
+                  : "border-line/25 bg-surface/80 text-text/70 hover:border-brand/25 hover:text-text",
+              )}
+            >
+              {opt.displayLabel}
+              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", isActive ? "bg-brand/20 text-brand" : "bg-line/20 text-text/50")}>
+                {opt.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -351,14 +379,103 @@ export function GeoOpportunityList({
   const { locale, t } = useLocale();
   const intlLocale = LOCALE_MAP[locale] ?? "en-US";
   const daySuffix = t("inbox.deadline.daysSuffix");
+  const PAGE_SIZE = 20;
+  const [selectedSector, setSelectedSector] = React.useState<string | null>(null);
+  const [selectedContentType, setSelectedContentType] = React.useState<string | null>(null);
+  const [page, setPage] = React.useState(1);
+
+  // Build sector chip options with counts
+  const sectorOptions = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const s = String(item.sector ?? "").trim();
+      if (s) counts.set(s, (counts.get(s) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({ value, displayLabel: value, count }));
+  }, [items]);
+
+  // Build content_type chip options with counts
+  const contentTypeOptions = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const ct = String(item.content_type ?? "").trim();
+      if (ct) counts.set(ct, (counts.get(ct) ?? 0) + 1);
+    }
+    // Preferred display order
+    const ORDER = ["tender", "grant", "news", "other"];
+    return [...counts.entries()]
+      .sort((a, b) => {
+        const ia = ORDER.indexOf(a[0]);
+        const ib = ORDER.indexOf(b[0]);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return b[1] - a[1];
+      })
+      .map(([value, count]) => ({ value, displayLabel: contentTypeLabel(value, locale), count }));
+  }, [items, locale]);
+
+  const filteredItems = React.useMemo(() => {
+    let result = items;
+    if (selectedSector !== null) result = result.filter((item) => (item.sector ?? "").trim() === selectedSector);
+    if (selectedContentType !== null) result = result.filter((item) => (item.content_type ?? "").trim() === selectedContentType);
+    return result;
+  }, [items, selectedSector, selectedContentType]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const pageItems = React.useMemo(
+    () => filteredItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredItems, page],
+  );
+
+  React.useEffect(() => { setPage(1); }, [items, selectedSector, selectedContentType]);
+  React.useEffect(() => {
+    if (selectedSector !== null && !sectorOptions.some((o) => o.value === selectedSector)) setSelectedSector(null);
+  }, [sectorOptions, selectedSector]);
+  React.useEffect(() => {
+    if (selectedContentType !== null && !contentTypeOptions.some((o) => o.value === selectedContentType)) setSelectedContentType(null);
+  }, [contentTypeOptions, selectedContentType]);
 
   if (items.length === 0) {
     return <div className="text-sm text-subtext">{t("geo.feed.empty")}</div>;
   }
 
+  const hasFilters = sectorOptions.length > 0 || contentTypeOptions.length > 0;
+
   return (
     <div className="grid gap-4">
-      {items.map((item) => {
+      {hasFilters ? (
+        <div className="flex flex-col gap-2.5 rounded-2xl border border-line/20 bg-surface/88 px-4 py-3 shadow-soft">
+          {sectorOptions.length > 0 && (
+            <FilterChipBar
+              label={t("geo.feed.domainFilter")}
+              options={sectorOptions}
+              selected={selectedSector}
+              onSelect={setSelectedSector}
+              allLabel={t("geo.feed.domainFilter.all")}
+            />
+          )}
+          {contentTypeOptions.length > 0 && (
+            <FilterChipBar
+              label={t("geo.feed.contentTypeFilter")}
+              options={contentTypeOptions}
+              selected={selectedContentType}
+              onSelect={setSelectedContentType}
+              allLabel={t("geo.feed.contentTypeFilter.all")}
+            />
+          )}
+        </div>
+      ) : null}
+
+      {filteredItems.length === 0 ? (
+        <div className="rounded-2xl border border-line/20 bg-surface/88 px-4 py-5 text-sm text-subtext shadow-soft">
+          {t("geo.feed.filteredEmpty")}
+        </div>
+      ) : null}
+
+      {pageItems.map((item) => {
         const deadlineDays = daysLeft(item.deadline_at);
         const qualityPercent =
           typeof item.quality_score === "number"
@@ -375,45 +492,45 @@ export function GeoOpportunityList({
         return (
           <article
             key={item.id}
-            className="rounded-2xl border border-line/25 bg-surface/92 p-5 shadow-soft"
+            className="overflow-hidden rounded-[26px] border border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,243,255,0.9))] p-5 shadow-soft"
           >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="text-base font-semibold leading-snug text-text">{cleanGeoOpportunityTitle(item.title)}</div>
-                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-subtext">
-                  <span className="inline-flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    {item.buyer_name || "—"}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <MapPinned className="h-4 w-4" />
-                    {locationResolver?.(item) || item.region || item.country_code || "—"}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4" />
-                    {item.deadline_at ? fmtDateTime(item.deadline_at, intlLocale) : t("workspace.deadline.none")}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                  {item.source_key ? (
-                    <SignalBadge size="sm">
-                      {sourceLabel(item.source_key)}
-                    </SignalBadge>
-                  ) : null}
-                  {item.origin_type ? (
-                    <SignalBadge size="sm" tone="brand" uppercase>
-                      {displayOriginLabel(item.origin_type, item.source_key)}
-                    </SignalBadge>
-                  ) : null}
-                  {item.geo_resolution_confidence ? (
-                    <SignalBadge size="sm" uppercase>
-                      {item.geo_resolution_confidence}
-                    </SignalBadge>
-                  ) : null}
-                </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {item.source_key ? (
+                  <SignalBadge size="sm">
+                    {sourceLabel(item.source_key)}
+                  </SignalBadge>
+                ) : null}
+                {item.origin_type ? (
+                  <SignalBadge size="sm" tone="brand" uppercase>
+                    {displayOriginLabel(item.origin_type, item.source_key)}
+                  </SignalBadge>
+                ) : null}
+                {item.sector ? (
+                  <SignalBadge size="sm" tone="good">
+                    {item.sector}
+                  </SignalBadge>
+                ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="text-base font-semibold leading-snug text-text">{cleanGeoOpportunityTitle(item.title)}</div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-subtext">
+                <span className="inline-flex items-center gap-2">
+                  <Building2 className="h-4 w-4 shrink-0" />
+                  {item.buyer_name || "—"}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-line/15 bg-bg/70 px-3 py-1">
+                  <MapPinned className="h-3.5 w-3.5 shrink-0" />
+                  {locationResolver?.(item) || item.region || item.country_code || "—"}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-line/15 bg-bg/70 px-3 py-1">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                  {item.deadline_at ? fmtDateTime(item.deadline_at, intlLocale) : t("workspace.deadline.none")}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
                 {qualityPercent ? (
                   <SemanticPill tone={qualityTone} mono>
                     {qualityPercent}
@@ -428,15 +545,63 @@ export function GeoOpportunityList({
                 ) : null}
                 <Link
                   to={`/workspace/${item.id}`}
-                  className="inline-flex items-center gap-2 rounded-xl border border-line/25 bg-bg/80 px-3 py-2 text-sm font-semibold text-text transition hover:bg-elevated/80"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand shadow-soft transition hover:bg-brand/18 hover:border-brand/50"
                 >
                   {t("workspace.openBtn")}
+                  <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
           </article>
         );
       })}
+
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-1 pt-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-line/25 bg-surface/80 text-sm font-semibold text-text/70 transition hover:bg-elevated/80 hover:text-text disabled:pointer-events-none disabled:opacity-35"
+          >
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+            .reduce<(number | "…")[]>((acc, n, idx, arr) => {
+              if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push("…");
+              acc.push(n);
+              return acc;
+            }, [])
+            .map((n, i) =>
+              n === "…" ? (
+                <span key={`ellipsis-${i}`} className="px-1 text-sm text-text/40">…</span>
+              ) : (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setPage(n as number)}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm font-semibold transition",
+                    page === n
+                      ? "border-brand/35 bg-brand/12 text-brand"
+                      : "border-line/25 bg-surface/80 text-text/70 hover:bg-elevated/80 hover:text-text",
+                  )}
+                >
+                  {n}
+                </button>
+              ),
+            )}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-line/25 bg-surface/80 text-sm font-semibold text-text/70 transition hover:bg-elevated/80 hover:text-text disabled:pointer-events-none disabled:opacity-35"
+          >
+            ›
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -450,7 +615,7 @@ export function geoScopeIcon(kind: string) {
     case "country":
     case "territory":
     case "union":
-      return <Map className="h-4 w-4 text-brand" />;
+      return <MapIcon className="h-4 w-4 text-brand" />;
     default:
       return <MapPinned className="h-4 w-4 text-brand" />;
   }
@@ -460,4 +625,36 @@ export function geoChildCountLabel(count: number, t: TFn, kind: "countries" | "r
   if (kind === "countries") return `${count} ${t("geo.labels.countries").toLowerCase()}`;
   if (kind === "regions") return `${count} ${t("geo.labels.regions").toLowerCase()}`;
   return `${count} ${t("geo.labels.localities").toLowerCase()}`;
+}
+
+export function GeoMarketSignalRail({
+  items,
+}: {
+  items: Array<{ label: string; value: string; hint?: string; tone?: "default" | "good" | "warn" | "bad" | "brand" }>;
+}) {
+  const toneClass: Record<NonNullable<(typeof items)[number]["tone"]>, string> = {
+    default: "border-line/20 bg-surface/90 text-text",
+    brand: "border-brand/20 bg-brand/8 text-text",
+    good: "border-good/20 bg-good/8 text-text",
+    warn: "border-warn/20 bg-warn/8 text-text",
+    bad: "border-bad/20 bg-bad/8 text-text",
+  };
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className={cn("rounded-3xl border p-5 shadow-soft", toneClass[item.tone ?? "default"])}
+        >
+          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">
+            <Radar className="h-3.5 w-3.5" />
+            {item.label}
+          </div>
+          <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{item.value}</div>
+          {item.hint ? <div className="mt-1 text-sm leading-relaxed text-subtext">{item.hint}</div> : null}
+        </div>
+      ))}
+    </div>
+  );
 }

@@ -19,7 +19,7 @@ type WorkerRunOptions = {
 /* -----------------------------
    Supabase client (service role)
 ----------------------------- */
-let _sb: any | null = null;
+let _sb: ReturnType<typeof sbAdmin> | null = null;
 function sb() {
   if (_sb) return _sb;
   _sb = sbAdmin();
@@ -81,8 +81,8 @@ function normalizeUrlOrThrow(url: string, label: string): { url: string; url_can
   return { url: u, url_canonical: canon };
 }
 
-function coerceJobId(jobAny: any): string | number | null {
-  const v = jobAny?.id;
+function coerceJobId(jobAny: unknown): string | number | null {
+  const v = (jobAny as Record<string, unknown>)?.id;
   if (v === null || v === undefined) return null;
   // PostgREST peut renvoyer bigint en string
   if (typeof v === "string") {
@@ -610,7 +610,7 @@ Deno.serve(async (req) => {
   // BUG-30 FIX: single outer try-catch covers all handler logic, including
   // override parsing that previously sat unguarded between two separate blocks.
   try {
-    let body: any = {};
+    let body: Record<string, unknown> = {};
     try {
       const auth = req.headers.get("Authorization") ?? "";
       if (auth) {
@@ -639,7 +639,7 @@ Deno.serve(async (req) => {
       Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
     const softDeadlineMsOverride =
       Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
-    const results: any[] = [];
+    const results: Awaited<ReturnType<typeof processJob>>[] = [];
 
     for (let i = 0; i < maxJobs; i++) {
       // IMPORTANT: rpc peut renvoyer:
@@ -653,7 +653,7 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: `claim_next_ingestion_job failed: ${error.message}` }, { status: 500 });
       }
 
-      const jobAny: any = Array.isArray(data) ? data[0] : data;
+      const jobAny: unknown = Array.isArray(data) ? data[0] : data;
       const jobId = coerceJobId(jobAny);
 
       // Cas normal: aucun job claimable => sortie propre en 200

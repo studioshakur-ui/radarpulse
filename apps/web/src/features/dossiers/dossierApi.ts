@@ -1,6 +1,6 @@
 import type { Decision, DossierStatus, DossierTaskRecord } from "@/lib/types";
 import { ENV } from "@/lib/env";
-import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 
 export type DossierOpportunity = {
   id: string;
@@ -59,6 +59,7 @@ async function invokeDossiers<T>(body: Record<string, unknown>): Promise<Dossier
     return (data ?? { ok: false, error: "EMPTY_RESPONSE" }) as DossiersResponse<T>;
   } catch (error) {
     if (error instanceof AuthTokenError) {
+      void recoverInvalidSession();
       throw error;
     }
     throw error instanceof Error ? error : new Error("DOSSIER_REQUEST_FAILED");

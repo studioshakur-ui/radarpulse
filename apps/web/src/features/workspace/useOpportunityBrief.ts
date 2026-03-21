@@ -1,11 +1,10 @@
 import { useCallback, useState } from "react";
 import { ENV } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
-import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 import { useLocale, type Locale } from "@/lib/i18n";
 
 const STORAGE_KEY = "radarpulse:briefs";
-// Must match server-side BRIEF_TTL_MS in opportunity-brief edge function
 const BRIEF_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type OpportunityBrief = {
@@ -46,7 +45,11 @@ function loadCache(): Record<string, OpportunityBrief> {
       }
     }
     if (Object.keys(valid).length !== Object.keys(raw).length) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(valid)); } catch { /* ignore */ }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      } catch {
+        // ignore
+      }
     }
     return valid;
   } catch {
@@ -55,7 +58,11 @@ function loadCache(): Record<string, OpportunityBrief> {
 }
 
 function persistCache(next: Record<string, OpportunityBrief>) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
 }
 
 export function useOpportunityBrief() {
@@ -64,11 +71,6 @@ export function useOpportunityBrief() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  /**
-   * Load brief from DB (opportunity_briefs table) — DB-first strategy.
-   * Populates localStorage cache if found and within TTL.
-   * Returns true if a valid brief was found.
-   */
   const loadFromDB = useCallback(async (id: string): Promise<boolean> => {
     try {
       const { data } = await supabase
@@ -79,8 +81,6 @@ export function useOpportunityBrief() {
         .maybeSingle();
 
       if (!data) return false;
-
-      // Respect same TTL as localStorage
       if (Date.now() - new Date(data.updated_at as string).getTime() > BRIEF_TTL_MS) return false;
 
       const brief: OpportunityBrief = {
@@ -103,81 +103,74 @@ export function useOpportunityBrief() {
     }
   }, [locale]);
 
-  /**
-   * Generate (or force-refresh) a brief via edge function.
-   * Pass `{ force: true }` to bypass the local cache (used by the Refresh button).
-   */
-  const generate = useCallback(
-    async (input: BriefInput, options?: { force?: boolean }) => {
-      const { id } = input;
-      const force = options?.force ?? false;
-      const scopedKey = cacheKey(id, locale);
+  const generate = useCallback(async (input: BriefInput, options?: { force?: boolean }) => {
+    const { id } = input;
+    const force = options?.force ?? false;
+    const scopedKey = cacheKey(id, locale);
 
-      // Prevent concurrent loads; respect cache unless forced
-      if (loadingId === id) return;
-      if (!force && cache[scopedKey]) return;
+    if (loadingId === id) return;
+    if (!force && cache[scopedKey]) return;
 
-      // Evict stale local cache entry before forced regeneration
-      if (force) {
-        setCache((prev) => {
-          const next = { ...prev };
-          delete next[scopedKey];
-          persistCache(next);
-          return next;
-        });
-      }
-
-      setLoadingId(id);
-      setErrors((prev) => {
+    if (force) {
+      setCache((prev) => {
         const next = { ...prev };
-        delete next[id];
+        delete next[scopedKey];
+        persistCache(next);
         return next;
       });
+    }
 
-      try {
-        const jwt = await getValidAccessToken();
+    setLoadingId(id);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
 
-        const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-brief`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${jwt}`,
-            apikey: ENV.SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify(input),
-        });
+    try {
+      const jwt = await getValidAccessToken();
+      const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-brief`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+          apikey: ENV.SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(input),
+      });
 
-        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok || !data.brief) {
-          if (res.status === 401) {
-            throw new AuthTokenError();
-          }
-          throw new Error((data.error as string) ?? "Request failed");
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok || !data.brief) {
+        if (res.status === 401) {
+          throw new AuthTokenError();
         }
-
-        const brief: OpportunityBrief = {
-          ...(data.brief as Omit<OpportunityBrief, "generatedAt">),
-          generatedAt: new Date().toISOString(),
-        };
-
-        setCache((prev) => {
-          const next = { ...prev, [scopedKey]: brief };
-          persistCache(next);
-          return next;
-        });
-      } catch (e) {
-        const message = e instanceof AuthTokenError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : "Error";
-        setErrors((prev) => ({ ...prev, [id]: message }));
-      } finally {
-        setLoadingId(null);
+        throw new Error((data.error as string) ?? "Request failed");
       }
-    },
-    [cache, loadingId, locale],
-  );
+
+      const brief: OpportunityBrief = {
+        ...(data.brief as Omit<OpportunityBrief, "generatedAt">),
+        generatedAt: new Date().toISOString(),
+      };
+
+      setCache((prev) => {
+        const next = { ...prev, [scopedKey]: brief };
+        persistCache(next);
+        return next;
+      });
+    } catch (e) {
+      if (e instanceof AuthTokenError) {
+        void recoverInvalidSession();
+      }
+      const message = e instanceof AuthTokenError
+        ? e.message
+        : e instanceof Error
+          ? e.message
+          : "Error";
+      setErrors((prev) => ({ ...prev, [id]: message }));
+    } finally {
+      setLoadingId(null);
+    }
+  }, [cache, loadingId, locale]);
 
   const getBrief = useCallback((id: string): OpportunityBrief | null => cache[cacheKey(id, locale)] ?? null, [cache, locale]);
   const isLoading = useCallback((id: string): boolean => loadingId === id, [loadingId]);

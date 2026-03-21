@@ -5,16 +5,23 @@ export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "rp_theme";
 
-function resolveTheme(mode: ThemeMode): ResolvedTheme {
-  if (mode === "auto") {
-    try {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    } catch {
-      // ignore
-    }
+// Read initial state from the DOM — the index.html FOUC script already applied
+// the correct .dark class before React boots, so we just mirror it here.
+function domEffective(): ResolvedTheme {
+  try {
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  } catch {
     return "light";
   }
-  return mode;
+}
+
+function domMode(): ThemeMode {
+  return "light";
+}
+
+function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  void mode;
+  return "light";
 }
 
 function applyTheme(resolved: ResolvedTheme) {
@@ -36,32 +43,25 @@ type ThemeState = {
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: "auto",
-  effective: "light",
-  hydrated: false,
+  mode: domMode(),
+  effective: domEffective(),
+  hydrated: true,
   setMode: (m: ThemeMode) => {
     const effective = resolveTheme(m);
     applyTheme(effective);
     try {
-      localStorage.setItem(STORAGE_KEY, m);
+      localStorage.setItem(STORAGE_KEY, "light");
     } catch {
       // ignore
     }
-    set({ mode: m, effective });
+    set({ mode: "light", effective });
   },
   init: () => {
     if (get().hydrated) return;
-    let mode: ThemeMode = "auto";
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === "light" || stored === "dark" || stored === "auto") {
-        mode = stored as ThemeMode;
-      }
-    } catch {
-      // ignore
-    }
-    // index.html script already applied the class before React mounted — just sync state
-    set({ mode, effective: resolveTheme(mode), hydrated: true });
+    const mode = domMode();
+    const effective = domEffective();
+    applyTheme(effective);
+    set({ mode, effective, hydrated: true });
   },
 }));
 

@@ -15,8 +15,8 @@ import {
 } from "@/components/ds/statusPrimitives";
 import { useLocale } from "@/lib/i18n";
 import type { Decision, WorkflowStatus } from "@/lib/types";
-import { useDecisions } from "@/features/inbox/useDecisions";
-import { useOpportunityBrief, type OpportunityBrief } from "@/features/inbox/useOpportunityBrief";
+import { useOpportunityDecision } from "@/features/workspace/useOpportunityDecision";
+import { useOpportunityBrief, type OpportunityBrief } from "@/features/workspace/useOpportunityBrief";
 import { useWorkspaceData } from "./useWorkspaceData";
 import { useOpportunityWorkflow } from "./useOpportunityWorkflow";
 import { useOpportunityScore, type OpportunityScore } from "./useOpportunityScore";
@@ -83,6 +83,26 @@ function StatusPill({
         {label}
       </span>
       {children}
+    </div>
+  );
+}
+
+function PanelHeader({
+  title,
+  helper,
+  action,
+}: {
+  title: React.ReactNode;
+  helper?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <SectionLabel>{title}</SectionLabel>
+        {helper ? <p className="mt-1 text-sm leading-relaxed text-subtext sm:text-base">{helper}</p> : null}
+      </div>
+      {action}
     </div>
   );
 }
@@ -215,7 +235,7 @@ export default function WorkspacePage() {
   );
   const { prep, loading: prepLoading, generating: prepGenerating, error: prepError, generate: generatePrep } = useOpportunityPrep(id ?? null);
   const [briefHistoryOpen, setBriefHistoryOpen] = useState(false);
-  const { decide, getDecision } = useDecisions();
+  const { decide, getDecision } = useOpportunityDecision();
   const {
     generate,
     loadFromDB: loadBriefFromDB,
@@ -260,12 +280,12 @@ export default function WorkspacePage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4 px-4 py-8">
+      <div className="mx-auto max-w-[88rem] space-y-4 px-4 py-8">
         <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
         <div className="h-24 animate-pulse rounded-2xl bg-surface" />
-        <div className="grid gap-5 lg:grid-cols-12">
-          <div className="h-64 animate-pulse rounded-2xl bg-surface lg:col-span-7" />
-          <div className="space-y-4 lg:col-span-5">
+        <div className="grid gap-5 xl:grid-cols-12">
+          <div className="h-64 animate-pulse rounded-2xl bg-surface xl:col-span-7" />
+          <div className="space-y-4 xl:col-span-5">
             <div className="h-28 animate-pulse rounded-2xl bg-surface" />
             <div className="h-24 animate-pulse rounded-2xl bg-surface" />
           </div>
@@ -276,9 +296,9 @@ export default function WorkspacePage() {
 
   if (error || !opportunity) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mx-auto max-w-[88rem] px-4 py-8">
         <Link
-          to="/inbox"
+          to="/workspaces"
           className="inline-flex items-center gap-1.5 text-sm text-subtext transition hover:text-text"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -368,11 +388,10 @@ export default function WorkspacePage() {
   })();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-4 py-5">
-      {/* Top bar */}
+    <div className="mx-auto max-w-[88rem] space-y-5 px-4 py-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          to="/inbox"
+          to="/workspaces"
           className="inline-flex items-center gap-1.5 text-sm text-subtext transition hover:text-text"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -389,7 +408,6 @@ export default function WorkspacePage() {
         </a>
       </div>
 
-      {/* Opportunity header */}
       <section className="rounded-2xl border border-line/30 bg-surface/95 px-4 py-4 shadow-soft sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -435,102 +453,120 @@ export default function WorkspacePage() {
         ) : null}
       </section>
 
-      {/* Dossier status strip */}
-      <section className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-line/25 bg-surface/92 px-4 py-3 shadow-soft">
-        <span className="text-xs font-semibold uppercase tracking-wide text-subtext/75">
-          {t("workspace.status.title")}
-        </span>
-        <StatusPill label={t("workspace.status.workflow")}>
-          <WorkflowStateBadge
-            status={displayWorkflowStatus}
-            formatLabel={(status) => formatWorkflowLabel(status, t)}
-          />
-        </StatusPill>
-        <StatusPill label={t("workspace.status.decision")}>
-          <DecisionStateBadge decision={decision} undecidedLabel={formatDecisionLabel(null, t)} />
-        </StatusPill>
-        <StatusPill label={t("workspace.status.recommendation")}>
-          {!scoreLoading && recommendation ? (
-            <RecommendationStateBadge
-              recommendation={recommendation}
-              formatLabel={(nextDecision) => formatRecommendationLabel(nextDecision, t)}
-            />
-          ) : (
-            <SemanticPill>{t("workspace.recommendation.pending")}</SemanticPill>
-          )}
-        </StatusPill>
-        <StatusPill label={t("workspace.status.score")}>
-          {!scoreLoading && score ? (
-            <ScoreStateBadge
-              band={score.score_band}
-              label={t(`workspace.score.${score.score_band}`)}
-              value={`${Math.round(score.score_value * 100)}%`}
-            />
-          ) : !scoreLoading ? (
-            <SemanticPill>{t("workspace.score.pending")}</SemanticPill>
-          ) : null}
-        </StatusPill>
-        {/* Deadline */}
-        <StatusPill label={t("workspace.status.urgency")}>
-          {opportunity.deadline_at ? (
-            <DeadlinePill
-              deadline={opportunity.deadline_at}
-              daySuffix={daySuffix}
-              expiredLabel={t("inbox.deadline.expired")}
-            />
-          ) : (
-            <SemanticPill>{t("workspace.deadline.none")}</SemanticPill>
-          )}
-        </StatusPill>
-        {/* Deadline vs effort intelligence */}
-        {prep?.effort_days && dl !== null && dl >= 0 ? (
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-semibold",
-              dl < prep.effort_days * 1.5
-                ? "border border-bad/40 bg-bad/10 text-bad"
-                : dl < prep.effort_days * 3
-                  ? "border border-warn/40 bg-warn/10 text-warn"
-                  : "border border-line/25 bg-bg text-subtext",
-            )}
-          >
-            ~{prep.effort_days}d {t("workspace.status.effortVsDeadline")}
-          </span>
-        ) : null}
-        {/* Brief freshness */}
-        {brief ? (
-          <span className="w-full text-xs text-subtext/70 sm:ml-auto sm:w-auto">
-            {t("workspace.status.briefFresh")} {fmtRelative(brief.generatedAt, fmtLocale)}
-          </span>
-        ) : null}
+      <section className="overflow-hidden rounded-[28px] border border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,242,255,0.92))] shadow-soft">
+        <div className="grid gap-0 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="border-b border-line/15 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_30%),linear-gradient(140deg,rgba(255,255,255,0.98),rgba(247,243,255,0.92))] p-5 sm:p-6 xl:border-b-0 xl:border-r">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">Workspace command</div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              Decide, prepare and move this opportunity forward.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-subtext">
+              This workspace gathers the brief, recommendation, decision, preparation plan and delivery state in one operating surface.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2.5">
+              <StatusPill label={t("workspace.status.workflow")}>
+                <WorkflowStateBadge
+                  status={displayWorkflowStatus}
+                  formatLabel={(status) => formatWorkflowLabel(status, t)}
+                />
+              </StatusPill>
+              <StatusPill label={t("workspace.status.decision")}>
+                <DecisionStateBadge decision={decision} undecidedLabel={formatDecisionLabel(null, t)} />
+              </StatusPill>
+              <StatusPill label={t("workspace.status.recommendation")}>
+                {!scoreLoading && recommendation ? (
+                  <RecommendationStateBadge
+                    recommendation={recommendation}
+                    formatLabel={(nextDecision) => formatRecommendationLabel(nextDecision, t)}
+                  />
+                ) : (
+                  <SemanticPill>{t("workspace.recommendation.pending")}</SemanticPill>
+                )}
+              </StatusPill>
+              <StatusPill label={t("workspace.status.score")}>
+                {!scoreLoading && score ? (
+                  <ScoreStateBadge
+                    band={score.score_band}
+                    label={t(`workspace.score.${score.score_band}`)}
+                    value={`${Math.round(score.score_value * 100)}%`}
+                  />
+                ) : !scoreLoading ? (
+                  <SemanticPill>{t("workspace.score.pending")}</SemanticPill>
+                ) : null}
+              </StatusPill>
+              <StatusPill label={t("workspace.status.urgency")}>
+                {opportunity.deadline_at ? (
+                  <DeadlinePill
+                    deadline={opportunity.deadline_at}
+                    daySuffix={daySuffix}
+                    expiredLabel={t("inbox.deadline.expired")}
+                  />
+                ) : (
+                  <SemanticPill>{t("workspace.deadline.none")}</SemanticPill>
+                )}
+              </StatusPill>
+            </div>
+          </div>
+
+          <div className="grid gap-4 bg-[linear-gradient(165deg,rgba(244,240,255,0.94),rgba(255,255,255,0.78))] p-5 sm:p-6">
+            <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Next best action</div>
+              <div className="mt-2 text-xl font-semibold text-text">{nextBestAction.title}</div>
+              <div className="mt-2 text-sm leading-relaxed text-subtext">{nextBestAction.body}</div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Brief freshness</div>
+                <div className="mt-2 text-xl font-semibold text-text">
+                  {brief ? fmtRelative(brief.generatedAt, fmtLocale) : "—"}
+                </div>
+                <div className="mt-1 text-sm text-subtext">
+                  {brief ? t("workspace.status.briefFresh") : "No brief has been generated yet."}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Delivery pressure</div>
+                <div className="mt-2 text-xl font-semibold text-text">
+                  {prep?.effort_days && dl !== null && dl >= 0 ? `~${prep.effort_days}d` : dl !== null ? `${dl}${daySuffix}` : "—"}
+                </div>
+                <div className="mt-1 text-sm text-subtext">
+                  {prep?.effort_days && dl !== null && dl >= 0 ? t("workspace.status.effortVsDeadline") : "Deadline and effort signal surface here."}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* Main grid */}
-      <div className="grid gap-5 lg:grid-cols-12">
-        {/* Brief + Documents — left, larger */}
-        <div className="space-y-5 lg:col-span-7">
+      <div className="grid gap-5 xl:grid-cols-12">
+        <div className="space-y-5 xl:col-span-7">
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft sm:p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">Brief</h2>
-              <button
-                type="button"
-                onClick={handleGenerateBrief}
-                disabled={briefLoading}
-                className={cn(
-                  "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
-                  brief
-                    ? "border-brand/50 bg-brand/15 text-brand"
-                    : "border-line/25 bg-bg/85 text-subtext/85 hover:bg-elevated hover:text-text",
-                  briefLoading && "cursor-wait opacity-70",
-                )}
-              >
-                {briefLoading
-                  ? t("inbox.card.brief.generating")
-                  : brief
-                    ? t("workspace.brief.refresh")
-                    : t("workspace.brief.generate")}
-              </button>
-            </div>
+            <PanelHeader
+              title="Brief"
+              helper="The working summary, fit, risk surface and required material for this opportunity."
+              action={
+                <button
+                  type="button"
+                  onClick={handleGenerateBrief}
+                  disabled={briefLoading}
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
+                    brief
+                      ? "border-brand/50 bg-brand/15 text-brand"
+                      : "border-line/25 bg-bg/85 text-subtext/85 hover:bg-elevated hover:text-text",
+                    briefLoading && "cursor-wait opacity-70",
+                  )}
+                >
+                  {briefLoading
+                    ? t("inbox.card.brief.generating")
+                    : brief
+                      ? t("workspace.brief.refresh")
+                      : t("workspace.brief.generate")}
+                </button>
+              }
+            />
 
             {briefError ? (
               <StatePanel tone="bad" title={t("inbox.card.brief.error")} className="p-3 shadow-none">
@@ -811,16 +847,12 @@ export default function WorkspacePage() {
         ) : null}
         </div>
 
-        {/* Sidebar — right */}
-        <div className="space-y-4 lg:col-span-5">
-          {/* Workflow */}
+        <div className="space-y-4 xl:col-span-5">
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
-            <SectionLabel>{t("workspace.workflow.label")}</SectionLabel>
-              <p className="mb-3 text-sm leading-relaxed text-subtext sm:text-base">
-              {!workflowStatus
-                ? t("workspace.workflow.defaultHint")
-                : t("workspace.workflow.savedHint")}
-            </p>
+            <PanelHeader
+              title={t("workspace.workflow.label")}
+              helper={!workflowStatus ? t("workspace.workflow.defaultHint") : t("workspace.workflow.savedHint")}
+            />
             <select
               value={displayWorkflowStatus}
               onChange={(event) => void saveWorkflow(event.target.value as WorkflowStatus)}
@@ -853,12 +885,11 @@ export default function WorkspacePage() {
             ) : null}
           </div>
 
-          {/* Decision */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
-            <SectionLabel>{t("workspace.decision.label")}</SectionLabel>
-              <p className="mb-3 text-sm leading-relaxed text-subtext sm:text-base">
-              {t("workspace.decision.helper")}
-            </p>
+            <PanelHeader
+              title={t("workspace.decision.label")}
+              helper={t("workspace.decision.helper")}
+            />
             <DecisionControl
               value={decision}
               onChange={(nextDecision) => void decide(opportunity.id, nextDecision)}
@@ -871,25 +902,27 @@ export default function WorkspacePage() {
             ) : null}
           </div>
 
-          {/* Score */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
-            <div className="mb-2 flex items-center justify-between">
-              <SectionLabel>{t("workspace.score.label")}</SectionLabel>
-              {!scoreLoading && !scoreGenerating && (
-                <button
-                  type="button"
-                  onClick={() => opportunity && void generateScore(opportunity.id)}
-                  className={cn(
-                    "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
-                    score
-                      ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
-                      : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
-                  )}
-                >
-                  {score ? t("workspace.score.refresh") : t("workspace.score.generate")}
-                </button>
-              )}
-            </div>
+            <PanelHeader
+              title={t("workspace.score.label")}
+              helper="AI scoring adds a fit signal and recommendation layer on top of the brief."
+              action={
+                !scoreLoading && !scoreGenerating ? (
+                  <button
+                    type="button"
+                    onClick={() => opportunity && void generateScore(opportunity.id)}
+                    className={cn(
+                      "rounded-lg border px-3 py-1.5 text-sm font-semibold transition",
+                      score
+                        ? "border-line/20 bg-bg/85 text-subtext/80 hover:bg-elevated hover:text-text"
+                        : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20",
+                    )}
+                  >
+                    {score ? t("workspace.score.refresh") : t("workspace.score.generate")}
+                  </button>
+                ) : null
+              }
+            />
             {scoreLoading || scoreGenerating ? (
               <div className="space-y-2">
                 <div className="h-5 w-24 animate-pulse rounded-lg bg-elevated" />
@@ -943,9 +976,11 @@ export default function WorkspacePage() {
             )}
           </div>
 
-          {/* Deadline */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
-            <SectionLabel>{t("workspace.deadline.label")}</SectionLabel>
+            <PanelHeader
+              title={t("workspace.deadline.label")}
+              helper="This is the operative time signal used to judge urgency and prep pressure."
+            />
             {opportunity.deadline_at ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -973,8 +1008,11 @@ export default function WorkspacePage() {
             )}
           </div>
 
-          {/* Metadata */}
           <div className="rounded-2xl border border-line/30 bg-surface/95 p-4 shadow-soft">
+            <PanelHeader
+              title="Metadata"
+              helper="Context fields extracted from the opportunity and its enrichment layer."
+            />
             <div className="space-y-3">
               <div>
                 <SectionLabel>{t("workspace.type.label")}</SectionLabel>
@@ -1020,7 +1058,6 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* Timeline */}
       <section className="rounded-2xl border border-line/30 bg-surface/95 p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-subtext/65" />

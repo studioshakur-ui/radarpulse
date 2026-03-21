@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Logo } from "@/components/Logo";
+import { ThemeMenu } from "@/components/ThemeMenu";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -18,59 +19,56 @@ type MarketingShellProps = {
   children: React.ReactNode;
 };
 
-type SharedCopy = {
-  navUk: string;
-  navEurope: string;
-  navGlobal: string;
-  signIn: string;
-  requestAccess: string;
-  footerSummary: string;
-  footerMarkets: string;
-  footerAccess: string;
-  footerGuides: string;
-  footerGlobal: string;
-  footerStatus: string;
-};
-
-const SHARED_COPY: Record<Locale, SharedCopy> = {
+const COPY: Record<
+  Locale,
+  {
+    uk: string;
+    europe: string;
+    global: string;
+    signIn: string;
+    request: string;
+    markets: string;
+    access: string;
+    guides: string;
+    summary: string;
+    status: string;
+  }
+> = {
   en: {
-    navUk: "UK",
-    navEurope: "Europe",
-    navGlobal: "Global",
+    uk: "UK",
+    europe: "Europe",
+    global: "Global",
     signIn: "Sign in",
-    requestAccess: "Request access",
-    footerSummary: "Qualification discipline for public opportunity teams.",
-    footerMarkets: "Markets",
-    footerAccess: "Access",
-    footerGuides: "Guides",
-    footerGlobal: "Global map",
-    footerStatus: "Built market by market in Europe.",
+    request: "Request access",
+    markets: "Markets",
+    access: "Access",
+    guides: "Guides",
+    summary: "Qualification discipline for public opportunity teams.",
+    status: "Built market by market in Europe.",
   },
   fr: {
-    navUk: "UK",
-    navEurope: "Europe",
-    navGlobal: "Global",
+    uk: "UK",
+    europe: "Europe",
+    global: "Global",
     signIn: "Connexion",
-    requestAccess: "Demander l'acces",
-    footerSummary: "Discipline de qualification pour equipes opportunites publiques.",
-    footerMarkets: "Marches",
-    footerAccess: "Acces",
-    footerGuides: "Guides",
-    footerGlobal: "Carte globale",
-    footerStatus: "Construit marche par marche en Europe.",
+    request: "Demander l'acces",
+    markets: "Marches",
+    access: "Acces",
+    guides: "Guides",
+    summary: "Discipline de qualification pour equipes opportunites publiques.",
+    status: "Construit marche par marche en Europe.",
   },
   it: {
-    navUk: "UK",
-    navEurope: "Europa",
-    navGlobal: "Global",
+    uk: "UK",
+    europe: "Europa",
+    global: "Global",
     signIn: "Accedi",
-    requestAccess: "Richiedi accesso",
-    footerSummary: "Disciplina di qualifica per team che operano su opportunita pubbliche.",
-    footerMarkets: "Mercati",
-    footerAccess: "Accesso",
-    footerGuides: "Guide",
-    footerGlobal: "Mappa globale",
-    footerStatus: "Costruito mercato per mercato in Europa.",
+    request: "Richiedi accesso",
+    markets: "Mercati",
+    access: "Accesso",
+    guides: "Guide",
+    summary: "Disciplina di qualifica per team che operano su opportunita pubbliche.",
+    status: "Costruito mercato per mercato in Europa.",
   },
 };
 
@@ -96,56 +94,20 @@ function NavChip({
   );
 }
 
-export function SectionEyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand/82">
-      <span className="h-1.5 w-1.5 rounded-full bg-brand/70" />
-      {children}
-    </span>
-  );
-}
-
-export function PrimaryCta({
+function PrimaryCta({
   to,
   children,
-  className,
 }: {
   to: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
     <Link
       to={to}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:opacity-95",
-        className,
-      )}
+      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:opacity-95"
     >
       {children}
       <ArrowRight className="h-4 w-4" />
-    </Link>
-  );
-}
-
-export function SecondaryCta({
-  to,
-  children,
-  className,
-}: {
-  to: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl border border-line/20 bg-surface/72 px-5 py-3 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated/72",
-        className,
-      )}
-    >
-      {children}
     </Link>
   );
 }
@@ -156,7 +118,7 @@ export function MarketingShell({
   banner,
   children,
 }: MarketingShellProps) {
-  const copy = SHARED_COPY[locale] ?? SHARED_COPY.en;
+  const copy = COPY[locale] ?? COPY.en;
   const location = useLocation();
   const ukActive = activeMarket === "uk" || location.pathname === "/" || location.pathname === "/uk";
   const euActive = activeMarket === "eu" || location.pathname.startsWith("/eu");
@@ -181,23 +143,25 @@ export function MarketingShell({
 
           <nav className="hidden items-center gap-1 md:flex">
             <NavChip to="/uk" active={ukActive}>
-              {copy.navUk}
+              {copy.uk}
             </NavChip>
             <NavChip to="/eu" active={euActive}>
-              {copy.navEurope}
+              {copy.europe}
             </NavChip>
             <NavChip to="/global" active={location.pathname.startsWith("/global")}>
-              {copy.navGlobal}
+              {copy.global}
             </NavChip>
           </nav>
 
           <div className="flex items-center gap-2">
-            <SecondaryCta to="/login" className="px-4 py-2">
+            <ThemeMenu />
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center rounded-2xl border border-line/20 bg-surface/78 px-4 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated"
+            >
               {copy.signIn}
-            </SecondaryCta>
-            <PrimaryCta to="/request-access" className="px-4 py-2">
-              {copy.requestAccess}
-            </PrimaryCta>
+            </Link>
+            <PrimaryCta to="/request-access">{copy.request}</PrimaryCta>
           </div>
         </div>
       </header>
@@ -208,42 +172,42 @@ export function MarketingShell({
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
           <div>
             <Logo size={24} />
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtext">{copy.footerSummary}</p>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtext">{copy.summary}</p>
             <p className="mt-4 text-xs font-medium uppercase tracking-[0.16em] text-brand/75">
-              {copy.footerStatus}
+              {copy.status}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/55">
-              {copy.footerMarkets}
+              {copy.markets}
             </p>
             <div className="mt-4 space-y-3 text-sm text-subtext/82">
               <Link to="/uk" className="block transition hover:text-text">
-                {copy.navUk}
+                {copy.uk}
               </Link>
               <Link to="/eu" className="block transition hover:text-text">
-                {copy.navEurope}
+                {copy.europe}
               </Link>
               <Link to="/global" className="block transition hover:text-text">
-                {copy.footerGlobal}
+                {copy.global}
               </Link>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/55">
-              {copy.footerAccess}
+              {copy.access}
             </p>
             <div className="mt-4 space-y-3 text-sm text-subtext/82">
               <Link to="/request-access" className="block transition hover:text-text">
-                {copy.requestAccess}
+                {copy.request}
               </Link>
               <Link to="/login" className="block transition hover:text-text">
                 {copy.signIn}
               </Link>
               <Link to="/guides" className="block transition hover:text-text">
-                {copy.footerGuides}
+                {copy.guides}
               </Link>
             </div>
           </div>

@@ -42,7 +42,7 @@ export default function LocalityPage() {
         themeCountryName={countryCode}
         breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: countryCode, to: `/countries/${countryCode}` }, { label: regionSlug, to: `/countries/${countryCode}/regions/${regionSlug}` }, { label: localitySlug }]}
       >
-        <div className="rounded-2xl border border-border/25 bg-white/45 p-5 text-sm text-muted">{t("geo.errors.notFoundBody")}</div>
+        <div className="rounded-2xl border border-line/15 bg-surface/92 p-5 text-sm text-muted shadow-soft">{t("geo.errors.notFoundBody")}</div>
       </GeoShell>
     );
   }

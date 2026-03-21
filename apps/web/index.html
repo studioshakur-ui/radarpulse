@@ -6,14 +6,12 @@
     <meta name="theme-color" content="#FCFBFF" />
     <title>RadarPulse</title>
 
-    <!-- Canonical theme bootstrap (prevents flash). RadarPulse uses one curated theme. -->
+    <!-- Single-theme bootstrap: RadarPulse currently ships one curated Twilight surface -->
     <script>
       (function () {
         try {
           var el = document.documentElement;
-          try {
-            localStorage.removeItem("rp_theme");
-          } catch (e) {}
+          localStorage.setItem("rp_theme", "light");
           el.classList.remove("dark");
           el.dataset.theme = "light";
         } catch (e) {}

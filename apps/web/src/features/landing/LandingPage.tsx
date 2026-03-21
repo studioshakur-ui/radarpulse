@@ -7,6 +7,72 @@ import { useT } from "@/i18n";
 import type { Locale } from "@/lib/i18n";
 import { MarketingShell } from "./marketingPrimitives";
 
+// ─── Rotating headlines ───────────────────────────────────────────────────────
+
+const HEADLINES: Record<Locale, string[]> = {
+  en: [
+    "Not every tender is an opportunity.",
+    "Your next contract is live right now.",
+    "Most bids are decided before the RFP.",
+    "Europe's market moves. So should you.",
+  ],
+  fr: [
+    "Tout appel d'offres n'est pas une opportunité.",
+    "Votre prochain marché est publié en ce moment.",
+    "La plupart des marchés sont qualifiés avant l'AO.",
+    "Le marché européen bouge. Vous aussi.",
+  ],
+  it: [
+    "Non ogni gara è un'opportunità.",
+    "Il tuo prossimo contratto è live adesso.",
+    "La maggior parte delle gare si decide prima del bando.",
+    "Il mercato europeo si muove. Tu anche.",
+  ],
+};
+
+// ─── Breaking-news ticker ─────────────────────────────────────────────────────
+
+const TICKER_ITEMS = [
+  "NHS England · ICT Infrastructure · Signal 84 · shortlisted",
+  "BOAMP · Mobilité durable Lyon · Signal 91 · GO",
+  "ANAC · Digitalizzazione PA · Signal 77 · in review",
+  "EU TED · AI Framework Contract · Signal 88 · shortlisted",
+  "Find a Tender · Cloud Migration · Signal 82 · GO",
+  "Marchés Publics · Smart City · Signal 79 · in review",
+  "Contratti Pubblici · Infra digitale · Signal 85 · GO",
+  "TED · European Research Alliance · Signal 93 · shortlisted",
+];
+
+function TickerStrip() {
+  const doubled = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  return (
+    <div className="relative overflow-hidden border-y border-brand/20 bg-[#06040f] py-2.5">
+      <style>{`
+        @keyframes rp-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .rp-ticker-track { animation: rp-ticker 40s linear infinite; display: flex; width: max-content; will-change: transform; }
+        @media (prefers-reduced-motion: reduce) { .rp-ticker-track { animation: none; } }
+      `}</style>
+      <div className="flex items-center">
+        <div className="relative z-10 flex shrink-0 items-center gap-1.5 bg-[#06040f] pl-4 pr-4">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+          <span className="text-[10px] font-black uppercase tracking-[0.22em] text-red-400">Live</span>
+        </div>
+        <div className="w-px self-stretch bg-red-500/30" />
+        <div className="overflow-hidden">
+          <div className="rp-ticker-track">
+            {doubled.map((item, i) => (
+              <span key={i} className="flex items-center gap-2 whitespace-nowrap px-6 text-[11px] font-medium text-white/50">
+                <span className="text-brand/50">▸</span>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Hero background orbs ─────────────────────────────────────────────────────
 
 function HeroBackground() {
@@ -17,29 +83,29 @@ function HeroBackground() {
       <div
         className="absolute inset-0"
         style={{
-          opacity: dk ? 0.7 : 0.4,
+          opacity: dk ? 1 : 0.5,
           background:
-            "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,92,191,0.25) 0%, transparent 70%)",
+            "radial-gradient(ellipse 90% 70% at 50% -10%, rgba(124,92,191,0.45) 0%, transparent 70%)",
         }}
       />
       <div
-        className="absolute -left-32 top-1/3 h-72 w-72 rounded-full blur-3xl"
+        className="absolute -left-32 top-1/3 h-96 w-96 rounded-full blur-3xl"
         style={{
-          opacity: dk ? 0.45 : 0.20,
-          background: "radial-gradient(circle, rgba(124,92,191,0.5) 0%, transparent 70%)",
+          opacity: dk ? 0.6 : 0.20,
+          background: "radial-gradient(circle, rgba(124,92,191,0.6) 0%, transparent 70%)",
         }}
       />
       <div
-        className="absolute -right-16 top-0 h-96 w-96 rounded-full blur-3xl"
+        className="absolute -right-16 top-0 h-[32rem] w-[32rem] rounded-full blur-3xl"
         style={{
-          opacity: dk ? 0.35 : 0.15,
-          background: "radial-gradient(circle, rgba(167,139,250,0.4) 0%, transparent 70%)",
+          opacity: dk ? 0.5 : 0.15,
+          background: "radial-gradient(circle, rgba(167,139,250,0.55) 0%, transparent 70%)",
         }}
       />
       <div
         className="absolute inset-0"
         style={{
-          opacity: dk ? 0.04 : 0.025,
+          opacity: dk ? 0.07 : 0.03,
           backgroundImage:
             "linear-gradient(rgba(124,92,191,1) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,191,1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
@@ -53,6 +119,8 @@ function HeroBackground() {
 
 function HeroBrowserMockup() {
   const { lang } = useT();
+  const { effective } = useTheme();
+  const dk = effective === "dark";
   const MOCKUP_LABELS: Record<
     Locale,
     {
@@ -88,14 +156,14 @@ function HeroBrowserMockup() {
       nextAction: "Next action",
       nextActionBody: "Validate go or hold, then open the task checklist and assign the first document pull.",
       updated: "Updated 3 min ago",
-      open: "Open dossier →",
+      open: "Open workspace →",
       sideTitle: "Workflow",
       sideReview: "Qualification",
       sideChecklist: "Checklist",
       sideReady: "Ready",
     },
     fr: {
-      live: "DOSSIER ACTIF",
+      live: "WORKSPACE ACTIF",
       stage: "A qualifier",
       source: "UK · Find a Tender",
       readiness: "Preparation",
@@ -107,14 +175,14 @@ function HeroBrowserMockup() {
       nextAction: "Prochaine action",
       nextActionBody: "Valider go ou hold, puis ouvrir la checklist et lancer la premiere collecte documentaire.",
       updated: "Mis a jour il y a 3 min",
-      open: "Ouvrir le dossier →",
+      open: "Ouvrir le workspace →",
       sideTitle: "Workflow",
       sideReview: "Qualification",
       sideChecklist: "Checklist",
       sideReady: "Pret",
     },
     it: {
-      live: "DOSSIER ATTIVO",
+      live: "WORKSPACE ATTIVO",
       stage: "Da rivedere",
       source: "UK · Find a Tender",
       readiness: "Prontezza",
@@ -126,7 +194,7 @@ function HeroBrowserMockup() {
       nextAction: "Prossima azione",
       nextActionBody: "Valida go o hold, poi apri la checklist e assegna il primo recupero documentale.",
       updated: "Aggiornato 3 min fa",
-      open: "Apri dossier →",
+      open: "Apri workspace →",
       sideTitle: "Workflow",
       sideReview: "Qualifica",
       sideChecklist: "Checklist",
@@ -145,8 +213,14 @@ function HeroBrowserMockup() {
 
   return (
     <div className="relative mx-auto flex w-full max-w-xl items-center justify-center lg:max-w-[35rem] lg:justify-end">
+      {dk && (
+        <div
+          className="pointer-events-none absolute inset-[-20%] -z-10 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(ellipse, rgba(124,92,191,0.4) 0%, transparent 70%)" }}
+        />
+      )}
       <div
-        className="w-full max-w-[34rem] overflow-hidden rounded-[28px] border border-white/55 bg-white/82 shadow-[0_30px_80px_rgba(93,72,152,0.14)] backdrop-blur"
+        className={`w-full max-w-[34rem] overflow-hidden rounded-[28px] border backdrop-blur ${dk ? "border-white/10 bg-[#13111a]/90 shadow-[0_30px_80px_rgba(124,92,191,0.35),0_0_0_1px_rgba(124,92,191,0.15)]" : "border-white/55 bg-white/82 shadow-[0_30px_80px_rgba(93,72,152,0.14)]"}`}
         style={{
           transform: prefersReducedMotion ? "none" : "translateY(0px)",
           transformStyle: "preserve-3d",
@@ -154,17 +228,17 @@ function HeroBrowserMockup() {
         }}
       >
         {/* Browser chrome */}
-        <div className="flex items-center gap-2 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur">
+        <div className={`flex items-center gap-2 border-b px-4 py-3 backdrop-blur ${dk ? "border-white/[0.08] bg-[#1e1a2e]/80" : "border-white/60 bg-white/70"}`}>
           <div className="flex gap-1.5">
             <div className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
             <div className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
           </div>
-          <div className="mx-3 flex-1 rounded-md bg-white/70 px-3 py-1 text-center text-xs text-subtext/50">
-            app.radarpulse.io/dossiers
+          <div className={`mx-3 flex-1 rounded-md px-3 py-1 text-center text-xs text-subtext/50 ${dk ? "bg-white/5" : "bg-white/70"}`}>
+            app.radarpulse.io/workspaces
           </div>
         </div>
-        <div className="border-b border-border/10 bg-[#faf8ff] px-5 py-5">
+        <div className={`border-b px-5 py-5 ${dk ? "border-white/5 bg-[#0f0c1a]" : "border-border/10 bg-[#faf8ff]"}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand/70">
@@ -181,21 +255,21 @@ function HeroBrowserMockup() {
             </span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+            <div className={`rounded-2xl border px-3 py-3 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
                 {ml.signal}
               </p>
               <p className="mt-1 text-2xl font-bold text-text">84</p>
               <p className="text-[11px] text-emerald-600">shortlisted</p>
             </div>
-            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+            <div className={`rounded-2xl border px-3 py-3 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
                 {ml.readiness}
               </p>
               <p className="mt-1 text-2xl font-bold text-text">62%</p>
               <p className="text-[11px] text-amber-600">awaiting review</p>
             </div>
-            <div className="rounded-2xl border border-border/15 bg-white/70 px-3 py-3">
+            <div className={`rounded-2xl border px-3 py-3 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtext/45">
                 {ml.deadline}
               </p>
@@ -204,14 +278,14 @@ function HeroBrowserMockup() {
             </div>
           </div>
         </div>
-        <div className="grid gap-4 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,244,255,0.9)_100%)] px-5 py-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <div className={`grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_12rem] ${dk ? "bg-[linear-gradient(180deg,rgba(20,16,32,0.9)_0%,rgba(13,10,22,0.95)_100%)]" : "bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,244,255,0.9)_100%)]"}`}>
           <div>
-            <div className="rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+            <div className={`rounded-2xl border px-4 py-4 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
                 {ml.blockerTitle}
               </p>
               <div className="mt-3 space-y-2">
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <div className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${dk ? "border-amber-500/20 bg-amber-500/[0.08] text-amber-300" : "border-amber-200/70 bg-amber-50 text-amber-800"}`}>
                   <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
                   <span>{ml.blockerA}</span>
                 </div>
@@ -221,14 +295,14 @@ function HeroBrowserMockup() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+            <div className={`mt-4 rounded-2xl border px-4 py-4 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
                 {ml.nextAction}
               </p>
               <p className="mt-3 text-sm leading-relaxed text-text/85">{ml.nextActionBody}</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-border/15 bg-white/70 px-4 py-4">
+          <div className={`rounded-2xl border px-4 py-4 ${dk ? "border-white/[0.08] bg-white/5" : "border-border/15 bg-white/70"}`}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtext/45">
               {ml.sideTitle}
             </p>
@@ -249,7 +323,7 @@ function HeroBrowserMockup() {
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between border-t border-border/10 bg-white/65 px-5 py-3">
+        <div className={`flex items-center justify-between border-t px-5 py-3 ${dk ? "border-white/5 bg-white/[0.03]" : "border-border/10 bg-white/65"}`}>
           <span className="text-[11px] text-subtext/50">{ml.updated}</span>
           <span className="text-[11px] font-medium text-brand/80">{ml.open}</span>
         </div>
@@ -421,7 +495,7 @@ function getPricingPlans(lang: Locale) {
         period: "",
         description: "Pour les consultants et bid managers qui qualifient seuls.",
         features: [
-          "Inbox Europe (UK, FR, IT, EU TED)",
+          "European workspace feed (UK, FR, IT, EU TED)",
           "Score qualite IA par opportunite",
           "Brief auto en un clic",
           "Decisions GO / HOLD / NO-GO",
@@ -433,10 +507,10 @@ function getPricingPlans(lang: Locale) {
         name: "Team",
         price: "Personnalise",
         period: "",
-        description: "Pour les equipes qui operent des dossiers en continu.",
+        description: "Pour les equipes qui operent des workspaces en continu.",
         features: [
           "Tout Solo inclus",
-          "Board dossiers et checklist equipe",
+          "Board workspaces et checklist equipe",
           "Decisions et workspace partages",
           "Intelligence geographique",
           "Onboarding prioritaire",
@@ -453,7 +527,7 @@ function getPricingPlans(lang: Locale) {
         period: "",
         description: "Per consulenti e bid manager che qualificano da soli.",
         features: [
-          "Inbox Europa (UK, FR, IT, EU TED)",
+          "Feed workspace Europa (UK, FR, IT, EU TED)",
           "Punteggio qualita AI per opportunita",
           "Brief automatico in un click",
           "Decisioni GO / HOLD / NO-GO",
@@ -465,10 +539,10 @@ function getPricingPlans(lang: Locale) {
         name: "Team",
         price: "Custom",
         period: "",
-        description: "Per i team che operano dossier in continuita.",
+        description: "Per i team che operano workspace in continuita.",
         features: [
           "Tutto Solo incluso",
-          "Board dossier e checklist team",
+          "Board workspace e checklist team",
           "Decisioni e workspace condivisi",
           "Intelligenza geografica",
           "Onboarding prioritario",
@@ -496,7 +570,7 @@ function getPricingPlans(lang: Locale) {
       name: "Team",
       price: "Custom",
       period: "",
-      description: "For teams operating dossiers continuously.",
+      description: "For teams operating workspaces continuously.",
       features: [
         "Everything in Solo",
         "Dossier board & team checklist",
@@ -543,6 +617,22 @@ const COVERAGE: Array<{
 
 export function LandingPage() {
   const { t, lang } = useT();
+
+  // Rotating headline
+  const headlines = HEADLINES[lang] ?? HEADLINES.en;
+  const [hlIdx, setHlIdx] = useState(0);
+  const [hlFading, setHlFading] = useState(false);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setHlFading(true);
+      window.setTimeout(() => {
+        setHlIdx((n) => (n + 1) % headlines.length);
+        setHlFading(false);
+      }, 380);
+    }, 4200);
+    return () => window.clearInterval(id);
+  }, [headlines.length]);
+
   const bentoRef = useRef<HTMLDivElement>(null);
   const bentoInView = useInView(bentoRef);
   const pricingRef = useRef<HTMLDivElement>(null);
@@ -578,17 +668,17 @@ export function LandingPage() {
     en: [
       { time: "08:40", label: "UK tender captured from Find a Tender", active: false },
       { time: "09:02", label: "AI score computed: 84 — shortlisted", active: true },
-      { time: "09:03", label: "Brief generated, dossier ready", active: false },
+      { time: "09:03", label: "Brief generated, workspace ready", active: false },
     ],
     fr: [
       { time: "08:40", label: "Appel capté depuis BOAMP", active: false },
       { time: "09:02", label: "Score IA calculé : 84 — présélectionné", active: true },
-      { time: "09:03", label: "Brief généré, dossier prêt", active: false },
+      { time: "09:03", label: "Brief généré, workspace prêt", active: false },
     ],
     it: [
       { time: "08:40", label: "Gara catturata da ANAC", active: false },
       { time: "09:02", label: "Score AI calcolato: 84 — selezionato", active: true },
-      { time: "09:03", label: "Brief generato, dossier pronto", active: false },
+      { time: "09:03", label: "Brief generato, workspace pronto", active: false },
     ],
   };
 
@@ -662,7 +752,7 @@ export function LandingPage() {
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden border-b border-border/20">
         <HeroBackground />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:py-24 lg:py-28">
+        <div className="relative mx-auto w-full max-w-6xl px-4 pt-14 pb-8 sm:pt-20 sm:pb-10 lg:pt-24 lg:pb-12">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,0.95fr)] lg:gap-10">
             {/* Left */}
             <div className="max-w-2xl">
@@ -670,17 +760,20 @@ export function LandingPage() {
                 <SectionLabel>{HERO_PILL[lang]}</SectionLabel>
               </div>
 
-              {/* Static headline — no typewriter */}
-              <h1 className="max-w-[16ch] text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[4.8rem]">
+              <h1 className="min-h-[1.92em] max-w-[16ch] text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[5.5rem]">
                 <span
                   style={{
-                    background: "linear-gradient(135deg, #7c5cbf 0%, #a78bfa 100%)",
+                    background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 45%, #c084fc 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
+                    display: "block",
+                    opacity: hlFading ? 0 : 1,
+                    transform: hlFading ? "translateY(10px)" : "translateY(0)",
+                    transition: "opacity 0.38s ease, transform 0.38s ease",
                   }}
                 >
-                  {t("landing.hero.title")}
+                  {headlines[hlIdx]}
                 </span>
               </h1>
 
@@ -712,10 +805,10 @@ export function LandingPage() {
                 {stats.map((s) => (
                   <div
                     key={s.value}
-                    className="rounded-2xl border border-line/20 bg-white/55 px-4 py-4 shadow-soft backdrop-blur"
+                    className="rounded-2xl border border-line/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,243,255,0.9))] px-4 py-4 shadow-soft backdrop-blur"
                   >
                     <p className="text-xl font-bold text-text">{s.value}</p>
-                    <p className="mt-1 text-sm text-muted">{s.label}</p>
+                    <p className="mt-1 text-sm font-medium leading-relaxed text-subtext">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -728,6 +821,9 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── TICKER ────────────────────────────────────────────────────────── */}
+      <TickerStrip />
 
       {/* ── PROBLEM ───────────────────────────────────────────────────────── */}
       <section className="border-b border-border/20 bg-surface/20">
@@ -766,7 +862,8 @@ export function LandingPage() {
       </section>
 
       {/* ── BENTO — HOW IT WORKS ──────────────────────────────────────────── */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+      <section className="border-t border-border/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-16">
         <div className="mb-10 max-w-3xl">
           <SectionLabel>{t("landing.diff.eyebrow")}</SectionLabel>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -891,6 +988,7 @@ export function LandingPage() {
             </BentoCard>
           </div>
         </div>
+        </div>
       </section>
 
       {/* ── HOW IT WORKS (3 steps) ────────────────────────────────────────── */}
@@ -911,29 +1009,31 @@ export function LandingPage() {
       </section>
 
       {/* ── QUALIFICATION ENGINE ──────────────────────────────────────────── */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
-        <div className="mb-10 max-w-3xl">
-          <SectionLabel>{t("landing.engine.eyebrow")}</SectionLabel>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            {t("landing.engine.title")}
-          </h2>
-        </div>
-        <div ref={engineRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {ENGINE_FEATURES.map((feat, i) => (
-            <div key={feat.titleKey} style={fade(engineInView, i * 80)}>
-              <CoreCard variant="glass" className="h-full rounded-3xl p-5">
-                <div className={"mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl " + feat.accent}>
-                  <span className={feat.iconColor}>{feat.icon}</span>
-                </div>
-                <h3 className="text-base font-semibold tracking-tight text-text">
-                  {t(feat.titleKey as Parameters<typeof t>[0])}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-subtext">
-                  {t(feat.bodyKey as Parameters<typeof t>[0])}
-                </p>
-              </CoreCard>
-            </div>
-          ))}
+      <section className="border-t border-border/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-16">
+          <div className="mb-10 max-w-3xl">
+            <SectionLabel>{t("landing.engine.eyebrow")}</SectionLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {t("landing.engine.title")}
+            </h2>
+          </div>
+          <div ref={engineRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {ENGINE_FEATURES.map((feat, i) => (
+              <div key={feat.titleKey} style={fade(engineInView, i * 80)}>
+                <CoreCard variant="glass" className="h-full rounded-3xl p-5">
+                  <div className={"mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl " + feat.accent}>
+                    <span className={feat.iconColor}>{feat.icon}</span>
+                  </div>
+                  <h3 className="text-base font-semibold tracking-tight text-text">
+                    {t(feat.titleKey as Parameters<typeof t>[0])}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-subtext">
+                    {t(feat.bodyKey as Parameters<typeof t>[0])}
+                  </p>
+                </CoreCard>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -979,7 +1079,8 @@ export function LandingPage() {
       </section>
 
       {/* ── PRICING ───────────────────────────────────────────────────────── */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+      <section className="border-t border-border/20">
+        <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-16">
         <div className="mb-10 text-center">
           <SectionLabel>
             {lang === "fr" ? "Accès" : lang === "it" ? "Accesso" : "Access"}
@@ -1010,6 +1111,7 @@ export function LandingPage() {
               badgeText={t("landing.pricing.popular")}
             />
           </div>
+        </div>
         </div>
       </section>
 

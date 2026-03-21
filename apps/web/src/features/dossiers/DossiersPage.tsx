@@ -88,7 +88,7 @@ export default function DossiersPage() {
             ) : (
               <div className="grid gap-3 xl:grid-cols-2">
                 {rows.map((item) => (
-                  <article key={item.id} className="rounded-2xl border border-line/20 bg-bg/60 p-4">
+                  <article key={item.id} className="rounded-2xl border border-line/15 bg-surface/92 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="text-base font-semibold text-text">{item.opportunity?.title ?? t("dossiers.missingTitle")}</h3>
@@ -123,7 +123,7 @@ export default function DossiersPage() {
                         {t("dossiers.updated")} {fmtRelative(item.updated_at, fmtLocale)}
                       </span>
                       <Link
-                        to={`/dossier/${item.id}`}
+                        to={`/workspaces/${item.id}`}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-line/25 bg-surface px-3 py-2 text-sm font-semibold text-text transition hover:bg-elevated"
                       >
                         <FolderOpen className="h-4 w-4" />

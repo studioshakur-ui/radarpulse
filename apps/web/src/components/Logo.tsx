@@ -8,9 +8,7 @@ interface LogoMarkProps {
 
 export function LogoMark({ size = 32, className }: LogoMarkProps) {
   const uid = React.useId().replace(/:/g, "");
-  const baseId = `${uid}base`;
-  const beamId = `${uid}beam`;
-  const pulseId = `${uid}pulse`;
+  const bgId = `${uid}bg`;
 
   return (
     <svg
@@ -23,41 +21,41 @@ export function LogoMark({ size = 32, className }: LogoMarkProps) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id={baseId} x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#18181B" />
-          <stop offset="0.42" stopColor="#312E81" />
-          <stop offset="1" stopColor="#7C3AED" />
-        </linearGradient>
-        <radialGradient id={beamId} cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(10 8.5) rotate(46) scale(24 24)">
-          <stop offset="0" stopColor="#C4B5FD" stopOpacity="0.95" />
-          <stop offset="0.45" stopColor="#8B5CF6" stopOpacity="0.68" />
-          <stop offset="1" stopColor="#8B5CF6" stopOpacity="0" />
+        {/* Background: deep dark, purple bloom top-right */}
+        <radialGradient id={bgId} cx="72%" cy="20%" r="78%" gradientUnits="objectBoundingBox">
+          <stop offset="0%" stopColor="#2E1A6E" />
+          <stop offset="50%" stopColor="#120A2C" />
+          <stop offset="100%" stopColor="#06040D" />
         </radialGradient>
-        <linearGradient id={pulseId} x1="7.5" y1="19.5" x2="24" y2="14" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#F5F3FF" />
-          <stop offset="1" stopColor="#FFFFFF" />
-        </linearGradient>
+
       </defs>
 
-      <rect x="1.5" y="1.5" width="29" height="29" rx="9.5" fill={`url(#${baseId})`} />
-      <rect x="1.5" y="1.5" width="29" height="29" rx="9.5" stroke="rgba(255,255,255,0.12)" strokeWidth="1.2" />
+      {/* Background */}
+      <rect width="32" height="32" rx="8.5" fill={`url(#${bgId})`} />
+      {/* Subtle border */}
+      <rect width="32" height="32" rx="8.5" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
 
-      <circle cx="16" cy="16" r="11" fill={`url(#${beamId})`} />
-      <circle cx="16" cy="16" r="9.15" stroke="rgba(255,255,255,0.2)" strokeWidth="1.15" />
-      <circle cx="16" cy="16" r="6.05" stroke="rgba(255,255,255,0.3)" strokeWidth="1.15" />
-      <circle cx="16" cy="16" r="2.15" fill="#F8F7FF" fillOpacity="0.95" />
+      {/* RP lettermark — stroke-based paths with bezier bowl curves */}
 
-      <path d="M16 16L24.2 8.1" stroke="rgba(255,255,255,0.34)" strokeWidth="1.15" strokeLinecap="round" />
-      <circle cx="24.5" cy="7.8" r="1.55" fill="#DDD6FE" />
-
+      {/* R: stem up, top bar + bowl curve, mid bar back, leg diagonal */}
       <path
-        d="M7.75 20.1H11.35L13.6 15.55L15.35 21.65L17.25 11.7L19.2 17.7H24.2"
-        stroke={`url(#${pulseId})`}
-        strokeWidth="1.75"
+        d="M 5 24 L 5 8 L 9.5 8 Q 14 8 14 12 Q 14 16 9.5 16 L 5 16 M 10 16 L 14.5 24"
+        stroke="rgba(255,255,255,0.90)"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        fill="none"
       />
-      <path d="M8.2 24.35C10.25 22.25 12.95 21.15 16 21.15C19.05 21.15 21.75 22.25 23.8 24.35" stroke="rgba(255,255,255,0.12)" strokeWidth="1.2" strokeLinecap="round" />
+
+      {/* P: stem up, top bar + bowl curve, mid bar back */}
+      <path
+        d="M 18.5 24 L 18.5 8 L 23 8 Q 27.5 8 27.5 12 Q 27.5 16 23 16 L 18.5 16"
+        stroke="rgba(255,255,255,0.90)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </svg>
   );
 }
@@ -75,19 +73,27 @@ export function Logo({
   className,
   wordmarkClassName,
 }: LogoProps) {
-  const wordmarkSize = Math.round(size * 0.5);
+  const wordmarkSize = Math.round(size * 0.47);
 
   return (
-    <span className={cn("inline-flex items-center gap-3", className)}>
+    <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark size={size} />
       {showWordmark ? (
         <span
-          className={cn("inline-flex items-baseline gap-0.5 tracking-[-0.04em] text-text", wordmarkClassName)}
-          style={{ fontSize: `${wordmarkSize}px` }}
+          className={cn("inline-flex items-baseline tracking-[-0.04em]", wordmarkClassName)}
+          style={{ fontSize: `${wordmarkSize}px`, letterSpacing: "-0.02em" }}
         >
-          <span className="font-medium uppercase tracking-[-0.03em] text-text/80">Radar</span>
-          <span className="bg-[linear-gradient(135deg,#4C1D95,#6D28D9_52%,#8B5CF6)] bg-clip-text font-bold uppercase tracking-[-0.05em] text-transparent">
-            Pulse
+          <span className="font-light tracking-[-0.01em] text-text/65">RADAR</span>
+          <span
+            className="font-black tracking-[-0.04em]"
+            style={{
+              background: "linear-gradient(135deg, #7C3AED 0%, #A855F7 55%, #C084FC 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            PULSE
           </span>
         </span>
       ) : null}

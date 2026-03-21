@@ -9,7 +9,7 @@ type RecommendationValue = Decision | null;
 type ScoreBand = "high" | "med" | "low";
 
 const PILL_TONES: Record<StatusTone, string> = {
-  neutral: "border-line/20 bg-bg/85 text-subtext",
+  neutral: "border-line/20 bg-white/76 text-subtext",
   brand: "border-brand/35 bg-brand/10 text-brand",
   good: "border-good/35 bg-good/12 text-good",
   warn: "border-warn/35 bg-warn/12 text-warn",
@@ -22,11 +22,11 @@ const PILL_SIZES: Record<PillSize, string> = {
 };
 
 const PANEL_TONES: Record<StatusTone, string> = {
-  neutral: "border-line/25 bg-surface/92",
-  brand: "border-brand/25 bg-brand/10",
-  good: "border-good/25 bg-good/8",
-  warn: "border-warn/25 bg-warn/8",
-  bad: "border-bad/25 bg-bad/8",
+  neutral: "border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,243,255,0.9))]",
+  brand: "border-brand/20 bg-[linear-gradient(180deg,rgba(124,58,237,0.12),rgba(255,255,255,0.96))]",
+  good: "border-good/20 bg-[linear-gradient(180deg,rgba(22,163,74,0.10),rgba(255,255,255,0.96))]",
+  warn: "border-warn/20 bg-[linear-gradient(180deg,rgba(217,119,6,0.10),rgba(255,255,255,0.96))]",
+  bad: "border-bad/20 bg-[linear-gradient(180deg,rgba(220,38,38,0.10),rgba(255,255,255,0.96))]",
 };
 
 function decisionTone(decision: Decision): StatusTone {

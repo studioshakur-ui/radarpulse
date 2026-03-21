@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { Decision, DecisionRecord } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useLocale } from "@/lib/i18n";
-import { createDossier } from "@/features/dossiers/dossierApi";
+import { createWorkspace } from "@/features/workspaces/workspaceApi";
+import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 
 const STORAGE_KEY = "radarpulse:decisions";
 
@@ -22,11 +24,10 @@ function saveLocal(store: Record<string, DecisionRecord>) {
   }
 }
 
-export function useDecisions() {
+export function useOpportunityDecision() {
   const { locale } = useLocale();
   const [store, setStore] = useState<Record<string, DecisionRecord>>(loadLocal);
 
-  // On mount: load server state and merge (server wins over stale localStorage)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -53,9 +54,6 @@ export function useDecisions() {
         }
 
         setStore((local) => {
-          // Merge: keep whichever decision has the most recent decidedAt.
-          // This prevents the server response from overwriting a decision
-          // the user made while the fetch was in flight.
           const merged = { ...local };
           for (const [id, serverRecord] of Object.entries(serverStore)) {
             const localRecord = local[id];
@@ -67,7 +65,7 @@ export function useDecisions() {
           return merged;
         });
       } catch {
-        // silent — localStorage remains the source of truth if server unreachable
+        // local cache remains usable if server is unreachable
       }
     })();
     return () => {
@@ -94,37 +92,50 @@ export function useDecisions() {
 
       saveLocal(next);
 
-      // Fire-and-forget server sync
-      supabase.functions
-        .invoke("opportunity-decision", {
-          body: isToggle
-            ? {
-              opportunity_id: opportunityId,
-              action: "clear",
-              locale,
-            }
-            : {
-              opportunity_id: opportunityId,
-              action: "set",
-              decision_value: decision,
-              locale,
+      (async () => {
+        try {
+          const jwt = await getValidAccessToken();
+          const response = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunity-decision`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwt}`,
+              apikey: ENV.SUPABASE_ANON_KEY,
             },
-        })
-        .then(({ error }) => {
-          if (!error) {
-            if (!isToggle && decision === "GO") {
-              void createDossier(opportunityId, "GO").catch(() => {});
+            body: JSON.stringify(
+              isToggle
+                ? {
+                    opportunity_id: opportunityId,
+                    action: "clear",
+                    locale,
+                  }
+                : {
+                    opportunity_id: opportunityId,
+                    action: "set",
+                    decision_value: decision,
+                    locale,
+                  },
+            ),
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new AuthTokenError();
             }
-            return;
+            throw new Error("DECISION_REQUEST_FAILED");
+          }
+
+          if (!isToggle && decision === "GO") {
+            void createWorkspace(opportunityId, "GO").catch(() => {});
+          }
+        } catch (error) {
+          if (error instanceof AuthTokenError) {
+            void recoverInvalidSession();
           }
           setStore(previousStore);
           saveLocal(previousStore);
-        })
-        .catch(() => {
-          setStore(previousStore);
-          saveLocal(previousStore);
-        })
-        .then(() => {});
+        }
+      })();
 
       return next;
     });

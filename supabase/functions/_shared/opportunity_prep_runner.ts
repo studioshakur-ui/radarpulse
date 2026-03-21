@@ -1,4 +1,5 @@
 import { sbAdmin } from "./db.ts";
+import { extractJsonObject } from "./openai_json.ts";
 
 const PREP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const PREP_VERSION = "v1";
@@ -310,10 +311,9 @@ export async function generateOpportunityPrep(
 
     const generation_ms = Date.now() - t0;
     const openaiData = (await openaiRes.json()) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: unknown } }[];
     };
-    const content = openaiData.choices?.[0]?.message?.content ?? "{}";
-    const raw = JSON.parse(content) as Record<string, unknown>;
+    const raw = extractJsonObject(openaiData.choices?.[0]?.message?.content ?? "");
 
     const checklist: ChecklistItem[] = Array.isArray(raw.checklist)
       ? (raw.checklist as Record<string, unknown>[])
@@ -420,6 +420,9 @@ export async function generateOpportunityPrep(
       });
     } catch (updateErr) {
       console.error("[opportunity_prep_runner] agent_runs_update_failed:", serializeError(updateErr));
+    }
+    if (originalError.message === "AI_EMPTY_RESPONSE" || originalError.message === "AI_INVALID_JSON") {
+      throw new PrepRunnerError(502, originalError.message);
     }
     throw originalError;
   }

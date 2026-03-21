@@ -66,6 +66,6 @@ Deno.serve(async (req) => {
     if (originalError instanceof PrepRunnerError) {
       return json(originalError.status, { ok: false, error: originalError.code });
     }
-    return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    return json(500, { ok: false, error: "INTERNAL_ERROR", details: originalError.message });
   }
 });

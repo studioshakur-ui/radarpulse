@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Globe2, Map } from "lucide-react";
-import { GeoChildCard, GeoInsightList, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
+import { Map } from "lucide-react";
+import { GeoChildCard, GeoInsightList, GeoMarketSignalRail, GeoMetricGrid, GeoOpportunityList, GeoSection, GeoShell, GeoSignalStrip, geoChildCountLabel, geoScopeIcon } from "@/features/geo/GeoShell";
 import { buildGeoFeedInsights, loadGlobalGeoPage, type GeoCountry, type GlobalGeoPageData } from "@/features/geo/geoData";
 import { useLocale } from "@/lib/i18n";
 
@@ -90,6 +90,15 @@ export default function GlobalPage() {
       .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
       .slice(0, 8);
   }, [data, visibleCountries]);
+  const dominantSector = useMemo(() => {
+    const counts = new globalThis.Map<string, number>();
+    for (const item of data?.feed.items ?? []) {
+      const sector = String(item.sector ?? "").trim();
+      if (!sector) continue;
+      counts.set(sector, (counts.get(sector) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? null;
+  }, [data]);
 
   return (
     <GeoShell
@@ -101,6 +110,35 @@ export default function GlobalPage() {
       {!data && !error ? <div className="text-sm text-subtext/60">{t("geo.loading")}</div> : null}
 
       <div className="grid gap-6">
+        <GeoMarketSignalRail
+          items={[
+            {
+              label: t("geo.global.signal.leadMarket"),
+              value: globalCountryHotspots[0]?.label ?? "—",
+              hint: globalCountryHotspots[0] ? `${globalCountryHotspots[0].value} ${t("geo.country.intelligence.visibleItems")}` : t("geo.feed.empty"),
+              tone: "good",
+            },
+            {
+              label: t("geo.global.signal.leadSource"),
+              value: globalSourceMix[0]?.label ?? "—",
+              hint: globalSourceMix[0] ? `${globalSourceMix[0].value} ${t("geo.country.intelligence.visibleItems")}` : t("geo.feed.empty"),
+              tone: "brand",
+            },
+            {
+              label: t("geo.global.signal.activePressure"),
+              value: String(insights.urgentCount),
+              hint: t("geo.global.signal.activePressureHint"),
+              tone: insights.urgentCount > 0 ? "warn" : "default",
+            },
+            {
+              label: t("geo.global.signal.domainLead"),
+              value: dominantSector?.[0] ?? "—",
+              hint: dominantSector ? `${dominantSector[1]} ${t("geo.country.intelligence.visibleItems")}` : t("geo.feed.empty"),
+              tone: dominantSector ? "good" : "default",
+            },
+          ]}
+        />
+
         <GeoMetricGrid
           items={[
             { label: t("geo.metrics.publicOpps"), value: String(data?.feed.total ?? 0), hint: t("geo.global.metrics.publicOppsHint") },
@@ -122,52 +160,98 @@ export default function GlobalPage() {
           ]}
         />
 
-        <GeoSection title={t("geo.global.coreMarketsTitle")} subtitle={t("geo.global.coreMarketsSubtitle")}>
-          <GeoSignalStrip
-            items={featuredCountries.slice(0, 4).map((country, index) => ({
-              label: country.name,
-              value: index === 0 ? t("geo.global.marketLead") : country.country_code,
-              tone: index === 0 ? "good" : "default",
-            }))}
-          />
-        </GeoSection>
+        <section className="overflow-hidden rounded-[32px] border border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,242,255,0.92))] shadow-soft">
+          <div className="grid gap-0 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="border-b border-line/15 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_28%),linear-gradient(140deg,rgba(255,255,255,0.98),rgba(247,243,255,0.92))] p-6 sm:p-8 xl:border-b-0 xl:border-r">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.global.coreMarketsTitle")}</div>
+              <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+                {t("geo.global.subtitle")}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-subtext">
+                {t("geo.global.coreMarketsSubtitle")}
+              </p>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <GeoSection title={t("geo.labels.zones")} subtitle={t("geo.global.zonesSubtitle")}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {visibleZones.map((zone) => {
-                const countryCount = visibleCountries.filter((country) => country.zone_id === zone.id).length;
-                return (
-                  <GeoChildCard
-                    key={zone.id}
-                    title={zone.name}
-                    subtitle={zone.description ?? t("geo.global.zoneFallback")}
-                    to={`/zones/${zone.slug}`}
-                    icon={geoScopeIcon(zone.kind)}
-                    badge={geoChildCountLabel(countryCount, t, "countries")}
-                  />
-                );
-              })}
-            </div>
-          </GeoSection>
-
-          <GeoSection title={t("geo.global.featuredCountries")} subtitle={t("geo.global.featuredCountriesSubtitle")}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {featuredCountries.map((country: GeoCountry) => (
-                <GeoChildCard
-                  key={country.id}
-                  title={`${country.flag_emoji ?? ""} ${country.name}`.trim()}
-                  subtitle={t("geo.global.countryCardSubtitle")}
-                  to={`/countries/${country.country_code}`}
-                  icon={<Map className="h-4 w-4 text-brand" />}
-                  badge={country.country_code}
+              <div className="mt-5">
+                <GeoSignalStrip
+                  items={featuredCountries.slice(0, 4).map((country, index) => ({
+                    label: country.name,
+                    value: index === 0 ? t("geo.global.marketLead") : country.country_code,
+                    tone: index === 0 ? "good" : "default",
+                  }))}
                 />
-              ))}
-            </div>
-          </GeoSection>
-        </div>
+              </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                {featuredCountries.map((country: GeoCountry) => (
+                  <GeoChildCard
+                    key={country.id}
+                    title={`${country.flag_emoji ?? ""} ${country.name}`.trim()}
+                    subtitle={`${data?.countryOpportunityCounts?.[country.country_code] ?? 0} ${t("geo.country.regionCardCountSubtitle")}`}
+                    to={`/countries/${country.country_code}`}
+                    icon={<Map className="h-4 w-4 text-brand" />}
+                    badge={country.country_code}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 bg-[linear-gradient(165deg,rgba(244,240,255,0.94),rgba(255,255,255,0.78))] p-6 sm:p-8">
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.hotCountries")}</div>
+                <div className="mt-2 text-2xl font-semibold text-text">{globalCountryHotspots[0]?.label ?? "—"}</div>
+                <div className="mt-1 text-sm text-subtext">
+                  {globalCountryHotspots[0]
+                    ? `${globalCountryHotspots[0].value} ${t("geo.country.intelligence.visibleItems")}`
+                    : t("geo.feed.empty")}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.sourceCoverage")}</div>
+                  <div className="mt-2 text-xl font-semibold text-text">{globalSourceMix[0]?.label ?? "—"}</div>
+                  <div className="mt-1 text-sm text-subtext">
+                    {globalSourceMix[0] ? `${globalSourceMix[0].value} ${t("geo.country.intelligence.visibleItems")}` : t("geo.feed.empty")}
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.insights.originMix")}</div>
+                  <div className="mt-3">
+                    <GeoSignalStrip
+                      items={insights.originMix.slice(0, 3).map((item) => ({
+                        label: item.label,
+                        value: String(item.value),
+                        tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">{t("geo.labels.zones")}</div>
+                <div className="mt-4 grid gap-3">
+                  {visibleZones.slice(0, 4).map((zone) => {
+                    const countryCount = visibleCountries.filter((country) => country.zone_id === zone.id).length;
+                    return (
+                      <div key={zone.id} className="flex items-center justify-between gap-3 rounded-2xl border border-line/15 bg-surface/88 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-text">{zone.name}</div>
+                          <div className="truncate text-xs text-subtext">{zone.description ?? t("geo.global.zoneFallback")}</div>
+                        </div>
+                        <span className="rounded-full border border-border/20 bg-bg/70 px-2.5 py-1 text-xs font-semibold text-text">
+                          {geoChildCountLabel(countryCount, t, "countries")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-2">
           <GeoSection title={t("geo.insights.hotCountries")} subtitle={t("geo.global.hotCountriesSubtitle")}>
             <GeoInsightList
               items={globalCountryHotspots}
@@ -181,44 +265,8 @@ export default function GlobalPage() {
           </GeoSection>
         </div>
 
-        <GeoSection title={t("geo.insights.originMix")} subtitle={t("geo.global.originMixSubtitle")}>
-          <GeoSignalStrip
-            items={insights.originMix.map((item) => ({
-              label: item.label,
-              value: String(item.value),
-              tone: item.label === "IT native" ? "good" : item.label === "EU" ? "default" : "warn",
-            }))}
-          />
-        </GeoSection>
-
         <GeoSection title={t("geo.feed.title")} subtitle={t("geo.global.feedSubtitle")}>
           <GeoOpportunityList items={data?.feed.items ?? []} />
-        </GeoSection>
-
-        <GeoSection title={t("geo.global.commercialTitle")} subtitle={t("geo.global.commercialSubtitle")}>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                <Globe2 className="h-4 w-4 text-brand" />
-                {t("geo.global.panel1.title")}
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{t("geo.global.panel1.body")}</p>
-            </div>
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                <Map className="h-4 w-4 text-brand" />
-                {t("geo.global.panel2.title")}
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{t("geo.global.panel2.body")}</p>
-            </div>
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-                <Map className="h-4 w-4 text-brand" />
-                {t("geo.global.panel3.title")}
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{t("geo.global.panel3.body")}</p>
-            </div>
-          </div>
         </GeoSection>
       </div>
     </GeoShell>

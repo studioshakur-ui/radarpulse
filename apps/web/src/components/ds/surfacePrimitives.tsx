@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 type SurfaceTone = "default" | "brand" | "good" | "warn" | "bad";
 
 const SURFACE_TONES: Record<SurfaceTone, string> = {
-  default: "border-line/25 bg-surface/92",
-  brand: "border-brand/25 bg-brand/10",
-  good: "border-good/25 bg-good/8",
-  warn: "border-warn/25 bg-warn/8",
-  bad: "border-bad/25 bg-bad/8",
+  default: "border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,243,255,0.9))]",
+  brand: "border-brand/20 bg-[linear-gradient(180deg,rgba(124,58,237,0.12),rgba(255,255,255,0.96))]",
+  good: "border-good/20 bg-[linear-gradient(180deg,rgba(22,163,74,0.10),rgba(255,255,255,0.96))]",
+  warn: "border-warn/20 bg-[linear-gradient(180deg,rgba(217,119,6,0.10),rgba(255,255,255,0.96))]",
+  bad: "border-bad/20 bg-[linear-gradient(180deg,rgba(220,38,38,0.10),rgba(255,255,255,0.96))]",
 };
 
 export function PageIntro({

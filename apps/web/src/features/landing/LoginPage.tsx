@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { getValidAccessToken } from "@/lib/authToken";
 import { Logo } from "@/components/Logo";
 import { useT } from "@/i18n";
 
@@ -37,10 +36,9 @@ export default function LoginPage() {
     void supabase.auth.getUser().then(async ({ data, error: authError }) => {
       if (!mounted) return;
       if (authError || !data.user) {
-        await supabase.auth.signOut({ scope: "local" });
         return;
       }
-      navigate("/dossiers", { replace: true });
+      navigate("/workspaces", { replace: true });
     });
 
     return () => {
@@ -59,8 +57,7 @@ export default function LoginPage() {
         password,
       });
       if (signInError) throw signInError;
-      await getValidAccessToken({ forceRefresh: true });
-      navigate("/dossiers", { replace: true });
+      navigate("/workspaces", { replace: true });
     } catch (authError) {
       setError(friendlyAuthError(authError));
     } finally {

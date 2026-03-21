@@ -1,6 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin, sbAdminForRequest } from "../_shared/db.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { extractJsonObject } from "../_shared/openai_json.ts";
 
 const log = createLogger("opportunity-score");
 
@@ -431,10 +432,9 @@ Deno.serve(async (req) => {
 
     const generation_ms = Date.now() - t0;
     const openaiData = (await openaiRes.json()) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: unknown } }[];
     };
-    const content = openaiData.choices?.[0]?.message?.content ?? "{}";
-    const raw = JSON.parse(content) as Record<string, unknown>;
+    const raw = extractJsonObject(openaiData.choices?.[0]?.message?.content ?? "");
 
     // Validate and normalise dimensions
     const rawDims = Array.isArray(raw.dimensions) ? raw.dimensions : [];
@@ -566,6 +566,9 @@ Deno.serve(async (req) => {
     if (originalError instanceof ScoreHttpError) {
       return json(originalError.status, { ok: false, error: originalError.code });
     }
-    return json(500, { ok: false, error: "INTERNAL_ERROR" });
+    if (originalError.message === "AI_EMPTY_RESPONSE" || originalError.message === "AI_INVALID_JSON") {
+      return json(502, { ok: false, error: originalError.message });
+    }
+    return json(500, { ok: false, error: "INTERNAL_ERROR", details: serializeError(originalError) });
   }
 });

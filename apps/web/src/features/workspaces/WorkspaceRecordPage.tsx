@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, ExternalLink, FolderCheck, ListTodo, Sparkles } from "lucide-react";
+import { ArrowLeft, CalendarDays, ExternalLink, FolderCheck, ListTodo, Sparkles, Target } from "lucide-react";
 import { PageIntro, SurfaceSection } from "@/components/ds/surfacePrimitives";
 import {
   DecisionStateBadge,
@@ -10,13 +10,13 @@ import {
   StatePanel,
 } from "@/components/ds/statusPrimitives";
 import { useLocale } from "@/lib/i18n";
-import type { DossierStatus } from "@/lib/types";
 import { fmtDateTime, fmtRelative } from "@/lib/utils";
 import { useOpportunityBrief, type OpportunityBrief } from "@/features/workspace/useOpportunityBrief";
 import { useOpportunityScore } from "@/features/workspace/useOpportunityScore";
 import { useOpportunityPrep } from "@/features/workspace/useOpportunityPrep";
 import { useWorkspaceData } from "@/features/workspace/useWorkspaceData";
-import { useDossier } from "./useDossier";
+import { useWorkspaceRecord } from "./useWorkspaceRecord";
+import type { WorkspaceStatus } from "./workspaceApi";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
@@ -24,9 +24,9 @@ const LOCALE_MAP: Record<string, string> = {
   it: "it-IT",
 };
 
-const DOSSIER_STATUS_OPTIONS: DossierStatus[] = ["NEW", "REVIEW", "GO", "HOLD", "BLOCKED", "READY", "SUBMITTED"];
+const WORKSPACE_STATUS_OPTIONS: WorkspaceStatus[] = ["NEW", "REVIEW", "GO", "HOLD", "BLOCKED", "READY", "SUBMITTED"];
 
-function dossierTone(status: DossierStatus): "neutral" | "brand" | "good" | "warn" | "bad" {
+function workspaceTone(status: WorkspaceStatus): "neutral" | "brand" | "good" | "warn" | "bad" {
   switch (status) {
     case "GO":
     case "READY":
@@ -94,11 +94,11 @@ function BriefSummary({
   );
 }
 
-export default function DossierPage() {
+export default function WorkspaceRecordPage() {
   const { id } = useParams<{ id: string }>();
   const { t, locale } = useLocale();
   const fmtLocale = LOCALE_MAP[locale] ?? "en-US";
-  const { detail, loading, savingStatus, savingTask, error, saveStatus, addTask, toggleTask } = useDossier(id ?? null);
+  const { detail, loading, savingStatus, savingTask, error, saveStatus, addTask, toggleTask } = useWorkspaceRecord(id ?? null);
   const opportunityId = detail?.dossier.opportunity_id ?? null;
   const { opportunity, loading: opportunityLoading, error: opportunityError } = useWorkspaceData(opportunityId ?? "");
   const { prep, loading: prepLoading, generate: generatePrep, generating: prepGenerating } = useOpportunityPrep(opportunityId);
@@ -152,11 +152,26 @@ export default function DossierPage() {
   }
 
   if (loading || opportunityLoading) {
-    return <StatePanel description={t("dossier.loading")} />;
+    return (
+      <div className="space-y-5">
+        <div className="h-5 w-28 animate-pulse rounded-lg bg-elevated" />
+        <div className="h-28 animate-pulse rounded-3xl bg-surface" />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+          <div className="space-y-4">
+            <div className="h-40 animate-pulse rounded-2xl bg-surface" />
+            <div className="h-56 animate-pulse rounded-2xl bg-surface" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-44 animate-pulse rounded-2xl bg-surface" />
+            <div className="h-44 animate-pulse rounded-2xl bg-surface" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || opportunityError || !detail || !opportunity) {
-    return <StatePanel tone="bad" description={error ?? opportunityError ?? t("dossier.notFound")} />;
+    return <StatePanel tone="bad" title="Workspace unavailable" description={error ?? opportunityError ?? t("dossier.notFound")} />;
   }
 
   return (
@@ -194,28 +209,108 @@ export default function DossierPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <SemanticPill tone={dossierTone(detail.dossier.status)}>
-          {t(`dossiers.status.${detail.dossier.status.toLowerCase()}`)}
-        </SemanticPill>
-        <DecisionStateBadge decision={detail.decision} undecidedLabel={t("inbox.filter.decision.undecided")} />
+      <section className="overflow-hidden rounded-[28px] border border-line/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(247,243,255,0.94))] shadow-soft">
+        <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="border-b border-line/15 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.1),transparent_32%),linear-gradient(140deg,rgba(255,255,255,0.99),rgba(247,243,255,0.94))] p-5 sm:p-6 lg:border-b-0 lg:border-r">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">Workspace record</div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              Operational layer for tracked work.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-subtext">
+              This record keeps status, checklist and next actions attached to the opportunity while the main workspace continues to hold brief, score and preparation context.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-line/15 bg-white/88 p-4 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Current lane</div>
+                <div className="mt-2 inline-flex">
+                  <SemanticPill tone={workspaceTone(detail.dossier.status)}>
+                    {t(`dossiers.status.${detail.dossier.status.toLowerCase()}`)}
+                  </SemanticPill>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-line/15 bg-white/88 p-4 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Decision</div>
+                <div className="mt-2">
+                  <DecisionStateBadge decision={detail.decision} undecidedLabel={t("inbox.filter.decision.undecided")} />
+                </div>
+              </div>
+              <div className="rounded-2xl border border-line/15 bg-white/88 p-4 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Time pressure</div>
+                <div className="mt-2 text-sm font-semibold text-text">{fmtRelative(opportunity.deadline_at, fmtLocale)}</div>
+                <div className="mt-1 text-xs text-subtext">Keep dossier work ahead of the live deadline.</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 bg-[linear-gradient(165deg,rgba(244,240,255,0.94),rgba(255,255,255,0.78))] p-5 sm:p-6">
+            <div className="rounded-3xl border border-brand/18 bg-[linear-gradient(180deg,rgba(124,58,237,0.12),rgba(255,255,255,0.95))] p-5 shadow-soft">
+              <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">
+                <Target className="h-3.5 w-3.5 text-brand" />
+                Next move
+              </div>
+              <div className="mt-3 text-lg font-semibold tracking-tight text-text">
+                {brief?.next_action ?? "Advance the current workspace by locking the next operational step."}
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-subtext">
+                {savingStatus ? "Saving workspace status..." : `${t("dossiers.updated")} ${fmtRelative(detail.dossier.updated_at, fmtLocale)}`}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Checklist pressure</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-text">
+                  {detail.tasks.filter((task) => !task.is_done).length}
+                </div>
+                <div className="mt-1 text-sm text-subtext">
+                  open item{detail.tasks.filter((task) => !task.is_done).length === 1 ? "" : "s"} still blocking movement.
+                </div>
+              </div>
+              <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Workspace link</div>
+                <Link
+                  to={`/workspace/${detail.dossier.opportunity_id}`}
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand transition hover:text-text"
+                >
+                  <FolderCheck className="h-4 w-4" />
+                  {t("dossier.links.workspace")}
+                </Link>
+                <div className="mt-1 text-sm text-subtext">Open the full intelligence view without losing the tracked record.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-3 rounded-3xl border border-line/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,242,255,0.88))] p-4 shadow-soft sm:grid-cols-[auto_auto_auto_1fr]">
+        <div className="space-y-1">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext/65">State</div>
+          <SemanticPill tone={workspaceTone(detail.dossier.status)}>
+            {t(`dossiers.status.${detail.dossier.status.toLowerCase()}`)}
+          </SemanticPill>
+        </div>
+        <div className="space-y-1">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext/65">Decision</div>
+          <DecisionStateBadge decision={detail.decision} undecidedLabel={t("inbox.filter.decision.undecided")} />
+        </div>
         {score ? (
-          <ScoreStateBadge
-            band={score.score_band}
-            label={t(`workspace.score.${score.score_band}`)}
-            value={`${Math.round(score.score_value * 100)}%`}
-          />
+          <div className="space-y-1">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext/65">Score</div>
+            <ScoreStateBadge
+              band={score.score_band}
+              label={t(`workspace.score.${score.score_band}`)}
+              value={`${Math.round(score.score_value * 100)}%`}
+            />
+          </div>
         ) : null}
-        {opportunity.country_code ? <SignalBadge>{opportunity.country_code}</SignalBadge> : null}
-        {opportunity.language?.toLowerCase().startsWith("cy") ? (
-          <SignalBadge>
-            Bilingual
-          </SignalBadge>
-        ) : null}
-        <span className="inline-flex items-center gap-1.5 text-sm text-subtext">
-          <CalendarDays className="h-4 w-4" />
-          {fmtRelative(opportunity.deadline_at, fmtLocale)}
-        </span>
+        <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
+          {opportunity.country_code ? <SignalBadge>{opportunity.country_code}</SignalBadge> : null}
+          {opportunity.language?.toLowerCase().startsWith("cy") ? <SignalBadge>Bilingual</SignalBadge> : null}
+          <span className="inline-flex items-center gap-1.5 text-sm text-subtext">
+            <CalendarDays className="h-4 w-4" />
+            {fmtRelative(opportunity.deadline_at, fmtLocale)}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
@@ -226,11 +321,11 @@ export default function DossierPage() {
             action={
               <select
                 value={detail.dossier.status}
-                onChange={(event) => void saveStatus(event.target.value as DossierStatus)}
+                onChange={(event) => void saveStatus(event.target.value as WorkspaceStatus)}
                 disabled={savingStatus}
                 className="rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40 disabled:opacity-70"
               >
-                {DOSSIER_STATUS_OPTIONS.map((status) => (
+                {WORKSPACE_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
                     {t(`dossiers.status.${status.toLowerCase()}`)}
                   </option>
@@ -276,16 +371,17 @@ export default function DossierPage() {
           <SurfaceSection
             title={t("dossier.score.title")}
             subtitle={t("dossier.score.subtitle")}
+            tone={score ? (score.score_band === "high" ? "good" : score.score_band === "med" ? "warn" : "bad") : "default"}
             action={
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!opportunityId) return;
-                    void generateScore(opportunityId);
-                  }}
-                  disabled={scoreLoading || scoreGenerating}
-                  className="rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm font-semibold text-subtext transition hover:bg-elevated disabled:opacity-70"
-                >
+              <button
+                type="button"
+                onClick={() => {
+                  if (!opportunityId) return;
+                  void generateScore(opportunityId);
+                }}
+                disabled={scoreLoading || scoreGenerating}
+                className="rounded-xl border border-line/25 bg-bg px-3 py-2 text-sm font-semibold text-subtext transition hover:bg-elevated disabled:opacity-70"
+              >
                 {scoreGenerating ? t("workspace.score.computing") : t("dossier.score.generate")}
               </button>
             }
@@ -356,6 +452,7 @@ export default function DossierPage() {
           <SurfaceSection
             title={t("dossier.next.title")}
             subtitle={t("dossier.next.subtitle")}
+            tone="brand"
           >
             <div className="space-y-3">
               {brief?.next_action ? (
@@ -397,16 +494,19 @@ export default function DossierPage() {
             subtitle={t("dossier.links.subtitle")}
           >
             <div className="grid gap-3">
-              <Link
-                to={`/workspace/${detail.dossier.opportunity_id}`}
-                className="inline-flex items-center justify-between rounded-2xl border border-line/15 bg-surface/92 px-4 py-3 text-sm font-semibold text-text transition hover:bg-elevated"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <FolderCheck className="h-4 w-4 text-brand" />
-                  {t("dossier.links.workspace")}
-                </span>
-                <span>{t("workspace.openBtn")}</span>
-              </Link>
+              <div className="rounded-2xl border border-line/15 bg-surface/92 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Workspace intelligence</div>
+                <Link
+                  to={`/workspace/${detail.dossier.opportunity_id}`}
+                  className="mt-3 inline-flex items-center justify-between rounded-2xl border border-line/15 bg-bg px-4 py-3 text-sm font-semibold text-text transition hover:bg-elevated"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FolderCheck className="h-4 w-4 text-brand" />
+                    {t("dossier.links.workspace")}
+                  </span>
+                  <span>{t("workspace.openBtn")}</span>
+                </Link>
+              </div>
               <p className="text-xs text-subtext">
                 {prepLoading || prepGenerating ? t("workspace.prep.computing") : t("dossier.links.helper")}
               </p>

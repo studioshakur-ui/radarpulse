@@ -3,6 +3,12 @@ import { normalizeText, safeStr } from "../../_shared/text.ts";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4.5.3";
 
 /* -----------------------------
+   Types
+----------------------------- */
+/** Loosely-typed RSS/Atom feed entry from fast-xml-parser. */
+type RssEntry = Record<string, unknown>;
+
+/* -----------------------------
    Utils
 ----------------------------- */
 function parseDate(v: unknown): string | null {
@@ -46,7 +52,7 @@ function makeFingerprint(sourceKey: string, externalId: string, title: string, l
   return `${sourceKey}-${(h >>> 0).toString(16)}`;
 }
 
-function pickLink(entry: any): string {
+function pickLink(entry: RssEntry): string {
   // RSS: <link>https://...</link>
   const rssLink = textOf(entry?.link);
   if (rssLink) return rssLink;
@@ -56,9 +62,9 @@ function pickLink(entry: any): string {
   const linkNode = entry?.link;
 
   // If multiple <link>, can be array
-  const links = arrify(linkNode);
+  const links = arrify(linkNode as RssEntry | RssEntry[] | undefined | null);
   for (const ln of links) {
-    const href = ln && typeof ln === "object" ? String((ln as any)["@_href"] ?? "").trim() : "";
+    const href = ln && typeof ln === "object" ? String((ln as Record<string, unknown>)["@_href"] ?? "").trim() : "";
     if (href) return href;
     const maybeText = textOf(ln);
     if (maybeText) return maybeText;
@@ -67,16 +73,16 @@ function pickLink(entry: any): string {
   return "";
 }
 
-function pickTitle(entry: any): string {
+function pickTitle(entry: RssEntry): string {
   return textOf(entry?.title);
 }
 
-function pickGuid(entry: any): string {
+function pickGuid(entry: RssEntry): string {
   // RSS: <guid>...</guid> ; Atom: <id>...</id>
   return textOf(entry?.guid) || textOf(entry?.id);
 }
 
-function pickPublished(entry: any): string | null {
+function pickPublished(entry: RssEntry): string | null {
   // RSS: pubDate ; Atom: published/updated
   return (
     parseDate(entry?.pubDate) ||
@@ -86,7 +92,7 @@ function pickPublished(entry: any): string | null {
   );
 }
 
-function pickSummary(entry: any): string {
+function pickSummary(entry: RssEntry): string {
   // RSS: description ; Atom: summary/content (content may be object)
   const d = textOf(entry?.description);
   if (d) return d;
@@ -99,7 +105,7 @@ function pickSummary(entry: any): string {
 
   // Atom content sometimes: { "#text": "...", "@_type": "html" }
   if (entry?.content && typeof entry.content === "object") {
-    const t = textOf((entry.content as any)["#text"]);
+    const t = textOf((entry.content as Record<string, unknown>)["#text"]);
     if (t) return t;
   }
 
@@ -133,18 +139,19 @@ export async function rssFetch(source: SourceRow) {
     processEntities: true,
   });
 
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try {
-    parsed = parser.parse(xml);
+    parsed = parser.parse(xml) as Record<string, unknown>;
   } catch (e) {
-    throw new Error(`RSS parse failed: ${(e as any)?.message ?? String(e)}`);
+    throw new Error(`RSS parse failed: ${(e as Error)?.message ?? String(e)}`);
   }
 
   // RSS 2.0: { rss: { channel: { item: [...] } } }
-  const rssItems = arrify(parsed?.rss?.channel?.item);
+  const rssChannel = (parsed?.rss as Record<string, unknown>)?.channel as Record<string, unknown> | undefined;
+  const rssItems = arrify(rssChannel?.item as RssEntry | RssEntry[] | undefined);
 
   // Atom: { feed: { entry: [...] } }
-  const atomEntries = arrify(parsed?.feed?.entry);
+  const atomEntries = arrify((parsed?.feed as Record<string, unknown>)?.entry as RssEntry | RssEntry[] | undefined);
 
   // Fallbacks possibles (certains feeds non standard)
   const entries = rssItems.length ? rssItems : atomEntries;
@@ -166,7 +173,7 @@ export async function rssFetch(source: SourceRow) {
       source_id: source.id,
       external_id: guid || null,
       fingerprint,
-      type: (source.meta?.["default_type"] as any) === "grant" ? "grant" : "tender",
+      type: source.meta?.["default_type"] === "grant" ? "grant" : "tender",
       status: "active",
       is_public: true,
       country_code: source.country_code,

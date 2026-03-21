@@ -36,7 +36,7 @@ export default function ZonePage() {
   if (notFound) {
     return (
       <GeoShell title={t("geo.errors.notFoundTitle")} subtitle={t("geo.errors.notFoundBody")} breadcrumbs={[{ label: t("geo.nav.global"), to: "/global" }, { label: zoneSlug }]}>
-        <div className="rounded-2xl border border-border/25 bg-white/45 p-5 text-sm text-muted">{t("geo.errors.notFoundBody")}</div>
+        <div className="rounded-2xl border border-line/15 bg-surface/92 p-5 text-sm text-muted shadow-soft">{t("geo.errors.notFoundBody")}</div>
       </GeoShell>
     );
   }
@@ -109,13 +109,13 @@ export default function ZonePage() {
 
         <GeoSection title={t("geo.zone.forwardTitle")} subtitle={t("geo.zone.forwardSubtitle")}>
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft text-sm text-muted">
+            <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft text-sm text-muted">
               {t("geo.zone.forwardCard1")}
             </div>
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft text-sm text-muted">
+            <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft text-sm text-muted">
               {t("geo.zone.forwardCard2")}
             </div>
-            <div className="rounded-3xl border border-border/25 bg-bg/45 p-5 shadow-soft text-sm text-muted">
+            <div className="rounded-3xl border border-line/15 bg-surface/92 p-5 shadow-soft text-sm text-muted">
               <span className="inline-flex items-center gap-2 font-semibold text-text">
                 <Map className="h-4 w-4 text-brand" />
                 {geoChildCountLabel(data?.countries.length ?? 0, t, "countries")}

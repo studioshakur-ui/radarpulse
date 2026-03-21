@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
-import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
+import { AuthTokenError, getValidAccessToken, recoverInvalidSession } from "@/lib/authToken";
 import { useLocale } from "@/lib/i18n";
 
 export type OpportunityScore = {
@@ -138,11 +138,16 @@ export function useOpportunityScore(opportunityId: string | null, deadlineAt?: s
       });
 
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok || !data.score) throw new Error((data.error as string) ?? "Request failed");
+      if (!res.ok || !data.score) {
+        const errorCode = typeof data.error === "string" ? data.error : "Request failed";
+        const details = typeof data.details === "string" ? data.details : null;
+        throw new Error(details ? `${errorCode}: ${details}` : errorCode);
+      }
 
       setScore(applyDeadlineAdjustment(data.score as OpportunityScore, deadlineAt, locale));
     } catch (e) {
       if (e instanceof AuthTokenError) {
+        void recoverInvalidSession();
         setError(e.message);
       } else {
         setError(e instanceof Error ? e.message : "Error");

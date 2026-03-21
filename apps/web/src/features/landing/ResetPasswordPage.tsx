@@ -1,7 +1,7 @@
 // ResetPasswordPage — handles the password-reset link sent by Supabase.
 // Flow: user clicks email link → lands here with #access_token (recovery type)
 // detectSessionInUrl: true processes the hash → onAuthStateChange fires PASSWORD_RECOVERY
-// → show new-password form → supabase.auth.updateUser({ password }) → redirect to /dossiers.
+// → show new-password form → supabase.auth.updateUser({ password }) → redirect to /workspaces.
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
       setStage("done");
       // Redirect after short delay so the user sees the success message
       setTimeout(() => {
-        window.location.href = "/dossiers";
+        window.location.href = "/workspaces";
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update password.");
@@ -182,7 +182,7 @@ export default function ResetPasswordPage() {
           {stage === "done" && (
             <div className="rounded-2xl border border-good/20 bg-good/10 p-4">
               <div className="text-sm font-semibold text-good">Password updated ✓</div>
-              <div className="mt-1 text-sm text-subtext">Redirecting to your dossiers…</div>
+              <div className="mt-1 text-sm text-subtext">Redirecting to your workspaces…</div>
             </div>
           )}
 
