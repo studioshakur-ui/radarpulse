@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict dgQzBfgf2toSNAQlMJEkpGS81eRqZd0UGqcPfKWZ9ExeCiMXYNRzjL2VLWATMes
+\restrict 0u44LxsNeMBkEya2ayuOYW812KhhsMJ5CmY1wspxYWGvb1Y7DNX4CHkviJ8c1Fb
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -982,6 +982,7 @@ CREATE VIEW public.opportunities_geo_scope_v1 AS
     COALESCE(gc_linked.country_code, gc_fallback.country_code, oe.country_code, o.country_code) AS country_code,
     oe.quality_score,
     oe.completeness_score,
+    oe.sector,
     s.origin_type,
     gz.slug AS geo_zone_slug,
     gz.name AS geo_zone_name,
@@ -3348,5 +3349,5 @@ CREATE POLICY whatsapp_optins_owner_rw ON public.whatsapp_optins USING ((auth.ui
 -- PostgreSQL database dump complete
 --
 
-\unrestrict dgQzBfgf2toSNAQlMJEkpGS81eRqZd0UGqcPfKWZ9ExeCiMXYNRzjL2VLWATMes
+\unrestrict 0u44LxsNeMBkEya2ayuOYW812KhhsMJ5CmY1wspxYWGvb1Y7DNX4CHkviJ8c1Fb
 
