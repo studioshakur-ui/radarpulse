@@ -11,8 +11,10 @@ import { apiPublicContractsScotlandFetch } from "./uk_public_contracts_scotland.
 import { apiSell2WalesFetch } from "./uk_sell2wales.ts";
 import { apiSamGovFetch } from "./us_sam_gov.ts";
 import { apiGrantsGovFetch } from "./us_grants_gov.ts";
+import { apiSintelLombardiaFetch } from "./it_sintel_lombardia.ts";
+import { apiIntercentErFetch } from "./it_intercent_er.ts";
 
-type Provider = "uk_find_tender" | "uk_contracts_finder" | "uk_sell2wales" | "uk_public_contracts_scotland" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "it_eappalti_fvg" | "fr_boamp";
+type Provider = "uk_find_tender" | "uk_contracts_finder" | "uk_sell2wales" | "uk_public_contracts_scotland" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "it_eappalti_fvg" | "fr_boamp" | "it_sintel_lombardia" | "it_intercent_er";
 
 type ProviderConfig = {
   key: Provider;
@@ -31,6 +33,8 @@ const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
   us_sam_gov: { key: "us_sam_gov", is_active: true, country_code: "US" },
   us_grants_gov: { key: "us_grants_gov", is_active: true, country_code: "US" },
   it_anac_ocds: { key: "it_anac_ocds", is_active: true, country_code: "IT" },
+  it_sintel_lombardia: { key: "it_sintel_lombardia", is_active: true, country_code: "IT" },
+  it_intercent_er: { key: "it_intercent_er", is_active: true, country_code: "IT" },
 };
 
 function providerFromSource(source: SourceRow): Provider | null {
@@ -46,6 +50,8 @@ function providerFromSource(source: SourceRow): Provider | null {
   if (p === "us_grants_gov") return "us_grants_gov";
   if (p === "eu_ted_search") return "eu_ted_search";
   if (p === "it_anac_ocds") return "it_anac_ocds";
+  if (p === "it_sintel_lombardia") return "it_sintel_lombardia";
+  if (p === "it_intercent_er") return "it_intercent_er";
 
   return null;
 }
@@ -91,6 +97,10 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
       return await apiEuTedSearchFetch(source);
     case "it_anac_ocds":
       return await apiAnacOcdsFetch(source);
+    case "it_sintel_lombardia":
+      return await apiSintelLombardiaFetch(source);
+    case "it_intercent_er":
+      return await apiIntercentErFetch(source);
     default:
       return {
         opportunities: [],

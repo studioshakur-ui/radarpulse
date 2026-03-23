@@ -116,9 +116,13 @@ function pickSummary(entry: RssEntry): string {
    Main
 ----------------------------- */
 export async function rssFetch(source: SourceRow) {
+  const ua = source.meta?.user_agent
+    ? String(source.meta.user_agent)
+    : "radarpulse/1.0 (rss-ingestor)";
+
   const res = await fetch(source.url, {
     headers: {
-      "User-Agent": "radarpulse/1.0 (rss-ingestor)",
+      "User-Agent": ua,
       "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
     },
   });

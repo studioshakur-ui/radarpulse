@@ -153,6 +153,13 @@ async function getSource(sourceId: string): Promise<SourceRow> {
   return data as SourceRow;
 }
 
+async function getSourceByKey(sourceKey: string): Promise<SourceRow> {
+  const { data, error } = await sb().from("sources").select("*").eq("key", sourceKey).maybeSingle();
+  if (error) throw new Error(`Failed to load source by key: ${error.message}`);
+  if (!data) throw new Error(`Source not found: ${sourceKey}`);
+  return data as SourceRow;
+}
+
 function currentPagingCursorFromMeta(meta: unknown): string | null {
   const m = (meta ?? {}) as Record<string, unknown>;
   if (typeof m.cursor === "string" && m.cursor.trim()) return m.cursor.trim();
@@ -313,7 +320,7 @@ async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput, runId: 
   return { id: data.id as string };
 }
 
-async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput) {
+async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput): Promise<{ id: string }> {
   const fingerprint = safeStr((opp as any)?.fingerprint).trim();
   if (!fingerprint) throw new Error("Missing opportunity fingerprint");
 
@@ -340,8 +347,42 @@ async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput)
     updated_at: nowIso(),
   };
 
-  const { error } = await sb().from("opportunities").upsert(payload, { onConflict: "fingerprint" });
+  const { data, error } = await sb()
+    .from("opportunities")
+    .upsert(payload, { onConflict: "fingerprint" })
+    .select("id")
+    .single();
   if (error) throw new Error(`Failed to upsert opportunities row: ${error.message}`);
+  return { id: data.id as string };
+}
+
+async function upsertOpportunityDocuments(
+  opportunityId: string,
+  docs: Array<{ doc_url: string; doc_title: string | null; doc_type: string | null }>,
+): Promise<void> {
+  if (!docs.length) return;
+
+  // Load existing doc_urls for this opportunity to avoid duplicates
+  const { data: existing } = await sb()
+    .from("opportunity_documents")
+    .select("doc_url")
+    .eq("opportunity_id", opportunityId);
+
+  const existingUrls = new Set((existing ?? []).map((r: Record<string, unknown>) => String(r.doc_url ?? "")));
+  const newDocs = docs.filter((d) => d.doc_url && !existingUrls.has(d.doc_url));
+  if (!newDocs.length) return;
+
+  const rows = newDocs.map((d) => ({
+    opportunity_id: opportunityId,
+    doc_url: d.doc_url,
+    doc_title: d.doc_title,
+    doc_type: d.doc_type,
+  }));
+
+  const { error } = await sb().from("opportunity_documents").insert(rows);
+  if (error) {
+    log.warn("upsert_opportunity_documents_failed", { opportunityId, error: error.message });
+  }
 }
 
 async function persistSourcePagingState(source: SourceRow, result: ConnectorResult) {
@@ -409,16 +450,12 @@ function shouldRunAiForItem(args: {
 /* -----------------------------
    Job processor
 ----------------------------- */
-async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
-  // sécurité absolue
-  const jobId = coerceJobId(job as any);
-  if (jobId === null) {
-    return { ok: true, message: "no_jobs" };
+async function processSource(source: SourceRow, options?: WorkerRunOptions, job?: IngestionJobRow | null) {
+  const jobId = job ? coerceJobId(job as any) : null;
+  if (jobId !== null) {
+    await setJobRunning(jobId);
   }
 
-  await setJobRunning(jobId);
-
-  const source = await getSource((job as any).source_id);
   const { runId, cursor: runCursor } = await startIngestionRun(source);
   const jobStartedAtMs = Date.now();
   const aiEnabled = options?.aiEnabledOverride ?? Boolean(Deno.env.get("OPENAI_API_KEY"));
@@ -460,8 +497,16 @@ async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
         const raw = await upsertRaw(source, normalizedOpp, runId);
         upsertedRaw += 1;
 
-        await upsertOpportunity(source, normalizedOpp);
+        const oppResult = await upsertOpportunity(source, normalizedOpp);
         upsertedOpportunities += 1;
+
+        // Insert opportunity documents from connector (fire-and-forget, non-blocking)
+        const oppDocs = (normalizedOpp as any)?.documents;
+        if (Array.isArray(oppDocs) && oppDocs.length > 0) {
+          void upsertOpportunityDocuments(oppResult.id, oppDocs).catch((e: unknown) => {
+            log.warn("opportunity_documents_upsert_failed", { opportunityId: oppResult.id, error: e instanceof Error ? e.message : String(e) });
+          });
+        }
 
         const aiDecision = shouldRunAiForItem({
           aiEnabled,
@@ -559,7 +604,9 @@ async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
 
     await persistSourcePagingState(source, result);
     await markSourceSuccess(source.id);
-    await setJobSuccess(jobId);
+    if (jobId !== null) {
+      await setJobSuccess(jobId);
+    }
     await finishIngestionRun(runId, {
       status: "SUCCESS",
       fetched_count: fetchedCount,
@@ -583,11 +630,14 @@ async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
       ai_skipped_deadline: aiSkippedDeadline,
       ai_failures: aiFailures,
       fetched_at: (result as any)?.fetched_at ?? null,
+      mode: jobId === null ? "direct_source" : "queued_job",
     };
   } catch (err) {
     const msg = sanitizeErrorMessage(err);
     await markSourceError(source.id, msg);
-    await setJobError(jobId, msg);
+    if (jobId !== null) {
+      await setJobError(jobId, msg);
+    }
     await finishIngestionRun(runId, {
       status: "FAILED",
       fetched_count: 0,
@@ -596,8 +646,18 @@ async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
       cursor: runCursor,
       error: msg,
     });
-    return { ok: false, source: source.key, kind: source.kind, error: msg };
+    return { ok: false, source: source.key, kind: source.kind, error: msg, mode: jobId === null ? "direct_source" : "queued_job" };
   }
+}
+
+async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
+  const jobId = coerceJobId(job as any);
+  if (jobId === null) {
+    return { ok: true, message: "no_jobs" };
+  }
+
+  const source = await getSource((job as any).source_id);
+  return await processSource(source, options, job);
 }
 
 /* -----------------------------
@@ -639,7 +699,23 @@ Deno.serve(async (req) => {
       Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
     const softDeadlineMsOverride =
       Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
+    const sourceIdOverride = typeof body?.source_id === "string" ? body.source_id.trim() : "";
+    const sourceKeyOverride = typeof body?.source_key === "string" ? body.source_key.trim() : "";
     const results: Awaited<ReturnType<typeof processJob>>[] = [];
+
+    if (sourceIdOverride || sourceKeyOverride) {
+      const source = sourceIdOverride
+        ? await getSource(sourceIdOverride)
+        : await getSourceByKey(sourceKeyOverride);
+
+      const result = await processSource(source, {
+        aiEnabledOverride,
+        aiMaxPerJobOverride,
+        softDeadlineMsOverride,
+      }, null);
+
+      return json({ ok: true, results: [result] }, { status: 200 });
+    }
 
     for (let i = 0; i < maxJobs; i++) {
       // IMPORTANT: rpc peut renvoyer:

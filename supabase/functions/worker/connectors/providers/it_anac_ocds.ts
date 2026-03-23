@@ -1,4 +1,4 @@
-import type { OpportunityUpsertInput, SourceRow } from "../../../_shared/types.ts";
+import type { OpportunityDocumentInput, OpportunityUpsertInput, SourceRow } from "../../../_shared/types.ts";
 import { sha256Hex } from "../../../_shared/rp_ai_utils.ts";
 import type { ConnectorResult } from "../index.ts";
 import { safeJsonFetch } from "../_utils.ts";
@@ -143,7 +143,15 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
         ? "Stazione appaltante: " + buyerName
         : null;
 
-    const address = (entity?.address ?? null) as JsonObj | null;
+    // OCDS: entity reference (buyer/procuringEntity) is lightweight — no address.
+    // Full address lives in release.parties[] matched by id or role=buyer/procuringEntity.
+    const parties = Array.isArray(release.parties) ? release.parties as JsonObj[] : [];
+    const buyerParty = parties.find((p) => {
+      const roles = Array.isArray(p.roles) ? p.roles as string[] : [];
+      return roles.includes("buyer") || roles.includes("procuringEntity") || safeStr(p.name) === buyerName;
+    }) ?? entity ?? null;
+
+    const address = (buyerParty?.address ?? (entity?.address ?? null)) as JsonObj | null;
     const region = safeStr(address?.region) || null;
     const locality = safeStr(address?.locality) || null;
 
@@ -152,6 +160,16 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
       ? source.key + "::" + externalId
       : source.key + "::" + title + "::" + (buyerName ?? "") + "::" + (deadlineAt ?? "");
     const fingerprint = await sha256Hex(fingerprintBasis);
+
+    // Extract tender documents (OCDS standard: tender.documents[])
+    const tenderDocuments = Array.isArray(tender.documents) ? tender.documents as JsonObj[] : [];
+    const documents: OpportunityDocumentInput[] = tenderDocuments
+      .filter((d) => typeof d.url === "string" && safeStr(d.url))
+      .map((d) => ({
+        doc_url: safeStr(d.url),
+        doc_title: safeStr(d.title) || safeStr(d.description) || null,
+        doc_type: safeStr(d.documentType) || safeStr(d.format) || null,
+      }));
 
     out.push({
       source_id: source.id,
@@ -169,6 +187,7 @@ export async function apiAnacOcdsFetch(source: SourceRow): Promise<ConnectorResu
       deadline_tz: null,
       source_url: sourceUrl,
       language: "it",
+      documents: documents.length > 0 ? documents : undefined,
       raw: {
         provider: "it_anac_ocds",
         ocid,

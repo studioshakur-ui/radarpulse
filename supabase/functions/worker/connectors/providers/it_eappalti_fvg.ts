@@ -10,7 +10,7 @@ const FVG_PORTAL_BOOT_URL = "https://eappalti.regione.fvg.it/web/index.html";
 const FVG_PUBLIC_LISTING_URL =
   "https://eappalti.regione.fvg.it/esop/guest/go/public/opportunity/current?customLoginPage=%2Fweb%2Findex.html&locale=it_IT";
 const BROWSER_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0";
 
 function collectCookies(headers: Headers) {
   const cookieValues =
@@ -24,25 +24,48 @@ function collectCookies(headers: Headers) {
     .join("; ");
 }
 
-async function fetchWithSession(url: string) {
-  const bootstrap = await fetch(FVG_PORTAL_BOOT_URL, {
-    headers: {
-      "User-Agent": BROWSER_UA,
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
-    },
-  });
+function mergeCookies(existing: string, incoming: string): string {
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+  const jar = new Map<string, string>();
+  for (const part of [...existing.split("; "), ...incoming.split("; ")]) {
+    const eq = part.indexOf("=");
+    if (eq < 0) continue;
+    jar.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
+  }
+  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+}
 
-  const cookieHeader = collectCookies(bootstrap.headers);
-  const headers = new Headers({
+async function fetchWithSession(url: string) {
+  const baseHeaders = {
     "User-Agent": BROWSER_UA,
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
-    Referer: FVG_PORTAL_BOOT_URL,
-  });
-  if (cookieHeader) headers.set("Cookie", cookieHeader);
+  };
 
-  return await fetch(url, { headers });
+  // Step 1: boot page — establishes CLUSTER-NODE + AWSALBAPP cookies
+  const bootstrap = await fetch(FVG_PORTAL_BOOT_URL, { headers: baseHeaders });
+  let cookieJar = collectCookies(bootstrap.headers);
+
+  // Step 2: call listing URL with redirect:manual to intercept the 302
+  // and collect the session cookies (JSESSIONID, VISITORID) before following
+  const step2 = await fetch(url, {
+    headers: { ...baseHeaders, Referer: FVG_PORTAL_BOOT_URL, Cookie: cookieJar },
+    redirect: "manual",
+  });
+
+  cookieJar = mergeCookies(cookieJar, collectCookies(step2.headers));
+
+  // Step 3: if redirect, follow it manually with the full cookie jar
+  if (step2.status >= 300 && step2.status < 400) {
+    const location = step2.headers.get("location") ?? "";
+    const finalUrl = location.startsWith("http") ? location : new URL(location, url).href;
+    return await fetch(finalUrl, {
+      headers: { ...baseHeaders, Referer: url, Cookie: cookieJar },
+    });
+  }
+
+  return step2;
 }
 
 function decodeHtml(value: string) {

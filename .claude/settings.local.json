@@ -76,7 +76,13 @@
       "WebFetch(domain:www.diariofvg.it)",
       "WebFetch(domain:fvg.ance.it)",
       "WebFetch(domain:biblus.acca.it)",
-      "WebFetch(domain:appalti.banchedati.biz)"
+      "WebFetch(domain:appalti.banchedati.biz)",
+      "Read(//c/Users/hamid/Downloads/**)",
+      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\(''fvg-btp-code-ready-pack.zip''\\); [print\\(i.filename, i.file_size\\) for i in z.infolist\\(\\)]\")",
+      "Bash(python -c \":*)",
+      "Read(//c/Users/hamid/OneDrive/Documents/dev/btp/apps/web/src/features/btp/**)",
+      "Bash(supabase link:*)",
+      "Bash(supabase migration:*)"
     ]
   }
 }
