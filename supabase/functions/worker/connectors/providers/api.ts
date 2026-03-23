@@ -13,8 +13,9 @@ import { apiSamGovFetch } from "./us_sam_gov.ts";
 import { apiGrantsGovFetch } from "./us_grants_gov.ts";
 import { apiSintelLombardiaFetch } from "./it_sintel_lombardia.ts";
 import { apiIntercentErFetch } from "./it_intercent_er.ts";
+import { apiAnacBdncpFetch } from "./it_anac_bdncp.ts";
 
-type Provider = "uk_find_tender" | "uk_contracts_finder" | "uk_sell2wales" | "uk_public_contracts_scotland" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "it_eappalti_fvg" | "fr_boamp" | "it_sintel_lombardia" | "it_intercent_er";
+type Provider = "uk_find_tender" | "uk_contracts_finder" | "uk_sell2wales" | "uk_public_contracts_scotland" | "us_sam_gov" | "us_grants_gov" | "eu_ted_search" | "it_anac_ocds" | "it_eappalti_fvg" | "fr_boamp" | "it_sintel_lombardia" | "it_intercent_er" | "it_anac_bdncp";
 
 type ProviderConfig = {
   key: Provider;
@@ -35,6 +36,7 @@ const PROVIDER_CONFIG: Record<Provider, ProviderConfig> = {
   it_anac_ocds: { key: "it_anac_ocds", is_active: true, country_code: "IT" },
   it_sintel_lombardia: { key: "it_sintel_lombardia", is_active: true, country_code: "IT" },
   it_intercent_er: { key: "it_intercent_er", is_active: true, country_code: "IT" },
+  it_anac_bdncp: { key: "it_anac_bdncp", is_active: true, country_code: "IT" },
 };
 
 function providerFromSource(source: SourceRow): Provider | null {
@@ -52,6 +54,7 @@ function providerFromSource(source: SourceRow): Provider | null {
   if (p === "it_anac_ocds") return "it_anac_ocds";
   if (p === "it_sintel_lombardia") return "it_sintel_lombardia";
   if (p === "it_intercent_er") return "it_intercent_er";
+  if (p === "it_anac_bdncp") return "it_anac_bdncp";
 
   return null;
 }
@@ -101,6 +104,8 @@ export async function apiProviderFetch(source: SourceRow): Promise<ConnectorResu
       return await apiSintelLombardiaFetch(source);
     case "it_intercent_er":
       return await apiIntercentErFetch(source);
+    case "it_anac_bdncp":
+      return await apiAnacBdncpFetch(source);
     default:
       return {
         opportunities: [],
