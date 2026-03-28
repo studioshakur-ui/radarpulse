@@ -273,7 +273,12 @@ function extractDocuments(detail: PloneDetail, detailUrl: string): OpportunityDo
     const url = str(c["@id"]);
     const type = str(c["@type"]).toLowerCase();
     if (url && (url.match(/\.(pdf|zip|docx?|xlsx?)(\?.*)?$/i) || type.includes("file"))) {
-      add(url, str(c.title) || null);
+      // Plone File objects: @id is the content page, not the binary.
+      // Use @@download/file to get the actual file download URL.
+      const finalUrl = (type === "file" && !url.match(/\.(pdf|zip|docx?|xlsx?)(\?.*)?$/i))
+        ? url.replace(/\/$/, "") + "/@@download/file"
+        : url;
+      add(finalUrl, str(c.title) || null);
     }
   }
 
