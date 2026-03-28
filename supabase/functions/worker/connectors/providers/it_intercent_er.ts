@@ -24,8 +24,8 @@ const DEFAULT_SEARCH_PATHS = [
 ];
 
 const PAGE_SIZE          = 50;
-const MAX_PAGES          = 20;   // cap at 1 000 items per run
-const MAX_DETAIL_FETCHES = 80;   // rate-limit detail fetches per run
+const MAX_PAGES          = 6;    // cap at 300 items per run (stay within 150s edge fn limit)
+const MAX_DETAIL_FETCHES = 30;   // 30 × ~2s = 60s for details, leaving room for page fetches
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
