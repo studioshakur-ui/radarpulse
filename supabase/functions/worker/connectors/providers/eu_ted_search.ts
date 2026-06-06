@@ -3,6 +3,9 @@ import { sha256Hex } from "../../../_shared/rp_ai_utils.ts";
 
 import type { ConnectorResult } from "../index.ts";
 import { makeFingerprint, safeJsonFetch } from "../_utils.ts";
+import { createLogger } from "../../../_shared/logger.ts";
+
+const log = createLogger("worker/eu_ted_search");
 
 type TedSearchParams = {
   base_url?: string;
@@ -13,25 +16,39 @@ type TedSearchParams = {
   onlyLatestVersions?: boolean;
   checkQuerySyntax?: boolean;
   paginationMode?: "PAGE_NUMBER" | "ITERATION";
-  fields?: string[];
 };
 
-const DEFAULT_TED_FIELDS = [
+// TED API v3 field names -- must be sent with every request (empty fields = 400 error).
+const TED_FIELDS_V3 = [
   "publication-number",
-  "title",
+  "notice-title",
   "publication-date",
   "deadline",
-  "buyer_name",
+  "buyer-country",
 ];
-const TARGET_COUNTRY_CODE = "IT";
+
+// ISO 3166-1 alpha-3 to alpha-2 mapping (covers all TED/EU countries + common extras)
+const ISO3_TO_ISO2: Record<string, string> = {
+  AUT: "AT", BEL: "BE", BGR: "BG", HRV: "HR", CYP: "CY", CZE: "CZ",
+  DNK: "DK", EST: "EE", FIN: "FI", FRA: "FR", DEU: "DE", GRC: "GR",
+  HUN: "HU", IRL: "IE", ITA: "IT", LVA: "LV", LTU: "LT", LUX: "LU",
+  MLT: "MT", NLD: "NL", POL: "PL", PRT: "PT", ROU: "RO", SVK: "SK",
+  SVN: "SI", ESP: "ES", SWE: "SE", GBR: "GB", NOR: "NO", CHE: "CH",
+  ISL: "IS", LIE: "LI", TUR: "TR", UKR: "UA", USA: "US", CAN: "CA",
+};
+
+// Rolling 12-month default query -- TED API v3 requires a non-empty query.
+function buildDefaultQuery(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  const y = String(d.getFullYear());
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return "publication-date >= " + y + m + day;
+}
 
 function getMeta(source: SourceRow): TedSearchParams {
   const meta = (source.meta ?? {}) as Record<string, unknown>;
-  const fieldsRaw = meta.fields;
-  const fields = Array.isArray(fieldsRaw)
-    ? fieldsRaw.map((x) => String(x).trim()).filter(Boolean)
-    : [];
-
   const scope = String(meta.scope ?? "ACTIVE").toUpperCase();
   const paginationMode = String(meta.paginationMode ?? "PAGE_NUMBER").toUpperCase();
 
@@ -44,18 +61,23 @@ function getMeta(source: SourceRow): TedSearchParams {
     onlyLatestVersions: Boolean(meta.onlyLatestVersions ?? false),
     checkQuerySyntax: Boolean(meta.checkQuerySyntax ?? false),
     paginationMode: (paginationMode === "ITERATION" ? "ITERATION" : "PAGE_NUMBER") as TedSearchParams["paginationMode"],
-    fields: fields.length ? fields : DEFAULT_TED_FIELDS,
   };
 }
 
+// firstString handles TED v3 multilingual objects: { eng: "...", deu: "...", ... }
+// Prefers English ("eng"/"en") then falls back to any first string value found.
 function firstString(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number") return String(v);
   if (typeof v === "object" && v) {
     const anyV = v as any;
+    if (typeof anyV.eng === "string") return anyV.eng;
+    if (typeof anyV.en === "string") return anyV.en;
     if (typeof anyV.text === "string") return anyV.text;
     if (typeof anyV.value === "string") return anyV.value;
     if (typeof anyV.label === "string") return anyV.label;
+    const vals = Object.values(anyV).filter((x): x is string => typeof x === "string");
+    if (vals.length > 0) return vals[0];
   }
   return "";
 }
@@ -72,13 +94,28 @@ function pick(obj: any, keys: string[]): string {
 function parseMaybeIsoDate(v: string): string | null {
   const s = String(v || "").trim();
   if (!s) return null;
+  // Handle YYYYMMDD compact format -- new Date("20260115") is Invalid Date in V8.
+  const compact = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compact) {
+    const d = new Date(compact[1] + "-" + compact[2] + "-" + compact[3] + "T00:00:00Z");
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  // Try standard parse (handles full ISO timestamps).
   const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+  if (!Number.isNaN(d.getTime())) return d.toISOString();
+  // Fallback: TED v3 returns dates like "2025-12-30+01:00" (no time component).
+  // Extract YYYY-MM-DD prefix and parse as UTC midnight.
+  const prefix = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (prefix) {
+    const d2 = new Date(prefix[1] + "T00:00:00Z");
+    return Number.isNaN(d2.getTime()) ? null : d2.toISOString();
+  }
+  return null;
 }
 
 function inferNoticeCountryCode(n: any): string | null {
   const raw = pick(n, [
+    "buyer-country",
     "country",
     "country_code",
     "buyer_country",
@@ -91,32 +128,37 @@ function inferNoticeCountryCode(n: any): string | null {
   const cc = String(raw || "").trim().toUpperCase();
   if (!cc) return null;
   if (cc.length === 2) return cc;
+  // TED API v3 returns ISO alpha-3 codes -- map to alpha-2
+  const iso2 = ISO3_TO_ISO2[cc];
+  if (iso2) return iso2;
   if (cc === "ITA" || cc === "ITALY") return "IT";
   return cc;
 }
 
 function tedNoticeUrl(publicationNumber: string): string {
   const pn = String(publicationNumber || "").trim();
-  return `https://ted.europa.eu/en/notice/${encodeURIComponent(pn)}/html`;
+  return "https://ted.europa.eu/en/notice/" + encodeURIComponent(pn) + "/html";
 }
 
 export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorResult> {
+  // "EU" = accept all TED notices; any other code = filter to that country only.
+  const sourceCountry = (source.country_code ?? "EU").trim().toUpperCase() || "EU";
   const meta = getMeta(source);
 
-  const body: Record<string, unknown> = {
-    query: meta.query ?? "",
+  // TED API v3 requires both "query" (non-empty) and "fields" (non-empty).
+  // Omitting either causes a 400 validation error.
+  const bodyBase: Record<string, unknown> = {
+    query: meta.query || buildDefaultQuery(),
     page: meta.page ?? 1,
     limit: meta.limit ?? 25,
     scope: meta.scope ?? "ACTIVE",
     checkQuerySyntax: meta.checkQuerySyntax ?? false,
     paginationMode: meta.paginationMode ?? "PAGE_NUMBER",
     onlyLatestVersions: meta.onlyLatestVersions ?? false,
+    fields: TED_FIELDS_V3,
   };
-  // TED v3 rejects empty "fields". Always send a non-empty list.
-  body.fields = (meta.fields && meta.fields.length) ? meta.fields : DEFAULT_TED_FIELDS;
 
-  let data: any;
-  try {
+  async function fetchTed(body: Record<string, unknown>): Promise<any> {
     const res = await safeJsonFetch<any>(String(meta.base_url), {
       method: "POST",
       headers: {
@@ -125,7 +167,12 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       },
       body: JSON.stringify(body),
     });
-    data = res.data;
+    return res.data;
+  }
+
+  let data: any;
+  try {
+    data = await fetchTed({ ...bodyBase });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const safeMeta = {
@@ -133,9 +180,8 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       scope: meta.scope ?? "ACTIVE",
       page: meta.page ?? 1,
       limit: meta.limit ?? 25,
-      fields_count: Array.isArray(body.fields) ? body.fields.length : 0,
     };
-    throw new Error(`TED_SEARCH_FAILED ${msg} | payload_meta=${JSON.stringify(safeMeta)}`);
+    throw new Error("TED_SEARCH_FAILED " + msg + " | payload_meta=" + JSON.stringify(safeMeta));
   }
 
   const notices: any[] = Array.isArray(data?.notices)
@@ -151,7 +197,8 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
 
   for (const n of notices) {
     const noticeCountry = inferNoticeCountryCode(n);
-    if (noticeCountry && noticeCountry !== TARGET_COUNTRY_CODE) {
+    // If the source targets a specific country (not "EU"), skip non-matching notices.
+    if (sourceCountry !== "EU" && noticeCountry && noticeCountry !== sourceCountry) {
       filteredOutByCountry++;
       continue;
     }
@@ -169,8 +216,8 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
 
     const title =
       pick(n, [
-        "title",
         "notice-title",
+        "title",
         "noticeTitle",
         "notice_title",
         "description",
@@ -197,10 +244,10 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
       type: "tender",
       status: "active",
       is_public: true,
-      country_code: TARGET_COUNTRY_CODE,
+      country_code: noticeCountry ?? sourceCountry,
       buyer_name: buyerName || null,
       title,
-      summary: buyerName ? `Buyer: ${buyerName}` : null,
+      summary: buyerName ? "Buyer: " + buyerName : null,
       published_at: pubDate,
       deadline_at: deadlineAt,
       deadline_tz: null,
@@ -213,16 +260,13 @@ export async function apiEuTedSearchFetch(source: SourceRow): Promise<ConnectorR
     });
   }
 
-  console.info(
-    JSON.stringify({
-      event: "ted_it_filter_applied",
-      source_key: source.key,
-      requested_country: TARGET_COUNTRY_CODE,
-      notices_received: notices.length,
-      notices_filtered_out: filteredOutByCountry,
-      opportunities_emitted: out.length,
-    })
-  );
+  log.info("fetch_done", {
+    source_key: source.key,
+    source_country: sourceCountry,
+    notices_received: notices.length,
+    notices_filtered_out: filteredOutByCountry,
+    opportunities_emitted: out.length,
+  });
 
   return {
     ok: true,

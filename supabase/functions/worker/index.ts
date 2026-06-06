@@ -1,15 +1,25 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("worker");
 import { extractLightForRawId } from "../_shared/rp_ai_extract_light.ts";
+import { scoreOpportunityForProfiles } from "../_shared/rp_score_v1.ts";
 import type { IngestionJobRow, OpportunityUpsertInput, SourceRow } from "../_shared/types.ts";
 import { safeStr } from "../_shared/text.ts";
 import { canonicalizeUrl, sha256Hex, normalizeText } from "../_shared/rp_ai_utils.ts";
 import { runConnector, type ConnectorResult } from "./connectors/index.ts";
 
+type WorkerRunOptions = {
+  aiEnabledOverride?: boolean | null;
+  aiMaxPerJobOverride?: number | null;
+  softDeadlineMsOverride?: number | null;
+};
+
 /* -----------------------------
    Supabase client (service role)
 ----------------------------- */
-let _sb: any | null = null;
+let _sb: ReturnType<typeof sbAdmin> | null = null;
 function sb() {
   if (_sb) return _sb;
   _sb = sbAdmin();
@@ -45,6 +55,14 @@ function getBoolEnv(name: string, def: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(v.toLowerCase());
 }
 
+function getIntEnv(name: string, def: number): number {
+  const v = Deno.env.get(name);
+  if (!v) return def;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.trunc(n);
+}
+
 function ensureTitle(input: OpportunityUpsertInput): string {
   const t = safeStr((input as any)?.title).trim();
   return t ? t : "Untitled opportunity";
@@ -63,8 +81,8 @@ function normalizeUrlOrThrow(url: string, label: string): { url: string; url_can
   return { url: u, url_canonical: canon };
 }
 
-function coerceJobId(jobAny: any): string | number | null {
-  const v = jobAny?.id;
+function coerceJobId(jobAny: unknown): string | number | null {
+  const v = (jobAny as Record<string, unknown>)?.id;
   if (v === null || v === undefined) return null;
   // PostgREST peut renvoyer bigint en string
   if (typeof v === "string") {
@@ -132,6 +150,13 @@ async function getSource(sourceId: string): Promise<SourceRow> {
   const { data, error } = await sb().from("sources").select("*").eq("id", sourceId).maybeSingle();
   if (error) throw new Error(`Failed to load source: ${error.message}`);
   if (!data) throw new Error(`Source not found: ${sourceId}`);
+  return data as SourceRow;
+}
+
+async function getSourceByKey(sourceKey: string): Promise<SourceRow> {
+  const { data, error } = await sb().from("sources").select("*").eq("key", sourceKey).maybeSingle();
+  if (error) throw new Error(`Failed to load source by key: ${error.message}`);
+  if (!data) throw new Error(`Source not found: ${sourceKey}`);
   return data as SourceRow;
 }
 
@@ -295,7 +320,7 @@ async function upsertRaw(source: SourceRow, opp: OpportunityUpsertInput, runId: 
   return { id: data.id as string };
 }
 
-async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput) {
+async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput): Promise<{ id: string }> {
   const fingerprint = safeStr((opp as any)?.fingerprint).trim();
   if (!fingerprint) throw new Error("Missing opportunity fingerprint");
 
@@ -322,8 +347,42 @@ async function upsertOpportunity(source: SourceRow, opp: OpportunityUpsertInput)
     updated_at: nowIso(),
   };
 
-  const { error } = await sb().from("opportunities").upsert(payload, { onConflict: "fingerprint" });
+  const { data, error } = await sb()
+    .from("opportunities")
+    .upsert(payload, { onConflict: "fingerprint" })
+    .select("id")
+    .single();
   if (error) throw new Error(`Failed to upsert opportunities row: ${error.message}`);
+  return { id: data.id as string };
+}
+
+async function upsertOpportunityDocuments(
+  opportunityId: string,
+  docs: Array<{ doc_url: string; doc_title: string | null; doc_type: string | null }>,
+): Promise<void> {
+  if (!docs.length) return;
+
+  // Load existing doc_urls for this opportunity to avoid duplicates
+  const { data: existing } = await sb()
+    .from("opportunity_documents")
+    .select("doc_url")
+    .eq("opportunity_id", opportunityId);
+
+  const existingUrls = new Set((existing ?? []).map((r: Record<string, unknown>) => String(r.doc_url ?? "")));
+  const newDocs = docs.filter((d) => d.doc_url && !existingUrls.has(d.doc_url));
+  if (!newDocs.length) return;
+
+  const rows = newDocs.map((d) => ({
+    opportunity_id: opportunityId,
+    doc_url: d.doc_url,
+    doc_title: d.doc_title,
+    doc_type: d.doc_type,
+  }));
+
+  const { error } = await sb().from("opportunity_documents").insert(rows);
+  if (error) {
+    log.warn("upsert_opportunity_documents_failed", { opportunityId, error: error.message });
+  }
 }
 
 async function persistSourcePagingState(source: SourceRow, result: ConnectorResult) {
@@ -355,37 +414,54 @@ async function persistSourcePagingState(source: SourceRow, result: ConnectorResu
 /* -----------------------------
    AI extract (fixed signature)
 ----------------------------- */
-async function upsertAi(rawId: string) {
+async function upsertAi(rawId: string, args?: { sourceId?: string | null; ingestionRunId?: string | null }) {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
   if (!OPENAI_API_KEY) return; // AI désactivée si secret manquant
 
   const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
   const OPENAI_STORE = getBoolEnv("OPENAI_STORE", false);
 
-  await extractLightForRawId(sb(), rawId, {
+  return await extractLightForRawId(sb(), rawId, {
     openaiApiKey: OPENAI_API_KEY,
     openaiModel: OPENAI_MODEL,
     openaiStore: OPENAI_STORE,
     extractVersion: "v1.light",
     minContentChars: 280,
     maxContentChars: 24_000,
+    triggerType: "worker",
+    sourceId: args?.sourceId ?? null,
+    ingestionRunId: args?.ingestionRunId ?? null,
   });
+}
+
+function shouldRunAiForItem(args: {
+  aiEnabled: boolean;
+  aiProcessedCount: number;
+  aiMaxPerJob: number;
+  jobStartedAtMs: number;
+  softDeadlineMs: number;
+}): { run: boolean; reason: "disabled" | "ai_limit" | "soft_deadline" | null } {
+  if (!args.aiEnabled) return { run: false, reason: "disabled" };
+  if (args.aiProcessedCount >= args.aiMaxPerJob) return { run: false, reason: "ai_limit" };
+  if (Date.now() - args.jobStartedAtMs >= args.softDeadlineMs) return { run: false, reason: "soft_deadline" };
+  return { run: true, reason: null };
 }
 
 /* -----------------------------
    Job processor
 ----------------------------- */
-async function processJob(job: IngestionJobRow) {
-  // sécurité absolue
-  const jobId = coerceJobId(job as any);
-  if (jobId === null) {
-    return { ok: true, message: "no_jobs" };
+async function processSource(source: SourceRow, options?: WorkerRunOptions, job?: IngestionJobRow | null) {
+  const jobId = job ? coerceJobId(job as any) : null;
+  if (jobId !== null) {
+    await setJobRunning(jobId);
   }
 
-  await setJobRunning(jobId);
-
-  const source = await getSource((job as any).source_id);
   const { runId, cursor: runCursor } = await startIngestionRun(source);
+  const jobStartedAtMs = Date.now();
+  const aiEnabled = options?.aiEnabledOverride ?? Boolean(Deno.env.get("OPENAI_API_KEY"));
+  const aiMaxPerJob = Math.max(0, options?.aiMaxPerJobOverride ?? getIntEnv("WORKER_MAX_AI_PER_JOB", 8));
+  const softDeadlineMs = Math.max(30_000, options?.softDeadlineMsOverride ?? getIntEnv("WORKER_SOFT_DEADLINE_MS", 240_000));
+  const progressEvery = Math.max(1, getIntEnv("WORKER_PROGRESS_EVERY", 10));
 
   try {
     const result = await runConnector(source);
@@ -393,30 +469,144 @@ async function processJob(job: IngestionJobRow) {
 
     let upsertedRaw = 0;
     let upsertedOpportunities = 0;
+    let failedItems = 0;
+    let aiProcessed = 0;
+    let aiSkippedDisabled = 0;
+    let aiSkippedLimit = 0;
+    let aiSkippedDeadline = 0;
+    let aiFailures = 0;
 
-    for (const opp of result.opportunities as OpportunityUpsertInput[]) {
+    log.info("job_fetch_complete", {
+      source_key: source.key,
+      run_id: runId,
+      fetched_count: fetchedCount,
+      ai_enabled: aiEnabled,
+      ai_max_per_job: aiMaxPerJob,
+      soft_deadline_ms: softDeadlineMs,
+    });
+
+    const opportunities = result.opportunities as OpportunityUpsertInput[];
+    for (let index = 0; index < opportunities.length; index++) {
+      const opp = opportunities[index];
       const normalizedOpp: OpportunityUpsertInput = {
         ...opp,
         country_code: (opp.country_code ?? source.country_code ?? null) as string | null,
       };
 
-      const raw = await upsertRaw(source, normalizedOpp, runId);
-      upsertedRaw += 1;
-
-      await upsertOpportunity(source, normalizedOpp);
-      upsertedOpportunities += 1;
-
-      // AI best-effort
       try {
-        await upsertAi(raw.id);
+        const raw = await upsertRaw(source, normalizedOpp, runId);
+        upsertedRaw += 1;
+
+        const oppResult = await upsertOpportunity(source, normalizedOpp);
+        upsertedOpportunities += 1;
+
+        // Insert opportunity documents from connector (fire-and-forget, non-blocking)
+        const oppDocs = (normalizedOpp as any)?.documents;
+        if (Array.isArray(oppDocs) && oppDocs.length > 0) {
+          void upsertOpportunityDocuments(oppResult.id, oppDocs).catch((e: unknown) => {
+            log.warn("opportunity_documents_upsert_failed", { opportunityId: oppResult.id, error: e instanceof Error ? e.message : String(e) });
+          });
+        }
+
+        const aiDecision = shouldRunAiForItem({
+          aiEnabled,
+          aiProcessedCount: aiProcessed,
+          aiMaxPerJob,
+          jobStartedAtMs,
+          softDeadlineMs,
+        });
+
+        if (!aiDecision.run) {
+          if (aiDecision.reason === "disabled") aiSkippedDisabled += 1;
+          if (aiDecision.reason === "ai_limit") aiSkippedLimit += 1;
+          if (aiDecision.reason === "soft_deadline") aiSkippedDeadline += 1;
+        } else {
+          aiProcessed += 1;
+
+          try {
+            const extractResult = await upsertAi(raw.id, { sourceId: source.id, ingestionRunId: runId });
+            if (extractResult?.status === "success" && extractResult.opportunity_id && extractResult.extraction_id) {
+              const { data: currentExtraction, error: extractionError } = await sb()
+                .from("opportunity_extractions")
+                .select("country_code, deadline_at, budget_value, extraction_quality, needs_review, missing_fields, quality_score, completeness_score, sector, summary_10s")
+                .eq("id", extractResult.extraction_id)
+                .maybeSingle();
+
+              if (extractionError) {
+                throw new Error(`failed to load current extraction for scoring: ${extractionError.message}`);
+              }
+
+              if (currentExtraction) {
+                await scoreOpportunityForProfiles(sb(), {
+                  opportunityId: extractResult.opportunity_id,
+                  extractionId: extractResult.extraction_id,
+                  triggerType: "system",
+                  scoringPath: "worker.extract.after_persist",
+                  extraction: {
+                    country_code: currentExtraction.country_code ?? null,
+                    deadline_at: currentExtraction.deadline_at ?? null,
+                    budget_value: currentExtraction.budget_value ?? null,
+                    extraction_quality: currentExtraction.extraction_quality,
+                    needs_review: Boolean(currentExtraction.needs_review),
+                    missing_fields: Array.isArray(currentExtraction.missing_fields)
+                      ? currentExtraction.missing_fields
+                      : [],
+                    quality_score: Number(currentExtraction.quality_score ?? 0),
+                    completeness_score: Number(currentExtraction.completeness_score ?? 0),
+                    sector: currentExtraction.sector ?? null,
+                    summary_10s: String(currentExtraction.summary_10s ?? ""),
+                  },
+                });
+              }
+            }
+          } catch (e) {
+            aiFailures += 1;
+            log.error("ai_extract_failed", {
+              source_key: source.key,
+              run_id: runId,
+              raw_id: raw.id,
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+
+        if ((index + 1) % progressEvery === 0 || index === opportunities.length - 1) {
+          log.info("job_progress", {
+            source_key: source.key,
+            run_id: runId,
+            processed_items: index + 1,
+            fetched_count: fetchedCount,
+            upserted_raw: upsertedRaw,
+            upserted_opportunities: upsertedOpportunities,
+            failed_items: failedItems,
+            ai_processed: aiProcessed,
+            ai_skipped_disabled: aiSkippedDisabled,
+            ai_skipped_limit: aiSkippedLimit,
+            ai_skipped_deadline: aiSkippedDeadline,
+            ai_failures: aiFailures,
+            elapsed_ms: Date.now() - jobStartedAtMs,
+          });
+        }
       } catch (e) {
-        console.error("AI extract failed:", e instanceof Error ? e.message : String(e));
+        failedItems += 1;
+        log.error("opportunity_persist_failed", {
+          source_key: source.key,
+          run_id: runId,
+          index: index + 1,
+          fetched_count: fetchedCount,
+          fingerprint: safeStr((normalizedOpp as any)?.fingerprint).trim() || null,
+          external_id: safeStr((normalizedOpp as any)?.external_id).trim() || null,
+          source_url: safeStr((normalizedOpp as any)?.source_url).trim() || null,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
 
     await persistSourcePagingState(source, result);
     await markSourceSuccess(source.id);
-    await setJobSuccess(jobId);
+    if (jobId !== null) {
+      await setJobSuccess(jobId);
+    }
     await finishIngestionRun(runId, {
       status: "SUCCESS",
       fetched_count: fetchedCount,
@@ -430,14 +620,24 @@ async function processJob(job: IngestionJobRow) {
       ok: true,
       source: source.key,
       kind: source.kind,
+      fetched_count: fetchedCount,
       upserted_raw: upsertedRaw,
       upserted_opportunities: upsertedOpportunities,
+      failed_items: failedItems,
+      ai_processed: aiProcessed,
+      ai_skipped_disabled: aiSkippedDisabled,
+      ai_skipped_limit: aiSkippedLimit,
+      ai_skipped_deadline: aiSkippedDeadline,
+      ai_failures: aiFailures,
       fetched_at: (result as any)?.fetched_at ?? null,
+      mode: jobId === null ? "direct_source" : "queued_job",
     };
   } catch (err) {
     const msg = sanitizeErrorMessage(err);
     await markSourceError(source.id, msg);
-    await setJobError(jobId, msg);
+    if (jobId !== null) {
+      await setJobError(jobId, msg);
+    }
     await finishIngestionRun(runId, {
       status: "FAILED",
       fetched_count: 0,
@@ -446,8 +646,18 @@ async function processJob(job: IngestionJobRow) {
       cursor: runCursor,
       error: msg,
     });
-    return { ok: false, source: source.key, kind: source.kind, error: msg };
+    return { ok: false, source: source.key, kind: source.kind, error: msg, mode: jobId === null ? "direct_source" : "queued_job" };
   }
+}
+
+async function processJob(job: IngestionJobRow, options?: WorkerRunOptions) {
+  const jobId = coerceJobId(job as any);
+  if (jobId === null) {
+    return { ok: true, message: "no_jobs" };
+  }
+
+  const source = await getSource((job as any).source_id);
+  return await processSource(source, options, job);
 }
 
 /* -----------------------------
@@ -457,29 +667,56 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, { status: 405 });
 
-  let body: any = {};
+  // BUG-30 FIX: single outer try-catch covers all handler logic, including
+  // override parsing that previously sat unguarded between two separate blocks.
   try {
-    const auth = req.headers.get("Authorization") ?? "";
-    if (auth) {
-      if (!auth.toLowerCase().startsWith("bearer ")) {
-        return json({ ok: false, error: "Invalid Authorization header format" }, { status: 401 });
+    let body: Record<string, unknown> = {};
+    try {
+      const auth = req.headers.get("Authorization") ?? "";
+      if (auth) {
+        if (!auth.toLowerCase().startsWith("bearer ")) {
+          return json({ ok: false, error: "Invalid Authorization header format" }, { status: 401 });
+        }
+        const token = auth.slice(7).trim();
+        const { data, error } = await sb().auth.getUser(token);
+        if (error || !data?.user?.id) {
+          return json({ ok: false, error: "Invalid JWT token" }, { status: 401 });
+        }
       }
-      const token = auth.slice(7).trim();
-      const { data, error } = await sb().auth.getUser(token);
-      if (error || !data?.user?.id) {
-        return json({ ok: false, error: "Invalid JWT token" }, { status: 401 });
-      }
+      body = await req.json();
+    } catch {
+      body = {};
     }
 
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+    const maxJobs = Math.max(1, Math.min(10, Number(body?.max_jobs ?? 1)));
+    const aiEnabledOverride =
+      typeof body?.ai_enabled === "boolean"
+        ? body.ai_enabled
+        : typeof body?.disable_ai === "boolean"
+          ? !body.disable_ai
+          : null;
+    const aiMaxPerJobOverride =
+      Number.isFinite(Number(body?.max_ai_per_job)) ? Math.max(0, Math.trunc(Number(body.max_ai_per_job))) : null;
+    const softDeadlineMsOverride =
+      Number.isFinite(Number(body?.soft_deadline_ms)) ? Math.max(30_000, Math.trunc(Number(body.soft_deadline_ms))) : null;
+    const sourceIdOverride = typeof body?.source_id === "string" ? body.source_id.trim() : "";
+    const sourceKeyOverride = typeof body?.source_key === "string" ? body.source_key.trim() : "";
+    const results: Awaited<ReturnType<typeof processJob>>[] = [];
 
-  const maxJobs = Math.max(1, Math.min(10, Number(body?.max_jobs ?? 1)));
-  const results: any[] = [];
+    if (sourceIdOverride || sourceKeyOverride) {
+      const source = sourceIdOverride
+        ? await getSource(sourceIdOverride)
+        : await getSourceByKey(sourceKeyOverride);
 
-  try {
+      const result = await processSource(source, {
+        aiEnabledOverride,
+        aiMaxPerJobOverride,
+        softDeadlineMsOverride,
+      }, null);
+
+      return json({ ok: true, results: [result] }, { status: 200 });
+    }
+
     for (let i = 0; i < maxJobs; i++) {
       // IMPORTANT: rpc peut renvoyer:
       // - null
@@ -492,7 +729,7 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: `claim_next_ingestion_job failed: ${error.message}` }, { status: 500 });
       }
 
-      const jobAny: any = Array.isArray(data) ? data[0] : data;
+      const jobAny: unknown = Array.isArray(data) ? data[0] : data;
       const jobId = coerceJobId(jobAny);
 
       // Cas normal: aucun job claimable => sortie propre en 200
@@ -500,7 +737,11 @@ Deno.serve(async (req) => {
         break;
       }
 
-      results.push(await processJob(jobAny as IngestionJobRow));
+      results.push(await processJob(jobAny as IngestionJobRow, {
+        aiEnabledOverride,
+        aiMaxPerJobOverride,
+        softDeadlineMsOverride,
+      }));
     }
 
     if (!results.length) {
@@ -513,3 +754,4 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: msg }, { status: 500 });
   }
 });
+

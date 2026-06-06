@@ -1,5 +1,7 @@
 # Edge Functions
 
+See also: [`docs/EDGE_FUNCTION_AUTH.md`](C:/Users/hamid/OneDrive/Documents/dev/radarpulse/docs/EDGE_FUNCTION_AUTH.md)
+
 ## `opportunities-search`
 
 ### Endpoint

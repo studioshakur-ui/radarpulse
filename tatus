@@ -1,0 +1,87 @@
+warning: in the working copy of 'supabase/functions/opportunity-decision/index.ts', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/supabase/functions/opportunity-decision/index.ts b/supabase/functions/opportunity-decision/index.ts[m
+[1mindex dcc80a6d..797f761f 100644[m
+[1m--- a/supabase/functions/opportunity-decision/index.ts[m
+[1m+++ b/supabase/functions/opportunity-decision/index.ts[m
+[36m@@ -1,6 +1,7 @@[m
+ import { corsHeaders } from "../_shared/cors.ts";[m
+ import { sbAdmin } from "../_shared/db.ts";[m
+ import { createLogger } from "../_shared/logger.ts";[m
+[32m+[m[32mimport { generateOpportunityPrep } from "../_shared/opportunity_prep_runner.ts";[m
+ [m
+ const log = createLogger("opportunity-decision");[m
+ [m
+[36m@@ -34,6 +35,43 @@[m [mfunction isDecisionValue(value: unknown): value is DecisionValue {[m
+   return value === "GO" || value === "HOLD" || value === "NO_GO";[m
+ }[m
+ [m
+[32m+[m[32masync function triggerServerPrep([m
+[32m+[m[32m  sb: ReturnType<typeof sbAdmin>,[m
+[32m+[m[32m  args: { opportunityId: string; userId: string; decisionId: string },[m
+[32m+[m[32m) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const { data: currentPrep } = await sb[m
+[32m+[m[32m      .from("opportunity_preps")[m
+[32m+[m[32m      .select("id, created_at")[m
+[32m+[m[32m      .eq("opportunity_id", args.opportunityId)[m
+[32m+[m[32m      .eq("user_id", args.userId)[m
+[32m+[m[32m      .eq("is_current", true)[m
+[32m+[m[32m      .maybeSingle();[m
+[32m+[m
+[32m+[m[32m    const freshThreshold = Date.now() - 7 * 24 * 60 * 60 * 1000;[m
+[32m+[m[32m    if (currentPrep?.created_at) {[m
+[32m+[m[32m      const createdAt = new Date(currentPrep.created_at).getTime();[m
+[32m+[m[32m      if (Number.isFinite(createdAt) && createdAt >= freshThreshold) {[m
+[32m+[m[32m        return;[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    await generateOpportunityPrep(sb, {[m
+[32m+[m[32m      opportunityId: args.opportunityId,[m
+[32m+[m[32m      userId: args.userId,[m
+[32m+[m[32m      triggerType: "system",[m
+[32m+[m[32m      decisionId: args.decisionId,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    log.error("server_prep_failed", {[m
+[32m+[m[32m      opportunity_id: args.opportunityId,[m
+[32m+[m[32m      user_id: args.userId,[m
+[32m+[m[32m      decision_id: args.decisionId,[m
+[32m+[m[32m      error: error instanceof Error ? error.message : String(error),[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+ Deno.serve(async (req) => {[m
+   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });[m
+   if (req.method !== "POST") return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });[m
+[36m@@ -192,6 +230,14 @@[m [mDeno.serve(async (req) => {[m
+         return json(500, { ok: false, error: "INTERNAL_ERROR" });[m
+       }[m
+ [m
+[32m+[m[32m      if (decisionValue === "GO") {[m
+[32m+[m[32m        await triggerServerPrep(sb, {[m
+[32m+[m[32m          opportunityId,[m
+[32m+[m[32m          userId,[m
+[32m+[m[32m          decisionId: String(insertedRow.id),[m
+[32m+[m[32m        });[m
+[32m+[m[32m      }[m
+[32m+[m
+       return json(200, {[m
+         ok: true,[m
+         action: "set",[m
+[36m@@ -261,6 +307,14 @@[m [mDeno.serve(async (req) => {[m
+       return json(500, { ok: false, error: "INTERNAL_ERROR" });[m
+     }[m
+ [m
+[32m+[m[32m    if (decisionValue === "GO" && previousDecisionValue !== "GO") {[m
+[32m+[m[32m      await triggerServerPrep(sb, {[m
+[32m+[m[32m        opportunityId,[m
+[32m+[m[32m        userId,[m
+[32m+[m[32m        decisionId: String(updatedRow.id),[m
+[32m+[m[32m      });[m
+[32m+[m[32m    }[m
+[32m+[m
+     return json(200, {[m
+       ok: true,[m
+       action: "set",[m

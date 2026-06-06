@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
 
 const PLAN_PRICE = (import.meta.env.VITE_STRIPE_PLAN_PRICE as string) || "49 EUR / month";
 const PLAN_NAME = (import.meta.env.VITE_STRIPE_PLAN_NAME as string) || "Plan Italia";
@@ -13,7 +13,7 @@ export default function SubscribePage() {
 
   const checkoutPayload = useMemo(
     () => ({
-      success_url: `${window.location.origin}/inbox`,
+      success_url: `${window.location.origin}/workspaces`,
       cancel_url: `${window.location.origin}/abbonamento`,
     }),
     []
@@ -23,15 +23,14 @@ export default function SubscribePage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = await getValidAccessToken();
 
       const res = await fetch(`${ENV.SUPABASE_URL}/functions/v1/stripe-create-checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: ENV.SUPABASE_ANON_KEY,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(checkoutPayload),
       });
@@ -43,7 +42,11 @@ export default function SubscribePage() {
 
       window.location.href = String(data.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (e instanceof AuthTokenError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
       setLoading(false);
     }
   }
@@ -57,8 +60,8 @@ export default function SubscribePage() {
             Access control enabled
           </div>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight">Unlock Inbox access</h1>
-          <p className="mt-2 text-sm text-muted">Italy tenders only. Monthly subscription required to open /inbox.</p>
+          <h1 className="mt-5 text-3xl font-semibold tracking-tight">Unlock tracked work access</h1>
+          <p className="mt-2 text-sm text-muted">Monthly subscription required to open tracked public opportunities and dossiers.</p>
 
           <div className="mt-6 rounded-2xl border border-border/35 bg-bg/45 p-5">
             <div className="text-sm font-semibold">{PLAN_NAME}</div>

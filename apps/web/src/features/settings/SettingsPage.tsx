@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { PageIntro, MetricBlock, SurfaceSection, SwitchControl } from "@/components/ds/surfacePrimitives";
+import { SemanticPill } from "@/components/ds/statusPrimitives";
 import { useLocale } from "@/lib/i18n";
+import { getMarketOptions } from "@/lib/marketOptions";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -20,29 +23,9 @@ type SubscriptionRow = {
   current_period_end: string | null;
 };
 
-const COUNTRY_OPTIONS = [
-  { value: "GLOBAL", label: "🌍 Global" },
-  { value: "IT", label: "🇮🇹 Italy" },
-  { value: "FR", label: "🇫🇷 France" },
-  { value: "DE", label: "🇩🇪 Germany" },
-  { value: "UK", label: "🇬🇧 United Kingdom" },
-  { value: "ES", label: "🇪🇸 Spain" },
-  { value: "NL", label: "🇳🇱 Netherlands" },
-  { value: "PL", label: "🇵🇱 Poland" },
-  { value: "BE", label: "🇧🇪 Belgium" },
-];
-
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-border/35 bg-white/40 p-5">
-      <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">{title}</div>
-      {children}
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const { t } = useLocale();
+  const marketOptions = useMemo(() => getMarketOptions(t), [t]);
 
   const [profile, setProfile] = useState<Profile>({ full_name: "", organization: "", country_focus: "GLOBAL" });
   const [notif, setNotif] = useState<NotifPrefs>({ email_digest_enabled: true, email_digest_frequency: "daily" });
@@ -131,11 +114,12 @@ export default function SettingsPage() {
     setPwError(null);
 
     if (newPassword.length < 8) {
-      setPwError("Password must be at least 8 characters.");
+      setPwError(t("settings.security.minLength"));
       return;
     }
+
     if (newPassword !== confirmPassword) {
-      setPwError("Passwords do not match.");
+      setPwError(t("settings.security.mismatch"));
       return;
     }
 
@@ -148,7 +132,7 @@ export default function SettingsPage() {
       setConfirmPassword("");
       setTimeout(() => setPwStatus("idle"), 2500);
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : "Failed to update password.");
+      setPwError(err instanceof Error ? err.message : t("settings.security.failed"));
       setPwStatus("error");
     }
   }
@@ -160,94 +144,158 @@ export default function SettingsPage() {
     return t("settings.subscription.inactive");
   }
 
-  function subColor(): string {
-    if (!sub) return "text-bad";
-    if (sub.status === "active") return "text-good";
-    if (sub.status === "trial") return "text-warn";
-    return "text-bad";
+  function subTone(): "good" | "warn" | "bad" {
+    if (!sub) return "bad";
+    if (sub.status === "active") return "good";
+    if (sub.status === "trial") return "warn";
+    return "bad";
+  }
+
+  function marketLabel(value: string): string {
+    return marketOptions.find((option) => option.value === value)?.label ?? value;
+  }
+
+  function digestLabel(): string {
+    if (!notif.email_digest_enabled) return t("settings.notifications.frequency.off");
+    const key = `settings.notifications.frequency.${notif.email_digest_frequency}`;
+    return t(key);
+  }
+
+  function subscriptionHint(): string {
+    if (!sub?.current_period_end) return t("settings.subscription.subtitle");
+    return `${t("settings.subscription.validUntil")} ${new Intl.DateTimeFormat(navigator.language, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(sub.current_period_end))}`;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Profile */}
-      <SectionCard title={t("settings.profile")}>
+    <div className="space-y-6">
+      <PageIntro title={t("settings.title")} subtitle={t("settings.subtitle")} />
+
+      <section className="overflow-hidden rounded-[28px] border border-line/25 bg-surface/96 shadow-soft">
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="border-b border-line/15 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.82))] p-5 sm:p-6 xl:border-b-0 xl:border-r">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-subtext/75">Profile control</div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              Tune identity, delivery preferences and access posture.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-subtext">
+              Settings stays intentionally quiet. Use it to shape how RadarPulse behaves around your team, not as another workflow surface.
+            </p>
+          </div>
+
+          <div className="grid gap-4 bg-[linear-gradient(160deg,rgba(246,248,252,0.96),rgba(255,255,255,0.78))] p-5 sm:p-6">
+            <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Current market focus</div>
+              <div className="mt-2 text-2xl font-semibold text-text">{marketLabel(profile.country_focus)}</div>
+              <div className="mt-1 text-sm text-subtext">{profile.organization || userEmail || t("settings.profile.subtitle")}</div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Digest</div>
+                <div className="mt-2 text-xl font-semibold text-text">{digestLabel()}</div>
+                <div className="mt-1 text-sm text-subtext">Notification cadence currently applied to this workspace account.</div>
+              </div>
+              <div className="rounded-3xl border border-line/20 bg-bg/60 p-5 shadow-soft">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext/75">Subscription</div>
+                <div className="mt-2 text-xl font-semibold text-text">{subLabel()}</div>
+                <div className="mt-1 text-sm text-subtext">{subscriptionHint()}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <MetricBlock
+          label={t("settings.profile.countryFocus")}
+          value={marketLabel(profile.country_focus)}
+          hint={profile.organization || userEmail || t("settings.profile.subtitle")}
+        />
+        <MetricBlock
+          label={t("settings.notifications.emailDigest")}
+          value={digestLabel()}
+          tone={notif.email_digest_enabled ? "brand" : "default"}
+        />
+        <MetricBlock
+          label={t("settings.subscription")}
+          value={subLabel()}
+          hint={subscriptionHint()}
+          tone={subTone()}
+        />
+      </div>
+
+      <SurfaceSection title={t("settings.profile")} subtitle={t("settings.profile.subtitle")}>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
               {t("settings.profile.name")}
             </span>
             <input
               value={profile.full_name}
-              onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))}
+              onChange={(e) => setProfile((current) => ({ ...current, full_name: e.target.value }))}
               placeholder={userEmail}
-              className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
               {t("settings.profile.organization")}
             </span>
             <input
               value={profile.organization}
-              onChange={(e) => setProfile((p) => ({ ...p, organization: e.target.value }))}
+              onChange={(e) => setProfile((current) => ({ ...current, organization: e.target.value }))}
               placeholder="Acme Corp"
-              className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
             />
           </label>
 
           <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
               {t("settings.profile.countryFocus")}
             </span>
             <select
               value={profile.country_focus}
-              onChange={(e) => setProfile((p) => ({ ...p, country_focus: e.target.value }))}
-              className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+              onChange={(e) => setProfile((current) => ({ ...current, country_focus: e.target.value }))}
+              className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
             >
-              {COUNTRY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              {marketOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
           </label>
         </div>
-      </SectionCard>
+      </SurfaceSection>
 
-      {/* Notifications */}
-      <SectionCard title={t("settings.notifications")}>
+      <SurfaceSection title={t("settings.notifications")} subtitle={t("settings.notifications.subtitle")}>
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-text">{t("settings.notifications.emailDigest")}</div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={notif.email_digest_enabled}
-              onClick={() => setNotif((n) => ({ ...n, email_digest_enabled: !n.email_digest_enabled }))}
-              className={cn(
-                "relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                notif.email_digest_enabled ? "bg-accent" : "bg-border/60",
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200",
-                  notif.email_digest_enabled ? "translate-x-4" : "translate-x-0",
-                )}
-              />
-            </button>
+          <div className="flex items-center justify-between rounded-2xl border border-line/20 bg-bg/70 px-4 py-3">
+            <div>
+              <div className="text-sm font-semibold text-text">{t("settings.notifications.emailDigest")}</div>
+              <div className="mt-1 text-sm text-subtext">{digestLabel()}</div>
+            </div>
+            <SwitchControl
+              checked={notif.email_digest_enabled}
+              onCheckedChange={(next) => setNotif((current) => ({ ...current, email_digest_enabled: next }))}
+              ariaLabel={t("settings.notifications.emailDigest")}
+            />
           </div>
 
           {notif.email_digest_enabled ? (
             <label className="block text-sm">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
                 {t("settings.notifications.frequency")}
               </span>
               <select
                 value={notif.email_digest_frequency}
-                onChange={(e) => setNotif((n) => ({ ...n, email_digest_frequency: e.target.value }))}
-                className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+                onChange={(e) => setNotif((current) => ({ ...current, email_digest_frequency: e.target.value }))}
+                className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition focus:ring-2 focus:ring-brand/40"
               >
                 <option value="immediate">{t("settings.notifications.frequency.immediate")}</option>
                 <option value="daily">{t("settings.notifications.frequency.daily")}</option>
@@ -257,42 +305,33 @@ export default function SettingsPage() {
             </label>
           ) : null}
         </div>
-      </SectionCard>
+      </SurfaceSection>
 
-      {/* Subscription */}
-      <SectionCard title={t("settings.subscription")}>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className={cn("text-sm font-semibold", subColor())}>{subLabel()}</span>
-            {sub?.current_period_end ? (
-              <div className="mt-0.5 text-xs text-muted">
-                {t("settings.subscription.validUntil")}{" "}
-                {new Intl.DateTimeFormat(navigator.language, {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                }).format(new Date(sub.current_period_end))}
-              </div>
-            ) : null}
-          </div>
-          {!sub || sub.status !== "active" ? (
+      <SurfaceSection
+        title={t("settings.subscription")}
+        action={
+          !sub || sub.status !== "active" ? (
             <NavLink
               to="/abbonamento"
-              className="inline-flex items-center rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20"
+              className="inline-flex items-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-brand/20"
             >
               {t("settings.subscription.upgrade")} →
             </NavLink>
-          ) : null}
+          ) : null
+        }
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <SemanticPill tone={subTone()}>{subLabel()}</SemanticPill>
+          {sub?.current_period_end ? <span className="text-sm text-subtext">{subscriptionHint()}</span> : null}
         </div>
-      </SectionCard>
+      </SurfaceSection>
 
-      {/* Security */}
-      <SectionCard title="Security">
+      <SurfaceSection title={t("settings.security")} subtitle={t("settings.security.subtitle")}>
         <form className="space-y-3" onSubmit={(e) => void handleChangePassword(e)}>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                New password
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
+                {t("settings.security.newPassword")}
               </span>
               <input
                 type="password"
@@ -301,13 +340,13 @@ export default function SettingsPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+                className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
               />
             </label>
 
             <label className="block text-sm">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Confirm new password
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-subtext">
+                {t("settings.security.confirmPassword")}
               </span>
               <input
                 type="password"
@@ -316,7 +355,7 @@ export default function SettingsPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-border/35 bg-bg/60 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-accent/40"
+                className="w-full rounded-xl border border-line/25 bg-bg/70 px-3 py-2 text-sm text-text outline-none transition placeholder:text-subtext/70 focus:ring-2 focus:ring-brand/40"
               />
             </label>
           </div>
@@ -329,39 +368,29 @@ export default function SettingsPage() {
 
           <div className="flex items-center gap-3 pt-1">
             {pwStatus === "saved" ? (
-              <span className="text-sm font-semibold text-good">Password updated ✓</span>
+              <SemanticPill tone="good">{t("settings.security.updated")}</SemanticPill>
             ) : null}
             <button
               type="submit"
               disabled={pwStatus === "saving"}
-              className="inline-flex items-center rounded-xl border border-border/40 bg-surface px-4 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center rounded-xl border border-line/25 bg-surface px-4 py-2 text-sm font-semibold text-text shadow-soft transition hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {pwStatus === "saving" ? "Updating…" : "Change password"}
+              {pwStatus === "saving" ? t("settings.security.updating") : t("settings.security.update")}
             </button>
           </div>
         </form>
-      </SectionCard>
+      </SurfaceSection>
 
-      {/* UI Standards */}
-      <SectionCard title={t("settings.uiStandards")}>
-        <ul className="space-y-2 text-sm">
-          <li>• {t("settings.standard1")}</li>
-          <li>• {t("settings.standard2")}</li>
-          <li>• {t("settings.standard3")}</li>
-        </ul>
-        <div className="mt-4 text-xs text-muted">{t("settings.language")}: use the EN / FR / IT switcher in the navbar.</div>
-      </SectionCard>
-
-      {/* Save */}
-      <div className="flex items-center justify-end gap-3 pt-1">
-        {saveStatus === "saved" ? (
-          <span className="text-sm font-semibold text-good">{t("settings.saved")}</span>
-        ) : null}
+      <div className="flex items-center justify-end gap-3 pb-2">
+        {saveStatus === "saved" ? <SemanticPill tone="good">{t("settings.saved")}</SemanticPill> : null}
         <button
           type="button"
           onClick={() => void handleSave()}
           disabled={saveStatus === "saving" || !userId}
-          className="inline-flex items-center rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className={cn(
+            "inline-flex items-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition",
+            "bg-brand hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60",
+          )}
         >
           {saveStatus === "saving" ? t("settings.saving") : t("settings.save")}
         </button>

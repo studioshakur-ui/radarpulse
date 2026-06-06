@@ -1,4 +1,5 @@
 import { ENV } from "@/lib/env";
+import { AuthTokenError, getValidAccessToken } from "@/lib/authToken";
 
 export type OpportunitiesSearchCursor = {
   published_at: string;
@@ -56,6 +57,22 @@ export class EdgeFunctionRequestError extends Error {
   }
 }
 
+async function invokeOpportunitiesSearch(payload: Record<string, unknown>, jwt: string): Promise<Response> {
+  try {
+    return await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunities-search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+        apikey: ENV.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new EdgeFunctionRequestError("NETWORK_ERROR", "Network error while contacting the search service.");
+  }
+}
+
 function asItem(value: unknown): OpportunitiesSearchItem | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -90,11 +107,7 @@ function asCursor(value: unknown): OpportunitiesSearchCursor | null {
   return { published_at: cursor.published_at, id: cursor.id };
 }
 
-export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, jwt: string): Promise<OpportunitiesSearchResult> {
-  if (!jwt) {
-    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
-  }
-
+export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, jwt?: string): Promise<OpportunitiesSearchResult> {
   const payload = {
     q: typeof input.q === "string" && input.q.trim() ? input.q.trim() : undefined,
     status: typeof input.status === "string" && input.status.trim() ? input.status.trim() : undefined,
@@ -105,24 +118,43 @@ export async function callOpportunitiesSearch(input: OpportunitiesSearchInput, j
     country_code: input.country_code ?? undefined,
   };
 
-  let response: Response;
+  let accessToken = jwt;
   try {
-    response = await fetch(`${ENV.SUPABASE_URL}/functions/v1/opportunities-search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
-        apikey: ENV.SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw new EdgeFunctionRequestError("NETWORK_ERROR", "Network error while contacting the search service.");
+    if (!accessToken) {
+      accessToken = await getValidAccessToken();
+    }
+  } catch (error) {
+    if (error instanceof AuthTokenError) {
+      throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
+    }
+    throw error;
   }
 
-  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  const message = typeof body.message === "string" ? body.message : "";
-  const handlerError = typeof body.error === "string" ? body.error : "";
+  if (!accessToken) {
+    throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
+  }
+
+  let response = await invokeOpportunitiesSearch(payload, accessToken);
+  let body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  let message = typeof body.message === "string" ? body.message : "";
+  let handlerError = typeof body.error === "string" ? body.error : "";
+
+  if (response.status === 401) {
+    if (message.toLowerCase().includes("invalid jwt")) {
+      try {
+        const refreshedToken = await getValidAccessToken({ forceRefresh: true });
+        response = await invokeOpportunitiesSearch(payload, refreshedToken);
+        body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        message = typeof body.message === "string" ? body.message : "";
+        handlerError = typeof body.error === "string" ? body.error : "";
+      } catch (error) {
+        if (error instanceof AuthTokenError) {
+          throw new EdgeFunctionRequestError("AUTH_SESSION_INVALID", "Session expired. Please sign in again.");
+        }
+        throw error;
+      }
+    }
+  }
 
   if (response.status === 401) {
     if (handlerError === "UNAUTHORIZED") {

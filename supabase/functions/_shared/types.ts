@@ -35,6 +35,12 @@ export type IngestionJobRow = {
   payload: Record<string, unknown>;
 };
 
+export type OpportunityDocumentInput = {
+  doc_url: string;
+  doc_title: string | null;
+  doc_type: string | null;
+};
+
 export type OpportunityUpsertInput = {
   source_id: string;
   external_id?: string | null;
@@ -43,6 +49,8 @@ export type OpportunityUpsertInput = {
   status?: OpportunityStatus;
   is_public?: boolean;
   country_code?: string | null;
+  region?: string | null;
+  locality?: string | null;
   buyer_name?: string | null;
   title: string;
   summary?: string | null;
@@ -52,4 +60,5 @@ export type OpportunityUpsertInput = {
   source_url: string;
   language?: string | null;
   raw?: Record<string, unknown>;
+  documents?: OpportunityDocumentInput[];
 };

@@ -1,41 +1,70 @@
 import { create } from "zustand";
 
-/**
- * RadarPulse — Single "Twilight" theme
- *
- * Product direction: no Light/Dark switch. The UI lives in one curated palette
- * (lavender / mist / graphite) and stays consistent across marketing + app.
- */
+export type ThemeMode = "light" | "dark" | "auto";
+export type ResolvedTheme = "light" | "dark";
 
-export type ThemeMode = "twilight";
-export type ResolvedTheme = "twilight";
+const STORAGE_KEY = "rp_theme";
+
+// Read initial state from the DOM — the index.html FOUC script already applied
+// the correct .dark class before React boots, so we just mirror it here.
+function domEffective(): ResolvedTheme {
+  try {
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function domMode(): ThemeMode {
+  return "light";
+}
+
+function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  void mode;
+  return "light";
+}
+
+function applyTheme(resolved: ResolvedTheme) {
+  const el = document.documentElement;
+  if (resolved === "dark") {
+    el.classList.add("dark");
+  } else {
+    el.classList.remove("dark");
+  }
+  el.dataset.theme = resolved;
+}
 
 type ThemeState = {
   mode: ThemeMode;
   effective: ResolvedTheme;
   hydrated: boolean;
-  setMode: (_m: ThemeMode) => void;
+  setMode: (m: ThemeMode) => void;
   init: () => void;
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: "twilight",
-  effective: "twilight",
-  hydrated: false,
-  setMode: () => {
-    // intentionally no-op: single theme
+  mode: domMode(),
+  effective: domEffective(),
+  hydrated: true,
+  setMode: (m: ThemeMode) => {
+    const effective = resolveTheme(m);
+    applyTheme(effective);
+    try {
+      localStorage.setItem(STORAGE_KEY, "light");
+    } catch {
+      // ignore
+    }
+    set({ mode: "light", effective });
   },
   init: () => {
-    const st = get();
-    if (st.hydrated) return;
-    // ensure we never apply dark classes; we keep this for future extensibility
-    set({ hydrated: true, mode: "twilight", effective: "twilight" });
+    if (get().hydrated) return;
+    const mode = domMode();
+    const effective = domEffective();
+    applyTheme(effective);
+    set({ mode, effective, hydrated: true });
   },
 }));
 
-/**
- * Backwards compatible hook name used in older code.
- */
 export function useTheme() {
   const mode = useThemeStore((s) => s.mode);
   const effective = useThemeStore((s) => s.effective);

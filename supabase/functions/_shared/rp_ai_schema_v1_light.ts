@@ -66,10 +66,11 @@ export const RP_AI_SCHEMA_V1_LIGHT: Record<string, unknown> = {
     geo: {
       type: "object",
       additionalProperties: false,
-      required: ["country_code", "region"],
+      required: ["country_code", "region", "locality"],
       properties: {
         country_code: { type: ["string", "null"], minLength: 2, maxLength: 2 },
         region: { type: ["string", "null"], maxLength: 80 },
+        locality: { type: ["string", "null"], maxLength: 120 },
       },
     },
 

@@ -9,6 +9,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("login-magic-link");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -95,14 +98,14 @@ Deno.serve(async (req) => {
         event: "magic_link",
         payload: { email, name: email.split("@")[0], magic_link: magicLink },
       }),
-    }).catch((err) => {
-      console.error("[login-magic-link] notify-email network error:", err);
+    }).catch((err: unknown) => {
+      log.error("notify_email_network_error", { error: err instanceof Error ? err.message : String(err) });
       return null;
     });
 
     if (!emailRes || !emailRes.ok) {
       const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-      console.error("[login-magic-link] notify-email failed:", errText);
+      log.error("notify_email_failed", { response: errText });
       throw new Error("Email service unavailable — please try again");
     }
 

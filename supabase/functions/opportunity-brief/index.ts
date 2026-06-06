@@ -1,9 +1,14 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { extractJsonObject } from "../_shared/openai_json.ts";
+
+const log = createLogger("opportunity-brief");
 
 type BriefInput = {
   id: string;
   title: string;
+  locale?: "en" | "fr" | "it";
   buyer_name?: string | null;
   status?: string | null;
   deadline_at?: string | null;
@@ -22,8 +27,38 @@ export type Brief = {
   next_action: string;
 };
 
+const BRIEF_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — regenerate after
+const PROMPT_VERSION = "v1";
+const BRIEF_AGENT_VERSION = "brief.dualwrite.v1";
+const BRIEF_VERSION = PROMPT_VERSION;
+
+function normalizeLocale(value: unknown): "en" | "fr" | "it" {
+  return value === "fr" || value === "it" ? value : "en";
+}
+
+function localeInstruction(locale: "en" | "fr" | "it"): string {
+  if (locale === "fr") return "Respond in French.";
+  if (locale === "it") return "Respond in Italian.";
+  return "Respond in English.";
+}
+
+class BriefHttpError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 function serializeError(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 function json(status: number, body: unknown): Response {
@@ -33,26 +68,135 @@ function json(status: number, body: unknown): Response {
   });
 }
 
+function buildAdminClient(req: Request) {
+  const requestUrl = new URL(req.url);
+  const url = requestUrl.origin || Deno.env.get("SB_URL") || Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) {
+    throw new Error("SERVER_CONFIG_ERROR");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false },
+    global: { headers: { "X-Client-Info": "radarpulse-edge" } },
+  });
+}
+
+async function insertAgentRun(
+  sb: ReturnType<typeof buildAdminClient>,
+  args: { opportunityId: string; model: string },
+): Promise<string> {
+  const { data, error } = await sb
+    .from("agent_runs")
+    .insert({
+      agent_type: "brief",
+      status: "running",
+      trigger_type: "system",
+      model: args.model,
+      prompt_version: PROMPT_VERSION,
+      agent_version: BRIEF_AGENT_VERSION,
+      started_at: nowIso(),
+      input_ref: {
+        opportunity_id: args.opportunityId,
+      },
+      meta: {
+        compatibility_table: "opportunity_briefs",
+        brief_version: BRIEF_VERSION,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert agent_runs row");
+  }
+
+  return String(data.id);
+}
+
+async function updateAgentRun(
+  sb: ReturnType<typeof buildAdminClient>,
+  agentRunId: string,
+  patch: Record<string, unknown>,
+) {
+  const { error } = await sb.from("agent_runs").update(patch).eq("id", agentRunId);
+  if (error) throw new Error(`failed to update agent_runs row: ${error.message}`);
+}
+
+async function getCurrentBriefVersionIds(
+  sb: ReturnType<typeof buildAdminClient>,
+  opportunityId: string,
+  outputLocale: "en" | "fr" | "it",
+): Promise<string[]> {
+  const { data, error } = await sb
+    .from("brief_versions")
+    .select("id")
+    .eq("opportunity_id", opportunityId)
+    .eq("output_locale", outputLocale)
+    .eq("is_current", true);
+
+  if (error) throw new Error(`failed to load current brief_versions rows: ${error.message}`);
+
+  return Array.isArray(data)
+    ? data.map((row: { id?: unknown }) => String(row?.id ?? "")).filter(Boolean)
+    : [];
+}
+
+async function setBriefVersionsCurrentState(
+  sb: ReturnType<typeof buildAdminClient>,
+  briefVersionIds: string[],
+  isCurrent: boolean,
+) {
+  if (!briefVersionIds.length) return;
+
+  const { error } = await sb
+    .from("brief_versions")
+    .update({ is_current: isCurrent })
+    .in("id", briefVersionIds);
+
+  if (error) {
+    throw new Error(`failed to set brief_versions is_current=${isCurrent}: ${error.message}`);
+  }
+}
+
+async function insertBriefVersion(
+  sb: ReturnType<typeof buildAdminClient>,
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const { data, error } = await sb
+    .from("brief_versions")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert brief_versions row");
+  }
+
+  return String(data.id);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
 
-  // Auth
+  // ─── Auth ──────────────────────────────────────────────────────────────────
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) {
     return json(401, { ok: false, error: "UNAUTHORIZED" });
   }
   const token = authHeader.slice(7).trim();
 
+  let sb: ReturnType<typeof buildAdminClient>;
   try {
-    const sb = sbAdmin();
+    sb = buildAdminClient(req);
     const { data, error: authErr } = await sb.auth.getUser(token);
     if (authErr || !data?.user?.id) return json(401, { ok: false, error: "UNAUTHORIZED" });
   } catch {
     return json(500, { ok: false, error: "SERVER_CONFIG_ERROR" });
   }
 
-  // Parse body
+  // ─── Parse body ────────────────────────────────────────────────────────────
   let body: BriefInput;
   try {
     body = (await req.json()) as BriefInput;
@@ -62,11 +206,33 @@ Deno.serve(async (req) => {
   if (!body?.id || !body?.title) {
     return json(400, { ok: false, error: "MISSING_FIELDS" });
   }
+  const outputLocale = normalizeLocale(body.locale);
 
+  // ─── 1. Read from DB cache (TTL = 7 days) ─────────────────────────────────
+  const staleThreshold = new Date(Date.now() - BRIEF_TTL_MS).toISOString();
+  const { data: cached } = await sb
+    .from("opportunity_briefs")
+    .select("executive_summary, fit_assessment, risk_flags, required_documents, next_action")
+    .eq("opportunity_id", body.id)
+    .eq("output_locale", outputLocale)
+    .gt("created_at", staleThreshold)
+    .maybeSingle();
+
+  if (cached) {
+    const brief: Brief = {
+      executive_summary: cached.executive_summary ?? "",
+      fit_assessment: cached.fit_assessment ?? "",
+      risk_flags: Array.isArray(cached.risk_flags) ? cached.risk_flags : [],
+      required_documents: Array.isArray(cached.required_documents) ? cached.required_documents : [],
+      next_action: cached.next_action ?? "",
+    };
+    return json(200, { ok: true, brief, cached: true });
+  }
+
+  // ─── 2. Generate via OpenAI ────────────────────────────────────────────────
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) return json(500, { ok: false, error: "SERVER_CONFIG_ERROR" });
 
-  // Build prompt context from available fields
   const lines: string[] = [`Title: ${body.title}`];
   if (body.buyer_name) lines.push(`Buyer: ${body.buyer_name}`);
   if (body.country_code) lines.push(`Country: ${body.country_code}`);
@@ -78,8 +244,6 @@ Deno.serve(async (req) => {
     lines.push(`Budget: ${body.budget_amount} ${body.budget_currency ?? "EUR"}`);
   }
 
-  const opportunityText = lines.join("\n");
-
   const systemPrompt = [
     "You are an expert public procurement analyst. Analyze the opportunity and respond with a JSON object with exactly these fields:",
     "- executive_summary: string (2-3 sentences, plain language overview)",
@@ -87,10 +251,22 @@ Deno.serve(async (req) => {
     "- risk_flags: string[] (up to 5 red flags or complexity factors, each max 15 words)",
     "- required_documents: string[] (up to 7 typical documents or certifications required)",
     "- next_action: string (one concrete immediate next step, max 20 words)",
-    "Be concise and actionable. Respond in the same language as the opportunity title.",
+    "Be concise and actionable.",
+    localeInstruction(outputLocale),
   ].join("\n");
 
+  const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
+  const t0 = Date.now();
+  let agentRunId = "";
+
   try {
+    try {
+      agentRunId = await insertAgentRun(sb, { opportunityId: body.id, model });
+    } catch (lineageErr) {
+      log.error("agent_runs_insert_failed", { error: serializeError(lineageErr) });
+      agentRunId = "";
+    }
+
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -98,11 +274,11 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini",
+        model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this public procurement opportunity:\n\n${opportunityText}` },
+          { role: "user", content: `Analyze this public procurement opportunity:\n\n${lines.join("\n")}` },
         ],
         max_tokens: 700,
         temperature: 0.3,
@@ -111,13 +287,13 @@ Deno.serve(async (req) => {
 
     if (!openaiRes.ok) {
       const errText = await openaiRes.text().catch(() => "");
-      console.error("[opportunity-brief] OpenAI error:", openaiRes.status, errText);
-      return json(502, { ok: false, error: "AI_ERROR" });
+      log.error("openai_error", { status: openaiRes.status, response: errText });
+      throw new BriefHttpError(502, "AI_ERROR");
     }
 
-    const openaiData = (await openaiRes.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = openaiData.choices?.[0]?.message?.content ?? "{}";
-    const raw = JSON.parse(content) as Record<string, unknown>;
+    const generation_ms = Date.now() - t0;
+    const openaiData = (await openaiRes.json()) as { choices?: { message?: { content?: unknown } }[] };
+    const raw = extractJsonObject(openaiData.choices?.[0]?.message?.content ?? "");
 
     const brief: Brief = {
       executive_summary: String(raw.executive_summary ?? ""),
@@ -129,17 +305,127 @@ Deno.serve(async (req) => {
       next_action: String(raw.next_action ?? ""),
     };
 
-    console.info(
-      JSON.stringify({
-        event: "opportunity_brief_generated",
+    // ─── 3. Persist to DB ───────────────────────────────────────────────────
+    const { error: upsertErr } = await sb.from("opportunity_briefs").upsert(
+      {
         opportunity_id: body.id,
-        model: Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini",
-      }),
+        executive_summary: brief.executive_summary,
+        fit_assessment: brief.fit_assessment,
+        risk_flags: brief.risk_flags,
+        required_documents: brief.required_documents,
+        next_action: brief.next_action,
+        model,
+        prompt_version: PROMPT_VERSION,
+        output_locale: outputLocale,
+        generation_ms,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "opportunity_id,output_locale" },
     );
 
-    return json(200, { ok: true, brief });
+    if (upsertErr) {
+      // Log but don't fail — brief is still usable even if persistence fails
+      log.error("persist_error", { error: upsertErr.message });
+    }
+
+    let briefVersionId = "";
+    try {
+      const previousCurrentBriefVersionIds = await getCurrentBriefVersionIds(sb, body.id, outputLocale);
+      try {
+        await setBriefVersionsCurrentState(sb, previousCurrentBriefVersionIds, false);
+        if (agentRunId) {
+          briefVersionId = await insertBriefVersion(sb, {
+            opportunity_id: body.id,
+            agent_run_id: agentRunId,
+            is_backfilled: false,
+            is_current: true,
+            model,
+            prompt_version: PROMPT_VERSION,
+            brief_version: BRIEF_VERSION,
+            output_locale: outputLocale,
+            executive_summary: brief.executive_summary,
+            fit_assessment: brief.fit_assessment,
+            risk_flags: brief.risk_flags,
+            required_documents: brief.required_documents,
+            next_action: brief.next_action,
+            input_snapshot: {
+              input: body,
+              output: raw,
+            },
+            generation_ms,
+          });
+        }
+      } catch (insertErr) {
+        try {
+          await setBriefVersionsCurrentState(sb, previousCurrentBriefVersionIds, true);
+        } catch (restoreErr) {
+          log.error("restore_brief_versions_failed", { error: serializeError(restoreErr) });
+        }
+        throw insertErr;
+      }
+    } catch (lineageErr) {
+      log.error("brief_versions_write_failed", { error: serializeError(lineageErr) });
+      briefVersionId = "";
+    }
+
+    if (agentRunId) {
+      try {
+        await updateAgentRun(sb, agentRunId, {
+          status: "success",
+          finished_at: nowIso(),
+          duration_ms: Date.now() - t0,
+          opportunity_id: body.id,
+          output_ref: briefVersionId
+            ? {
+                brief_version_id: briefVersionId,
+              }
+            : null,
+          meta: {
+            compatibility_table: "opportunity_briefs",
+            brief_version: BRIEF_VERSION,
+          },
+        });
+      } catch (lineageErr) {
+        log.error("agent_runs_success_update_failed", { error: serializeError(lineageErr) });
+      }
+    }
+
+    log.info("brief_generated", {
+      opportunity_id: body.id,
+      model,
+      generation_ms,
+      prompt_version: PROMPT_VERSION,
+      cached: false,
+    });
+
+    return json(200, { ok: true, brief, cached: false });
   } catch (e) {
-    console.error("[opportunity-brief] error:", serializeError(e));
+    const originalError = e instanceof Error ? e : new Error(String(e));
+    if (agentRunId) {
+      try {
+        await updateAgentRun(sb, agentRunId, {
+          status: "error",
+          finished_at: nowIso(),
+          duration_ms: Date.now() - t0,
+          opportunity_id: body.id,
+          error_message: originalError.message,
+          output_ref: null,
+          meta: {
+            compatibility_table: "opportunity_briefs",
+            brief_version: BRIEF_VERSION,
+          },
+        });
+      } catch (agentRunErr) {
+        log.error("agent_runs_update_failed", { error: serializeError(agentRunErr) });
+      }
+    }
+    log.error("handler_error", { error: serializeError(originalError) });
+    if (originalError instanceof BriefHttpError) {
+      return json(originalError.status, { ok: false, error: originalError.code });
+    }
+    if (originalError.message === "AI_EMPTY_RESPONSE" || originalError.message === "AI_INVALID_JSON") {
+      return json(502, { ok: false, error: originalError.message });
+    }
     return json(500, { ok: false, error: "INTERNAL_ERROR" });
   }
 });

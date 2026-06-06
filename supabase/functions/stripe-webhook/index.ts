@@ -1,6 +1,9 @@
 import Stripe from "npm:stripe@16.12.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { sbAdmin } from "../_shared/db.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("stripe-webhook");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -68,16 +71,21 @@ Deno.serve(async (req) => {
     const stripe = new Stripe(stripeSecret, { apiVersion: "2024-06-20" });
     const event = await stripe.webhooks.constructEventAsync(rawBody, sig, webhookSecret);
 
-    // Helper: fire-and-forget notify-email
+    // BUG-16 FIX: notifyEmail is now async and awaited before the final response
+    // so the Edge Function runtime does not terminate before the fetch completes.
     const sbUrl = Deno.env.get("SB_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
     const serviceKey = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    function notifyEmail(eventName: string, payload: Record<string, string>) {
+    async function notifyEmail(eventName: string, payload: Record<string, string>): Promise<void> {
       if (!sbUrl || !serviceKey) return;
-      fetch(`${sbUrl}/functions/v1/notify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ event: eventName, payload }),
-      }).catch(() => console.error("[stripe-webhook] notify-email failed"));
+      try {
+        await fetch(`${sbUrl}/functions/v1/notify-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({ event: eventName, payload }),
+        });
+      } catch (e: unknown) {
+        log.error("notify_email_failed", { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     if (event.type === "checkout.session.completed") {
@@ -93,7 +101,7 @@ Deno.serve(async (req) => {
           subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
           status: "active",
         });
-        notifyEmail("subscription_created", {
+        await notifyEmail("subscription_created", {
           user_id: userId,
           status: "active",
           stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : "—",

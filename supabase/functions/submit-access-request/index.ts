@@ -6,6 +6,9 @@
 
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("submit-access-request");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -65,18 +68,18 @@ Deno.serve(async (req) => {
           event: "access_request",
           payload: { name, email, organization: organization ?? "", use_case: useCase ?? "" },
         }),
-      }).catch((err) => {
-        console.error("[submit-access-request] notify-email network error:", err);
+      }).catch((err: unknown) => {
+        log.error("notify_email_network_error", { error: err instanceof Error ? err.message : String(err) });
         return null;
       });
 
       if (!emailRes?.ok) {
         // Non-fatal: lead is already saved in DB, log but don't fail the request
         const errText = emailRes ? await emailRes.text().catch(() => "") : "network error";
-        console.error("[submit-access-request] notify-email failed (non-fatal):", errText);
+        log.error("notify_email_failed", { response: errText });
       }
     } else {
-      console.warn("[submit-access-request] SERVICE_ROLE_KEY not set — admin notification skipped");
+      log.warn("admin_notification_skipped_missing_env");
     }
 
     return json({ ok: true });

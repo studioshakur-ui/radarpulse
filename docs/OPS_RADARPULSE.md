@@ -19,6 +19,8 @@
   - If an `Authorization: Bearer ...` header is provided, functions manually verify it via `sb.auth.getUser(token)`.
   - Invalid bearer token returns `401`.
   - System/scheduler calls without bearer remain allowed.
+- For all other user-facing functions, repo-managed function config is the source of truth for `verify_jwt`.
+- Do not keep manual Supabase dashboard JWT toggles as a long-term override; redeploy from the repo instead.
 
 ## Deploy DB changes (source of truth: migrations)
 From repo root:

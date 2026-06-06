@@ -13,9 +13,9 @@
   color-scheme: light;
 
   /* Core surfaces */
-  --rp-bg: 245 244 252;        /* lavender mist */
+  --rp-bg: 252 251 255;        /* near-white, trace of lavender */
   --rp-surface: 255 255 255;   /* clean glass */
-  --rp-elevated: 248 246 255;  /* soft lift */
+  --rp-elevated: 245 243 255;  /* soft lift */
   --rp-border: 123 116 145;    /* muted violet-gray */
 
   /* Text */
@@ -41,6 +41,26 @@
   --rp-shadow-glow: 0 22px 70px rgba(124, 58, 237, 0.22);
 }
 
+/* Dark mode — RadarPulse tokens.
+   Must be OUTSIDE @layer base so it beats the unlayered :root declaration above.
+   .dark class on <html> applied by index.html bootstrap script + useTheme store. */
+.dark {
+  color-scheme: dark;
+
+  --rp-bg: 11 10 18;              /* deep midnight purple-black */
+  --rp-surface: 17 16 28;         /* dark glass */
+  --rp-elevated: 24 22 38;        /* soft lift dark */
+  --rp-border: 75 70 100;         /* visible on dark */
+  --rp-text: 238 236 245;         /* near-white, warm */
+  --rp-muted: 150 145 170;        /* muted violet-gray */
+  --rp-accent: 139 92 246;        /* violet (appears brighter on dark) */
+  --rp-accent2: 167 139 250;      /* orchid */
+  --rp-ink: 255 255 255;
+  --rp-veil: 11 10 18;
+  --rp-shadow-soft: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --rp-shadow-glow: 0 22px 70px rgba(139, 92, 246, 0.35);
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -57,6 +77,21 @@ body {
     "Segoe UI Emoji";
   background: rgb(var(--rp-bg));
   color: rgb(var(--rp-text));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Subtle scrollbar (works on WebKit) */
@@ -128,6 +163,7 @@ body {
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
   }
 }
 

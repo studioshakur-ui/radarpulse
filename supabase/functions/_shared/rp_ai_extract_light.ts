@@ -2,14 +2,10 @@
 // RadarPulse — Extractor V1.light (backend-only)
 // - Fetches opportunities_raw
 // - Calls OpenAI Responses API with Structured Outputs (JSON schema strict)
-// - Upserts opportunity_ai by fingerprint
+// - Inserts agent_runs + append-only opportunity_extractions lineage rows
+// - Upserts opportunity_ai by fingerprint for compatibility
 // - Replaces evidence rows for that ai_id
 // - Logs minimal observability in rp_ai_runs
-//
-// References:
-// - Structured Outputs (Responses API text.format json_schema strict) :contentReference[oaicite:1]{index=1}
-// - Responses API "store" parameter :contentReference[oaicite:2]{index=2}
-//
 // NOTE: This file is safe to import from multiple functions (worker + endpoint).
 
 import { RP_AI_SCHEMA_NAME_V1_LIGHT, RP_AI_SCHEMA_V1_LIGHT } from "./rp_ai_schema_v1_light.ts";
@@ -19,6 +15,9 @@ type SupabaseClientLike = {
   from: (table: string) => any;
 };
 
+const EXTRACT_AGENT_VERSION = "extract.dualwrite.v1";
+const EXTRACT_PROMPT_VERSION = "v1.light";
+
 export type ExtractLightOptions = {
   openaiApiKey: string;
   openaiModel?: string;
@@ -26,6 +25,9 @@ export type ExtractLightOptions = {
   extractVersion?: string; // default "v1.light"
   minContentChars?: number; // gating
   maxContentChars?: number; // truncation
+  triggerType?: string;
+  sourceId?: string | null;
+  ingestionRunId?: string | null;
 };
 
 export type ExtractLightResult = {
@@ -33,6 +35,9 @@ export type ExtractLightResult = {
   reason?: string;
   ai_id?: string;
   fingerprint?: string;
+  opportunity_id?: string;
+  agent_run_id?: string;
+  extraction_id?: string;
 };
 
 function nowIso(): string {
@@ -182,6 +187,34 @@ function mapQualityToDb(q: any): { extraction_quality: "high" | "med" | "low"; n
   return { extraction_quality, needs_review, missing_fields, signals };
 }
 
+function computeCompatibilityScores(args: {
+  region: string | null;
+  locality?: string | null;
+  budgetValue: number | null;
+  deadlineAt: string | null;
+  buyerName: string | null;
+  extractionQuality: "high" | "med" | "low";
+}): { quality_score: number; completeness_score: number } {
+  const completeness_score =
+    (
+      (args.region !== null ? 1 : 0) +
+      (args.budgetValue !== null ? 1 : 0) +
+      (args.deadlineAt !== null ? 1 : 0) +
+      (args.buyerName !== null ? 1 : 0)
+    ) / 4.0;
+
+  const qualityMultiplier = args.extractionQuality === "high"
+    ? 1.0
+    : args.extractionQuality === "med"
+      ? 0.7
+      : 0.4;
+
+  return {
+    quality_score: completeness_score * qualityMultiplier,
+    completeness_score,
+  };
+}
+
 function normalizeNullableString(v: unknown): string | null {
   const s = (v ?? null) === null ? "" : String(v);
   const t = s.trim();
@@ -196,6 +229,167 @@ function normalizeCountryCode(v: unknown): string | null {
   return cc;
 }
 
+function normalizeGeoText(v: unknown): string | null {
+  const s = normalizeNullableString(v);
+  if (!s) return null;
+
+  const normalized = s
+    .toLowerCase()
+    .replaceAll("’", " ")
+    .replaceAll("'", " ")
+    .replaceAll("-", " ")
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized || null;
+}
+
+function extractConnectorGeoFallback(rawContent: unknown): { region: string | null; locality: string | null } {
+  if (typeof rawContent !== "string" || !rawContent.trim()) {
+    return { region: null, locality: null };
+  }
+
+  try {
+    const parsed = JSON.parse(rawContent) as Record<string, unknown>;
+    return {
+      region: normalizeNullableString(parsed.region),
+      locality: normalizeNullableString(parsed.locality),
+    };
+  } catch {
+    return { region: null, locality: null };
+  }
+}
+
+function inferLocalityFromSourceContext(args: {
+  sourceKey: string | null;
+  buyerName: string | null;
+  region: string | null;
+}): string | null {
+  const sourceKey = normalizeNullableString(args.sourceKey)?.toLowerCase() ?? "";
+  const buyerName = normalizeNullableString(args.buyerName)?.toLowerCase() ?? "";
+  const region = normalizeGeoText(args.region);
+
+  if (
+    sourceKey === "it_milano_bandi_rss"
+    || buyerName.includes("comune di milano")
+    || (region === "lombardia" && buyerName.includes("milano"))
+  ) {
+    return "Milano";
+  }
+
+  if (
+    sourceKey === "it_roma_bandi_rss"
+    || buyerName.includes("comune di roma")
+    || (region === "lazio" && buyerName.includes("roma"))
+  ) {
+    return "Roma";
+  }
+
+  return null;
+}
+
+type GeoResolution = {
+  geo_country_id: string | null;
+  geo_region_id: string | null;
+  geo_locality_id: string | null;
+  geo_resolution_confidence: "exact" | "country_only" | "region_text_match" | "locality_text_match" | "unresolved";
+};
+
+async function resolveGeoScope(
+  supabase: SupabaseClientLike,
+  args: {
+    countryCode: string | null;
+    region: string | null;
+    locality: string | null;
+  },
+): Promise<GeoResolution> {
+  const countryCode = normalizeCountryCode(args.countryCode);
+  const regionNormalized = normalizeGeoText(args.region);
+  const localityNormalized = normalizeGeoText(args.locality);
+
+  let geoCountryId: string | null = null;
+  if (countryCode) {
+    const { data: countryRow, error: countryError } = await supabase
+      .from("geo_countries")
+      .select("id")
+      .eq("country_code", countryCode)
+      .maybeSingle();
+
+    if (countryError) {
+      throw new Error(`failed to resolve geo country: ${countryError.message}`);
+    }
+
+    geoCountryId = countryRow?.id ? String(countryRow.id) : null;
+  }
+
+  let geoRegionId: string | null = null;
+  if (geoCountryId && regionNormalized) {
+    const { data: regionRow, error: regionError } = await supabase
+      .from("geo_regions")
+      .select("id")
+      .eq("country_id", geoCountryId)
+      .eq("normalized_name", regionNormalized)
+      .maybeSingle();
+
+    if (regionError) {
+      throw new Error(`failed to resolve geo region: ${regionError.message}`);
+    }
+
+    geoRegionId = regionRow?.id ? String(regionRow.id) : null;
+  }
+
+  let geoLocalityId: string | null = null;
+  if (geoRegionId && localityNormalized) {
+    const { data: localityRow, error: localityError } = await supabase
+      .from("geo_localities")
+      .select("id")
+      .eq("region_id", geoRegionId)
+      .eq("normalized_name", localityNormalized)
+      .maybeSingle();
+
+    if (localityError) {
+      throw new Error(`failed to resolve geo locality: ${localityError.message}`);
+    }
+
+    geoLocalityId = localityRow?.id ? String(localityRow.id) : null;
+  }
+
+  if (geoLocalityId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: geoRegionId,
+      geo_locality_id: geoLocalityId,
+      geo_resolution_confidence: "locality_text_match",
+    };
+  }
+
+  if (geoRegionId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: geoRegionId,
+      geo_locality_id: null,
+      geo_resolution_confidence: "region_text_match",
+    };
+  }
+
+  if (geoCountryId) {
+    return {
+      geo_country_id: geoCountryId,
+      geo_region_id: null,
+      geo_locality_id: null,
+      geo_resolution_confidence: "country_only",
+    };
+  }
+
+  return {
+    geo_country_id: null,
+    geo_region_id: null,
+    geo_locality_id: null,
+    geo_resolution_confidence: "unresolved",
+  };
+}
+
 async function findCanonicalOpportunityForRaw(
   supabase: SupabaseClientLike,
   raw: {
@@ -204,7 +398,7 @@ async function findCanonicalOpportunityForRaw(
     url?: string | null;
     url_canonical?: string | null;
   },
-): Promise<{ fingerprint: string; country_code: string | null } | null> {
+): Promise<{ id: string; fingerprint: string; country_code: string | null } | null> {
   const sourceId = normalizeNullableString(raw.source_id);
   if (!sourceId) return null;
 
@@ -212,12 +406,13 @@ async function findCanonicalOpportunityForRaw(
   if (externalId) {
     const { data } = await supabase
       .from("opportunities")
-      .select("fingerprint,country_code")
+      .select("id,fingerprint,country_code")
       .eq("source_id", sourceId)
       .eq("external_id", externalId)
       .limit(2);
-    if (Array.isArray(data) && data.length === 1 && data[0]?.fingerprint) {
+    if (Array.isArray(data) && data.length === 1 && data[0]?.id && data[0]?.fingerprint) {
       return {
+        id: String(data[0].id),
         fingerprint: String(data[0].fingerprint),
         country_code: normalizeCountryCode(data[0].country_code),
       };
@@ -228,12 +423,13 @@ async function findCanonicalOpportunityForRaw(
   for (const candidate of candidates) {
     const { data } = await supabase
       .from("opportunities")
-      .select("fingerprint,country_code")
+      .select("id,fingerprint,country_code")
       .eq("source_id", sourceId)
       .eq("source_url", candidate)
       .limit(2);
-    if (Array.isArray(data) && data.length === 1 && data[0]?.fingerprint) {
+    if (Array.isArray(data) && data.length === 1 && data[0]?.id && data[0]?.fingerprint) {
       return {
+        id: String(data[0].id),
         fingerprint: String(data[0].fingerprint),
         country_code: normalizeCountryCode(data[0].country_code),
       };
@@ -241,6 +437,107 @@ async function findCanonicalOpportunityForRaw(
   }
 
   return null;
+}
+
+async function insertAgentRun(
+  supabase: SupabaseClientLike,
+  args: {
+    rawId: string;
+    sourceId?: string | null;
+    ingestionRunId?: string | null;
+    model: string;
+    promptVersion: string;
+    extractVersion: string;
+    triggerType: string;
+  },
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("agent_runs")
+    .insert({
+      agent_type: "extract",
+      status: "running",
+      trigger_type: args.triggerType,
+      source_id: normalizeNullableString(args.sourceId),
+      ingestion_run_id: normalizeNullableString(args.ingestionRunId),
+      raw_id: args.rawId,
+      model: args.model,
+      prompt_version: args.promptVersion,
+      agent_version: EXTRACT_AGENT_VERSION,
+      started_at: nowIso(),
+      input_ref: { raw_id: args.rawId },
+      meta: {
+        extract_version: args.extractVersion,
+        compatibility_table: "opportunity_ai",
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert agent_runs row");
+  }
+
+  return String(data.id);
+}
+
+async function updateAgentRun(
+  supabase: SupabaseClientLike,
+  agentRunId: string | null,
+  patch: Record<string, unknown>,
+) {
+  if (!agentRunId) return;
+  const { error } = await supabase.from("agent_runs").update(patch).eq("id", agentRunId);
+  if (error) throw new Error(`failed to update agent_runs row: ${error.message}`);
+}
+
+async function getCurrentExtractionIds(
+  supabase: SupabaseClientLike,
+  opportunityId: string,
+) {
+  const { data, error } = await supabase
+    .from("opportunity_extractions")
+    .select("id")
+    .eq("opportunity_id", opportunityId)
+    .eq("is_current", true);
+
+  if (error) throw new Error(`failed to load current extraction rows: ${error.message}`);
+
+  return Array.isArray(data)
+    ? data.map((row: { id?: unknown }) => String(row?.id ?? "")).filter(Boolean)
+    : [];
+}
+
+async function setExtractionsCurrentState(
+  supabase: SupabaseClientLike,
+  extractionIds: string[],
+  isCurrent: boolean,
+) {
+  if (!extractionIds.length) return;
+  const { error } = await supabase
+    .from("opportunity_extractions")
+    .update({ is_current: isCurrent })
+    .in("id", extractionIds);
+
+  if (error) {
+    throw new Error(`failed to set current extraction rows to ${isCurrent}: ${error.message}`);
+  }
+}
+
+async function insertOpportunityExtraction(
+  supabase: SupabaseClientLike,
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("opportunity_extractions")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(error?.message || "failed to insert opportunity_extractions row");
+  }
+
+  return String(data.id);
 }
 
 export async function extractLightForRawId(
@@ -253,6 +550,7 @@ export async function extractLightForRawId(
   const model = cfg.openaiModel || "gpt-4o-mini";
   const store = Boolean(cfg.openaiStore ?? false);
   const extractVersion = cfg.extractVersion || "v1.light";
+  const triggerType = normalizeNullableString(cfg.triggerType) || "system";
   const minChars = cfg.minContentChars ?? 280;
   const maxChars = cfg.maxContentChars ?? 24_000;
 
@@ -274,6 +572,15 @@ export async function extractLightForRawId(
     .single();
 
   const runId = runInsert?.data?.id as string | undefined;
+  const agentRunId = await insertAgentRun(supabase, {
+    rawId,
+    sourceId: cfg.sourceId ?? null,
+    ingestionRunId: cfg.ingestionRunId ?? null,
+    model,
+    promptVersion: EXTRACT_PROMPT_VERSION,
+    extractVersion,
+    triggerType,
+  });
 
   try {
     const { data: raw, error: rawErr } = await supabase
@@ -302,6 +609,20 @@ export async function extractLightForRawId(
           })
           .eq("id", runId);
       }
+      await updateAgentRun(supabase, agentRunId, {
+        status: "skipped",
+        source_id: normalizeNullableString(raw.source_id) || normalizeNullableString(cfg.sourceId),
+        raw_id: raw.id,
+        finished_at: nowIso(),
+        duration_ms: Date.now() - started,
+        error_message: `gating: content too short (${richness.length} chars)`,
+        output_ref: null,
+        meta: {
+          extract_version: extractVersion,
+          compatibility_table: "opportunity_ai",
+          skipped_reason: "content_too_short",
+        },
+      });
       return { status: "skipped", reason: "gating: content too short" };
     }
 
@@ -328,6 +649,7 @@ export async function extractLightForRawId(
 
     const text = extractResponseText(respJson);
     const parsed = JSON.parse(text);
+    const connectorGeoFallback = extractConnectorGeoFallback(raw.content_raw);
 
     // Normalize + deterministic fingerprint enforcement (we trust but verify)
     const content_type = parsed?.content_type;
@@ -335,7 +657,14 @@ export async function extractLightForRawId(
     const buyer_name = normalizeNullableString(parsed?.buyer_name);
     const sector = parsed?.sector ?? null;
     const country_code_from_ai = normalizeCountryCode(parsed?.geo?.country_code);
-    const region = normalizeNullableString(parsed?.geo?.region);
+    const region = normalizeNullableString(parsed?.geo?.region) ?? connectorGeoFallback.region;
+    const locality = normalizeNullableString(parsed?.geo?.locality)
+      ?? connectorGeoFallback.locality
+      ?? inferLocalityFromSourceContext({
+        sourceKey: normalizeNullableString(raw.source_key),
+        buyerName: buyer_name,
+        region,
+      });
     const language = normalizeNullableString(parsed?.language) ?? parsed?.language ?? null;
 
     const deadline_at = parsed?.deadline?.deadline_at ?? null;
@@ -349,6 +678,14 @@ export async function extractLightForRawId(
     const evidence = Array.isArray(parsed?.evidence) ? parsed.evidence : [];
 
     const q = mapQualityToDb(parsed?.quality);
+    const compatibilityScores = computeCompatibilityScores({
+      region,
+      locality,
+      budgetValue: null,
+      deadlineAt: deadline_at,
+      buyerName: buyer_name,
+      extractionQuality: q.extraction_quality,
+    });
 
     const fingerprintComputed = await computeFingerprintDeterministic({
       source_key: raw.source_key,
@@ -364,8 +701,21 @@ export async function extractLightForRawId(
       url: raw.url,
       url_canonical: raw.url_canonical,
     });
+    if (!canonical?.id || !canonical?.fingerprint) {
+      throw new Error(`Canonical opportunity not found for raw_id=${raw.id}`);
+    }
     const fingerprintFinal = canonical?.fingerprint || fingerprintComputed;
     const country_code = canonical?.country_code ?? country_code_from_ai;
+    const opportunityId = canonical.id;
+    const sourceId = normalizeNullableString(raw.source_id) || normalizeNullableString(cfg.sourceId);
+    if (!sourceId) {
+      throw new Error(`Missing source_id for raw_id=${raw.id}`);
+    }
+    const geoResolution = await resolveGeoScope(supabase, {
+      countryCode: country_code,
+      region,
+      locality,
+    });
 
     // Normalize snapshot to match canonical DB columns (audit-proof)
     const snapshotNormalized = (() => {
@@ -380,6 +730,11 @@ export async function extractLightForRawId(
         geo: {
           country_code,
           region,
+          locality,
+          geo_country_id: geoResolution.geo_country_id,
+          geo_region_id: geoResolution.geo_region_id,
+          geo_locality_id: geoResolution.geo_locality_id,
+          geo_resolution_confidence: geoResolution.geo_resolution_confidence,
         },
         language,
         deadline: {
@@ -418,6 +773,7 @@ export async function extractLightForRawId(
           sector,
           country_code,
           region,
+          locality,
           language,
 
           deadline_at,
@@ -452,6 +808,63 @@ export async function extractLightForRawId(
 
     if (aiErr || !aiRow) throw new Error(aiErr?.message || "upsert opportunity_ai failed");
 
+    const previousCurrentExtractionIds = await getCurrentExtractionIds(supabase, opportunityId);
+    let extractionId = "";
+    await setExtractionsCurrentState(supabase, previousCurrentExtractionIds, false);
+    try {
+      extractionId = await insertOpportunityExtraction(supabase, {
+        opportunity_id: opportunityId,
+        raw_id: raw.id,
+        agent_run_id: agentRunId,
+        source_id: sourceId,
+        fingerprint: fingerprintFinal,
+        is_backfilled: false,
+        is_current: true,
+        extract_version: extractVersion,
+        model,
+        content_type,
+        buyer_type,
+        buyer_name,
+        sector,
+        country_code,
+        region,
+        locality,
+        geo_country_id: geoResolution.geo_country_id,
+        geo_region_id: geoResolution.geo_region_id,
+        geo_locality_id: geoResolution.geo_locality_id,
+        geo_resolution_confidence: geoResolution.geo_resolution_confidence,
+        language,
+        deadline_at,
+        deadline_tz,
+        deadline_confidence,
+        eligibility: null,
+        required_docs: null,
+        submission: null,
+        budget_value: null,
+        budget_currency: null,
+        budget_confidence: null,
+        risks,
+        summary_10s,
+        extraction_quality: q.extraction_quality,
+        needs_review: q.needs_review,
+        missing_fields: q.missing_fields,
+        signals: q.signals,
+        raw_snapshot: snapshotNormalized,
+        quality_score: compatibilityScores.quality_score,
+        completeness_score: compatibilityScores.completeness_score,
+      });
+    } catch (insertErr) {
+      try {
+        await setExtractionsCurrentState(supabase, previousCurrentExtractionIds, true);
+      } catch (restoreErr) {
+        console.error(
+          "[rp_ai_extract_light] failed to restore previous current extraction rows:",
+          restoreErr instanceof Error ? restoreErr.message : String(restoreErr),
+        );
+      }
+      throw insertErr;
+    }
+
     // Replace evidence rows (delete + insert)
     await supabase.from("opportunity_ai_evidence").delete().eq("ai_id", aiRow.id);
 
@@ -482,20 +895,74 @@ export async function extractLightForRawId(
         .eq("id", runId);
     }
 
-    return { status: "success", ai_id: aiRow.id, fingerprint: aiRow.fingerprint };
+    await updateAgentRun(supabase, agentRunId, {
+      status: "success",
+      source_id: sourceId,
+      raw_id: raw.id,
+      opportunity_id: opportunityId,
+      model,
+      prompt_version: EXTRACT_PROMPT_VERSION,
+      finished_at: nowIso(),
+      duration_ms: Date.now() - started,
+      error_message: null,
+      output_ref: {
+        opportunity_extraction_id: extractionId,
+        opportunity_ai_id: aiRow.id,
+      },
+      meta: {
+        extract_version: extractVersion,
+        compatibility_table: "opportunity_ai",
+        evidence_count: evidence.length,
+      },
+    });
+
+    return {
+      status: "success",
+      ai_id: aiRow.id,
+      fingerprint: aiRow.fingerprint,
+      opportunity_id: opportunityId,
+      agent_run_id: agentRunId ?? undefined,
+      extraction_id: extractionId,
+    };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const originalError = err instanceof Error ? err : new Error(String(err));
+    const msg = originalError.message;
     if (runId) {
-      await supabase
-        .from("rp_ai_runs")
-        .update({
-          status: "error",
-          finished_at: nowIso(),
-          duration_ms: Date.now() - started,
-          error_message: msg,
-        })
-        .eq("id", runId);
+      try {
+        await supabase
+          .from("rp_ai_runs")
+          .update({
+            status: "error",
+            finished_at: nowIso(),
+            duration_ms: Date.now() - started,
+            error_message: msg,
+          })
+          .eq("id", runId);
+      } catch (runUpdateErr) {
+        console.error(
+          "[rp_ai_extract_light] failed to update rp_ai_runs error status:",
+          runUpdateErr instanceof Error ? runUpdateErr.message : String(runUpdateErr),
+        );
+      }
     }
-    throw err;
+    try {
+      await updateAgentRun(supabase, agentRunId, {
+        status: "error",
+        finished_at: nowIso(),
+        duration_ms: Date.now() - started,
+        error_message: msg,
+        output_ref: null,
+        meta: {
+          extract_version: extractVersion,
+          compatibility_table: "opportunity_ai",
+        },
+      });
+    } catch (agentRunUpdateErr) {
+      console.error(
+        "[rp_ai_extract_light] failed to update agent_runs error status:",
+        agentRunUpdateErr instanceof Error ? agentRunUpdateErr.message : String(agentRunUpdateErr),
+      );
+    }
+    throw originalError;
   }
 }

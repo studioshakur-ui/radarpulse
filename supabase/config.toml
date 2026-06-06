@@ -112,6 +112,9 @@ max_indexes = 5
 
 [auth]
 enabled = true
+# BUG-26: this value is for local development only (supabase start).
+# In production, site_url is overridden by the Supabase dashboard:
+# Settings > Authentication > Site URL → set to https://radarpulse.io
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 jwt_expiry = 3600
@@ -214,6 +217,12 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
+# BUG-28: verify_jwt = false is intentional for dispatcher and worker.
+# These functions are invoked by the Supabase cron scheduler which does not
+# attach a user JWT. Both functions perform their own auth check: if a Bearer
+# token IS present in the request, it is validated via auth.getUser(); calls
+# without a token are accepted only from the internal scheduler (service-role
+# context). Do NOT enable verify_jwt here — it would break the cron invocation.
 [functions.dispatcher]
 enabled = true
 verify_jwt = false
@@ -244,12 +253,14 @@ verify_jwt = true
 import_map = "./functions/notify-whatsapp/deno.json"
 entrypoint = "./functions/notify-whatsapp/index.ts"
 
+# Internal AI pipeline — called by worker (service-role), no user session
 [functions.ai-extract-light]
 verify_jwt = false
 
 [functions.ai-extract-light-dev]
 verify_jwt = false
 
+# Admin-only utility — protected by ADMIN_SECRET env var inside the function
 [functions.admin-purge-test-data]
 verify_jwt = false
 
@@ -269,6 +280,7 @@ verify_jwt = true
 import_map = "./functions/stripe-create-checkout/deno.json"
 entrypoint = "./functions/stripe-create-checkout/index.ts"
 
+# Stripe webhook — signed by Stripe HMAC (STRIPE_WEBHOOK_SECRET), not a user JWT
 [functions.stripe-webhook]
 enabled = true
 verify_jwt = false
